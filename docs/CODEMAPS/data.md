@@ -76,8 +76,10 @@
 | `LicenseCodeClaim` | 10 | 3 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
-| `ShiftGroup` | 16 | 3 |
+| `ShiftGroup` | 17 | 3 |
 | `ShiftGroupWorkingCopy` | 15 | 3 |
+| `ScheduleBulkAssignment` | 13 | 3 |
+| `ScheduleBulkAssignmentItem` | 12 | 3 |
 | `Shift` | 14 | 4 |
 | `ShiftAssignment` | 26 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
@@ -384,6 +386,20 @@
 - `MANUAL`
 - `RESERVATION`
 - `AUTO_FILL`
+
+### `ScheduleBulkAssignmentStatus`
+
+- `PENDING`
+- `RELEASED`
+- `PARTIAL`
+- `BLOCKED`
+
+### `ScheduleBulkAssignmentItemStatus`
+
+- `PENDING`
+- `RELEASED`
+- `BLOCKED`
+- `SUPERSEDED`
 
 ### `ShiftTradeStatus`
 

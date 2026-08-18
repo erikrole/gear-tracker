@@ -3,6 +3,13 @@ const CENTRAL_DIRECTORY_HEADER_SIGNATURE = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
 const UTF8_FILENAME_FLAG = 0x0800;
 
+export const SIGNATURE_ZIP_FORMATS = ["png", "svg"] as const;
+export type SignatureZipFormat = (typeof SIGNATURE_ZIP_FORMATS)[number];
+
+export function isSignatureZipFormat(value: string | null): value is SignatureZipFormat {
+  return value === "png" || value === "svg";
+}
+
 export type StoredZipEntry = {
   name: string;
   data: Uint8Array;

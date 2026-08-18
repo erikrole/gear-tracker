@@ -21,7 +21,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Men’s Basketball",
     source: {
       sourceKey: "UW_BADGERS_MBB",
-      parserVersion: "uwbadgers-mbb-v4",
+      parserVersion: "uwbadgers-mbb-v5",
       rosterPath: "/sports/mens-basketball/roster",
       usesStartYearPath: false,
     },
@@ -30,7 +30,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Football",
     source: {
       sourceKey: "UW_BADGERS_FB",
-      parserVersion: "uwbadgers-fb-v1",
+      parserVersion: "uwbadgers-fb-v2",
       rosterPath: "/sports/football/roster",
       usesStartYearPath: true,
     },
@@ -39,7 +39,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Volleyball",
     source: {
       sourceKey: "UW_BADGERS_VB",
-      parserVersion: "uwbadgers-vb-v1",
+      parserVersion: "uwbadgers-vb-v2",
       rosterPath: "/sports/womens-volleyball/roster",
       usesStartYearPath: true,
     },
@@ -48,7 +48,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Men’s Hockey",
     source: {
       sourceKey: "UW_BADGERS_MHKY",
-      parserVersion: "uwbadgers-mhky-v1",
+      parserVersion: "uwbadgers-mhky-v2",
       rosterPath: "/sports/mens-ice-hockey/roster",
       usesStartYearPath: false,
     },
@@ -57,7 +57,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Women’s Hockey",
     source: {
       sourceKey: "UW_BADGERS_WHKY",
-      parserVersion: "uwbadgers-whky-v1",
+      parserVersion: "uwbadgers-whky-v2",
       rosterPath: "/sports/womens-ice-hockey/roster",
       usesStartYearPath: false,
     },
@@ -66,7 +66,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Women’s Basketball",
     source: {
       sourceKey: "UW_BADGERS_WBB",
-      parserVersion: "uwbadgers-wbb-v1",
+      parserVersion: "uwbadgers-wbb-v2",
       rosterPath: "/sports/womens-basketball/roster",
       usesStartYearPath: false,
     },
@@ -75,7 +75,7 @@ export const SIGNATURE_SPORT_REGISTRY = {
     label: "Wrestling",
     source: {
       sourceKey: "UW_BADGERS_WRES",
-      parserVersion: "uwbadgers-wres-v1",
+      parserVersion: "uwbadgers-wres-v2",
       rosterPath: "/sports/wrestling/roster",
       usesStartYearPath: false,
     },
@@ -182,6 +182,9 @@ export const signatureRosterEntrySchema = z.object({
   jerseyNumber: z.number().int().min(0).max(999).nullable(),
   roleGroup: z.enum(SIGNATURE_MEMBER_GROUPS),
   title: z.string().trim().max(160).nullable(),
+  // Older persisted snapshots do not have this field; keeping it optional
+  // makes them replayable while new imports can seed the player profile form.
+  hometown: z.string().trim().max(160).nullable().optional(),
 });
 
 export type SignatureRosterEntry = z.infer<typeof signatureRosterEntrySchema>;

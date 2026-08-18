@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-17
+- Last Updated: 2026-08-18
 - Status: Active
 - Version: V1
 
@@ -177,8 +177,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
-- Add invitations through the shared onboarding dialog with bulk paste, CSV-like `email, role` intake, or one-email intake. STAFF can invite STUDENT only; ADMIN can invite STAFF or STUDENT.
+- Add invitations through the shared onboarding dialog with bulk paste, local CSV upload using the existing `email, role` intake, or one-email intake. STAFF can invite STUDENT only; ADMIN can invite STAFF, STUDENT, or COLLABORATOR.
 - Bulk invite preview groups ready, duplicate, invalid, role-blocked, existing-user, pending-invite, and claimed-invite rows before write. Existing registered or already-invited addresses are visible only to authenticated operators through the preview endpoint; final write responses keep generic skip behavior.
+- When a batch write is not confirmed, the completion panel keeps the attempted rows visible with a retry action. This is transient client recovery; it does not create a persisted failed-invitation status.
 - First-time temporary-password account creation is retired. Operators add allowlist invitations, and users set their own password during email-first app sign-in.
 - Onboarding Status links to `/users/onboarding-status`, where staff/admin can review pending, stale pending, and claimed onboarding access across the allowlist, copy the generic app login link, and remove unclaimed invites before reissuing access.
 - Delete unclaimed entries. Claimed entries preserved (audit trail).
@@ -206,6 +207,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-08-18: **Allowed Emails gained safer batch recovery.** Operators can upload the existing `email, role` CSV shape, and an unconfirmed response now stays visible as a retryable failed-row result instead of collapsing into generic form error copy. Existing persistence, duplicate-skip, and role-boundary contracts are unchanged; broader roster-field CSV support and durable failed status remain open.
 
 - 2026-08-17: **Allowed Emails now hands people to the app login.** Pending invitations are discovered after email entry and route unregistered users into self-chosen password setup on web or native iOS. Status actions copy `/login` instead of row-specific registration links, and the old `/register` route remains only as a compatibility redirect. The allowlist and registration transaction remain authoritative.
 

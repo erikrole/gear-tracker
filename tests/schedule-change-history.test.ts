@@ -184,4 +184,66 @@ describe("getScheduleChangeHistory", () => {
 
     expect(history.events["event-1"]?.items).toEqual([]);
   });
+
+  it("includes private working-copy assignment edits only when the caller opts in", async () => {
+    dbMock.shiftGroup.findMany.mockResolvedValue([
+      {
+        id: "group-1",
+        eventId: "event-1",
+        publishedAt: new Date("2026-07-01T12:00:00Z"),
+        shifts: [],
+      },
+    ]);
+    dbMock.auditLog.findMany.mockResolvedValue([
+      {
+        id: "audit-working-copy",
+        actorUserId: "staff-1",
+        entityType: "shift_group_working_copy",
+        entityId: "group-1",
+        action: "working_schedule_assign",
+        beforeJson: { command: { type: "assign", slotKey: "slot-1", userId: "worker-1" } },
+        afterJson: { changes: { assignmentChanges: 1 }, _actorRole: "STAFF" },
+        createdAt: new Date("2026-07-02T10:00:00Z"),
+        actor: { id: "staff-1", name: "Sam Staff", role: "STAFF" },
+      },
+    ]);
+
+    const history = await getScheduleChangeHistory({
+      eventIds: ["event-1"],
+      limitPerEvent: 5,
+      includeWorkingCopy: true,
+    });
+
+    expect(history.events["event-1"]?.items[0]).toEqual(expect.objectContaining({
+      kind: "assignment_assigned",
+      label: "Assigned worker",
+      detail: "Working copy",
+      actorName: "Sam Staff",
+      target: { type: "shift_group", id: "group-1", label: null },
+    }));
+    expect(dbMock.auditLog.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          expect.objectContaining({
+            entityType: "shift_group_working_copy",
+            entityId: { in: ["group-1"] },
+          }),
+        ]),
+      }),
+    }));
+
+    dbMock.auditLog.findMany.mockResolvedValue([]);
+    const publishedOnly = await getScheduleChangeHistory({
+      eventIds: ["event-1"],
+      limitPerEvent: 5,
+    });
+    const publishedOnlyQuery = dbMock.auditLog.findMany.mock.calls.at(-1)?.[0] as {
+      where: { OR: Array<{ entityType?: string }> };
+    };
+
+    expect(publishedOnly.events["event-1"]?.items).toEqual([]);
+    expect(publishedOnlyQuery.where.OR).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ entityType: "shift_group_working_copy" }),
+    ]));
+  });
 });

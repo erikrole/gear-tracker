@@ -14,7 +14,7 @@ The V1 implementation is deployed through the web, API, schema, artifact, storag
 - External roster members are separate from Gear Tracker users and may have a nullable user link. Creative staff use linked full-time Video/Photo/Graphics accounts as separate signature members with no external snapshot and never live in the MBB collection.
 - UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use sport-specific source URLs and parser labels; Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
 - Required members are active players from the seven supported team rosters; coaching and support staff are imported as optional secondary work. Standalone Creative staff retain their existing default-required behavior; wrestling weight classes are metadata and jersey numbers remain nullable.
-- Private app-managed storage is required. Box signature-file integration, native PencilKit, ZIP export, scheduled roster sync, additional sport adapters beyond the 2026-27 target set, and pressure width are deferred.
+- Private app-managed storage is required. Box signature-file integration, native PencilKit, scheduled roster sync, additional sport adapters beyond the 2026-27 target set, and pressure width are deferred.
 
 ## Source Checks
 
@@ -692,3 +692,83 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - Shipped locally: player captures now hand off to a required website-profile form; roster rows show `Profile needed` until birthday and hometown are present; existing players have an `Edit athlete profile` action. Social handles accept usernames only and are returned without `@` prefixes.
 - Shipped locally: staff/admin profile writes use the Signature permission map, an optimistic collection version, a serializable transaction, and audit metadata that records completion/handle presence without copying profile values.
 - Deferred: this repository does not contain the public athlete website route, so the normalized collection response is the integration contract rather than a new unauthenticated page. Migration application, deployment, authenticated browser proof, and physical iPad acceptance remain open.
+
+## Follow-up: Format-Selectable Signature ZIPs and Isolated-Mark Cleanup — 2026-08-18
+
+### Goal
+
+- Let staff download a collection's current committed football signatures, or any supported collection, as a private ZIP of either PNG or SVG files while preventing tiny accidental corner marks from entering newly rendered stroke artifacts.
+
+### Source Checks
+
+- `SignatureArtifactRevision` stores both immutable private paths, so the export can select the requested format without regenerating or changing a committed artifact.
+- Existing Football backfill revisions are imported Illustrator PNG/SVG pairs and do not retain normalized stroke input. Their source files are not available in this checkout, so corner-mark cleanup must use a reviewed cleaned-source reimport rather than an opaque rewrite of private artifacts.
+
+### Slices
+
+- [x] Add a server-validated `png`/`svg` ZIP format contract and format-aware collision-safe archive filenames.
+- [x] Add PNG/SVG choices to the collection-card Download All submenu.
+- [x] Add conservative isolated-short-stroke cleanup for newly rendered captures, preserving one-point-only signatures and nearby short marks.
+- [x] Add focused export and artifact-cleanup coverage.
+- [x] Run focused tests, TypeScript, lint, app build, and diff checks.
+- [ ] Complete authenticated browser proof for both submenu choices and inspect the downloaded Football PNG ZIP.
+- [ ] Obtain the affected Football source vectors, clean the confirmed corner marks, and run the guarded source-specific reimport if the user wants those existing artifacts corrected.
+
+### Verification
+
+- [x] `npx vitest run tests/signature-capture.test.ts tests/signature-service.test.ts tests/signature-zip.test.ts` (72/72)
+- [x] `npx tsc --noEmit --pretty false`
+- [x] `npx eslint` focused signature files
+- [x] `npm run lint` (0 errors; one pre-existing unused-variable warning in `scripts/backfill-signature-artifacts.ts`)
+- [x] `npm run build:app` (second run completed; first run hit a transient shared `.next` chunk/prerender failure)
+- [ ] Authenticated in-app browser proof for this local change; the available authenticated tab was an existing Production Volleyball detail page, not the local code under test.
+
+### Review
+
+- Shipped locally: `/signatures` collection actions now offer `PNG files` and `SVG files`; the authenticated route validates the query format and exports only current READY private artifacts.
+- Shipped locally: newly generated stroke artifacts drop only tiny marks separated from substantive ink beyond the configured guardrail; a one-point-only signature and a nearby short mark remain intact.
+- Deferred: existing imported Football vectors were not silently rewritten. Cleaned source SVGs or an explicitly approved guarded reimport are required to correct those specific visible artifacts; production promotion and physical iPad acceptance remain separate gates.
+
+## Follow-up: Official Roster Hometown Prefill — 2026-08-18
+
+### Goal
+
+- Make athlete website-profile entry faster by carrying the official UWBadgers player hometown into the profile form while preserving manual correction and browser-native city autofill.
+
+### Source Checks
+
+- The official roster pages expose player `Hometown` text alongside the existing jersey, title, and source-profile metadata.
+- `SignatureMember.hometown` already exists from `0115_signature_athlete_profiles`; no schema or migration change is needed.
+- Existing snapshots may predate the hometown field, so the roster-entry contract must remain backward-compatible and existing manual profile values must not be overwritten during apply.
+
+### Stop Conditions
+
+- Stop if hometown parsing can cross a roster-member boundary, persist staff/ad-hoc profile data, or overwrite a manually entered player value.
+- Stop if old snapshots can no longer be replayed or if the profile form becomes unable to accept a manual hometown.
+
+### Slices
+
+- [x] Add backward-compatible hometown metadata to the roster entry contract and extract it from UWBadgers player roster context.
+- [x] Seed new and blank player `SignatureMember.hometown` values during versioned roster apply without changing non-player profile semantics.
+- [x] Add browser city autofill metadata and truthful helper copy to the shared athlete profile form.
+- [x] Add parser, apply-preservation, backward-compatibility, and source-contract tests.
+- [x] Run TypeScript, focused lint, app build, docs verification, and diff checks; record the unrelated Schedule `source` type errors that block TypeScript/build.
+- [ ] Re-run a reviewed roster Preview/Apply for existing collections that should receive the newly parsed hometown values.
+
+### Verification
+
+- [x] `npx vitest run tests/signature-capture.test.ts tests/signature-service.test.ts` (68/68).
+- [ ] `npx tsc --noEmit --pretty false` (blocked by unrelated missing `source` fields in dirty Schedule working-copy fixtures: `src/lib/schedule-working-copy.ts:374` and matching Schedule tests).
+- [x] Focused ESLint on the touched Signature/form/test files.
+- [x] Full repository lint: `npm run lint -- --quiet`.
+- [ ] `npm run build:app` (compilation succeeded, then the same unrelated Schedule `source` type error stopped the build).
+- [x] `npm run codemap` followed by `npm run verify:docs` (codemaps current).
+- [x] `git diff --check`.
+- [ ] Authenticated browser proof for a prefilled roster value and a manual override; current acceptance remains separate from source/build proof.
+
+### Review
+
+- Shipped locally: versioned UWBadgers roster entries now carry player hometowns, roster apply preserves manual values while seeding blank fields, and the shared form opts into native browser city autofill without removing free-text editing.
+- Verified: focused parser/service/form contract tests pass 68/68; focused lint, codemap/docs verification, and diff checks pass.
+- Blocked: authenticated local browser proof could not run because the in-app browser rejected both local route forms and the Preview launcher could not resolve the Vercel registry wrapper.
+- Deferred: existing collections need a reviewed Preview/Apply to populate hometowns from a newly fetched source; authenticated browser proof, TypeScript, build, and production promotion remain open.

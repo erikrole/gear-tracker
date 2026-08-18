@@ -28,7 +28,7 @@ export function ProfileCompletionNotice() {
   if (data.completion.isComplete) return null;
 
   return (
-    <Alert className="mb-4 hidden border-[var(--orange)]/50 bg-[var(--orange-bg)] md:block">
+    <Alert className="mb-4 border-[var(--orange)]/50 bg-[var(--orange-bg)]">
       <AlertCircleIcon />
       <AlertTitle>Complete your profile</AlertTitle>
       <AlertDescription className="flex flex-col gap-3">

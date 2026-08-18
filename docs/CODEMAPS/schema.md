@@ -1806,6 +1806,14 @@ Values: `DIRECT_ASSIGNED`, `REQUESTED`, `APPROVED`, `DECLINED`, `SWAPPED`
 
 Values: `MANUAL`, `RESERVATION`, `AUTO_FILL`
 
+## Enum `ScheduleBulkAssignmentStatus`
+
+Values: `PENDING`, `RELEASED`, `PARTIAL`, `BLOCKED`
+
+## Enum `ScheduleBulkAssignmentItemStatus`
+
+Values: `PENDING`, `RELEASED`, `BLOCKED`, `SUPERSEDED`
+
 ## Enum `ShiftTradeStatus`
 
 Values: `OPEN`, `CLAIMED`, `APPROVED`, `COMPLETED`, `CANCELLED`
@@ -1851,7 +1859,7 @@ Indexes and constraints:
 
 ## Model `ShiftGroup`
 
-Fields: 16
+Fields: 17
 
 - `id                    String                 @id @default(cuid())`
 - `eventId               String                 @unique @map("event_id")`
@@ -1869,6 +1877,7 @@ Fields: 16
 - `publishedBy           User?                  @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
 - `shifts                Shift[]`
 - `workingCopy           ShiftGroupWorkingCopy?`
+- `bulkAssignmentItems   ScheduleBulkAssignmentItem[]`
 
 Indexes and constraints:
 
@@ -1901,6 +1910,53 @@ Indexes and constraints:
 - `@@index([updatedById, updatedAt])`
 - `@@index([autoReleaseAt])`
 - `@@map("shift_group_working_copies")`
+
+## Model `ScheduleBulkAssignment`
+
+Fields: 13
+
+- `id                    String                         @id @default(cuid())`
+- `createdById           String                         @map("created_by_id")`
+- `sportCode             String?                        @map("sport_code")`
+- `rangeStartsAt         DateTime                       @map("range_starts_at")`
+- `rangeEndsAt           DateTime                       @map("range_ends_at")`
+- `area                  ShiftArea?`
+- `previewFingerprint    String                         @map("preview_fingerprint")`
+- `releaseAt             DateTime                       @map("release_at")`
+- `status                ScheduleBulkAssignmentStatus  @default(PENDING)`
+- `notificationSentAt    DateTime?                     @map("notification_sent_at")`
+- `createdAt             DateTime                       @default(now()) @map("created_at")`
+- `updatedAt             DateTime                       @updatedAt @map("updated_at")`
+- `items                 ScheduleBulkAssignmentItem[]`
+
+Indexes and constraints:
+
+- `@@index([createdById, createdAt])`
+- `@@index([status, releaseAt])`
+- `@@map("schedule_bulk_assignments")`
+
+## Model `ScheduleBulkAssignmentItem`
+
+Fields: 12
+
+- `id                    String                              @id @default(cuid())`
+- `bulkAssignmentId      String                              @map("bulk_assignment_id")`
+- `shiftGroupId          String                              @map("shift_group_id")`
+- `expectedVersion       Int                                 @map("expected_version")`
+- `proposalPayload       Json                                @map("proposal_payload")`
+- `status                ScheduleBulkAssignmentItemStatus   @default(PENDING)`
+- `releasedVersion       Int?                                @map("released_version")`
+- `error                 String?`
+- `createdAt             DateTime                            @default(now()) @map("created_at")`
+- `updatedAt             DateTime                            @updatedAt @map("updated_at")`
+- `bulkAssignment        ScheduleBulkAssignment              @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)`
+- `shiftGroup            ShiftGroup                          @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([bulkAssignmentId, shiftGroupId])`
+- `@@index([shiftGroupId, status])`
+- `@@map("schedule_bulk_assignment_items")`
 
 ## Model `Shift`
 

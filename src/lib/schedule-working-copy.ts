@@ -1,10 +1,11 @@
-import { ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { ShiftArea, ShiftAssignmentSource, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
 
 const isoDate = z.string().datetime({ offset: true });
 
 export const workingAssignmentSchema = z.object({
   sourceAssignmentId: z.string().min(1).nullable(),
+  source: z.nativeEnum(ShiftAssignmentSource).optional(),
   userId: z.string().min(1),
   status: z.enum(["DIRECT_ASSIGNED", "APPROVED"]),
   callStartsAt: isoDate.nullable(),

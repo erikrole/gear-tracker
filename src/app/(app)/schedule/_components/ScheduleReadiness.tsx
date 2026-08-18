@@ -12,6 +12,7 @@ import {
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import {
   OperationalStatusRail,
@@ -19,7 +20,7 @@ import {
 } from "@/components/OperationalStatusRail";
 import EmptyState from "@/components/EmptyState";
 import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
-import type { ScheduleChangeKind } from "@/lib/schedule-change-history-types";
+import type { ScheduleChangeItem, ScheduleChangeKind } from "@/lib/schedule-change-history-types";
 import type { ScheduleSourceSignal } from "@/lib/calendar-source-freshness";
 import type { ScheduleQueue } from "@/lib/schedule-queues";
 import { filterEntriesForScheduleQueue } from "@/lib/schedule-queues";
@@ -28,6 +29,10 @@ import type { CalendarEntry } from "./types";
 import { ACTIVE_STATUSES } from "./types";
 import { ScheduleAutomationCards } from "./ScheduleAutomationDigest";
 import { ScheduleSourceSignal as ScheduleSourceStatus } from "./ScheduleSourceSignal";
+import {
+  ScheduleChangePreview,
+  type ScheduleChangePreviewFilter,
+} from "./ScheduleChangePreview";
 
 type ScheduleReadinessProps = {
   entries: CalendarEntry[];
@@ -109,6 +114,14 @@ function recentActivityCount(health: ScheduleHealthSnapshot | null, kinds: Set<S
   }, 0);
 }
 
+function recentActivityItems(health: ScheduleHealthSnapshot | null): ScheduleChangeItem[] {
+  if (!health) return [];
+  const cutoff = Date.now() - DAILY_ACTIVITY_WINDOW_MS;
+  return Object.values(health.changeHistory.events)
+    .flatMap((summary) => summary.items)
+    .filter((item) => Date.parse(item.createdAt) >= cutoff);
+}
+
 export function ScheduleReadiness({
   entries,
   filteredEntries,
@@ -121,6 +134,7 @@ export function ScheduleReadiness({
   onShowQueue,
   onOpenTradeBoard,
 }: ScheduleReadinessProps) {
+  const [previewFilter, setPreviewFilter] = useState<ScheduleChangePreviewFilter | null>(null);
   const fallbackOpenSlots = filteredEntries.reduce((sum, entry) => sum + missingSlots(entry), 0);
   const fallbackNeedsCoverageEvents = filteredEntries.filter((entry) => missingSlots(entry) > 0).length;
   const fallbackCoveredEvents = filteredEntries.filter(
@@ -147,6 +161,7 @@ export function ScheduleReadiness({
   const openTrades = health?.queues.openTrades.count ?? openTradeCount;
   const recentCalendarChanges = recentActivityCount(health, CALENDAR_ACTIVITY_KINDS);
   const recentAssigneeChanges = recentActivityCount(health, ASSIGNEE_ACTIVITY_KINDS);
+  const recentChanges = recentActivityItems(health);
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
   const hiddenAndArchivedCount = (health?.queues.hiddenEvents.count ?? 0) + (health?.queues.archivedEvents.count ?? 0);
   const healthWarnings = health?.partialFailures.length ?? 0;
@@ -160,6 +175,7 @@ export function ScheduleReadiness({
         : "No changes in the last 24 hours",
       icon: CalendarDaysIcon,
       tone: recentCalendarChanges > 0 ? "good" : "neutral",
+      onClick: recentCalendarChanges > 0 ? () => setPreviewFilter("calendar") : undefined,
     },
     {
       label: "Assignee changes",
@@ -169,6 +185,7 @@ export function ScheduleReadiness({
         : "No changes in the last 24 hours",
       icon: UsersIcon,
       tone: recentAssigneeChanges > 0 ? "good" : "neutral",
+      onClick: recentAssigneeChanges > 0 ? () => setPreviewFilter("assignee") : undefined,
     },
     {
       label: "Crew needed",
@@ -302,50 +319,61 @@ export function ScheduleReadiness({
   }));
 
   return (
-    <OperationalStatusRail
-      className="mb-3"
-      items={railItems}
-      allClearLabel={attentionItems.length === 0 && healthWarnings === 0 ? "No recent schedule activity" : undefined}
-      notice={filtersHideEverything ? (
-        <EmptyState
-          icon="calendar"
-          title="Filters hide every event"
-          description="Adjust or clear the schedule filters to see events again."
-          inline
-        />
-      ) : undefined}
-      details={(
-        <>
-            {sourceSignal && (
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Schedule sources</span>
-                <ScheduleSourceStatus signal={sourceSignal} />
+    <>
+      <OperationalStatusRail
+        className="mb-3"
+        items={railItems}
+        allClearLabel={attentionItems.length === 0 && healthWarnings === 0 ? "No recent schedule activity" : undefined}
+        notice={filtersHideEverything ? (
+          <EmptyState
+            icon="calendar"
+            title="Filters hide every event"
+            description="Adjust or clear the schedule filters to see events again."
+            inline
+          />
+        ) : undefined}
+        details={(
+          <>
+              {sourceSignal && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Schedule sources</span>
+                  <ScheduleSourceStatus signal={sourceSignal} />
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {detailItems.map((item) => (
+                  <OperationalMetricCard
+                    key={item.label}
+                    label={item.label}
+                    value={item.value}
+                    tone={METRIC_TONE[item.tone]}
+                    helper={item.detail}
+                    href={item.href}
+                    onClick={item.onClick}
+                  />
+                ))}
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-              {detailItems.map((item) => (
-                <OperationalMetricCard
-                  key={item.label}
-                  label={item.label}
-                  value={item.value}
-                  tone={METRIC_TONE[item.tone]}
-                  helper={item.detail}
-                  href={item.href}
-                  onClick={item.onClick}
-                />
-              ))}
-            </div>
 
-            {isStaff && digest && (
-              <ScheduleAutomationCards
-                digest={digest}
-                onShowQueue={onShowQueue}
-                onOpenTradeBoard={onOpenTradeBoard}
-                className="mt-3 border-t border-border/60 pt-3"
-              />
-            )}
-        </>
-      )}
-    />
+              {isStaff && digest && (
+                <ScheduleAutomationCards
+                  digest={digest}
+                  onShowQueue={onShowQueue}
+                  onOpenTradeBoard={onOpenTradeBoard}
+                  className="mt-3 border-t border-border/60 pt-3"
+                />
+              )}
+          </>
+        )}
+      />
+      <ScheduleChangePreview
+        entries={entries}
+        filter={previewFilter ?? "assignee"}
+        items={recentChanges}
+        onOpenChange={(open) => {
+          if (!open) setPreviewFilter(null);
+        }}
+        open={previewFilter !== null}
+      />
+    </>
   );
 }

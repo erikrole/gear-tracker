@@ -2,12 +2,14 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
+import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { loadUserPrefs, normalizePrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import {
   categoryForScheduleNotificationType,
   scheduleNotificationPayload,
+  scheduleMyShiftsNotificationPayload,
   shouldNotifyGearPrep,
   shouldNotifyWorkerForScheduleEvent,
   type GearPrepNotificationSource,
@@ -965,6 +967,119 @@ export async function createPublishedShiftGroupNotifications(shiftGroupId: strin
       }
     }),
   );
+}
+
+type BulkAssignmentProposalRecord = { shiftId: string; userId: string };
+
+function parseBulkAssignmentProposals(value: unknown): BulkAssignmentProposalRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const proposal = item as { shiftId?: unknown; userId?: unknown };
+    return typeof proposal.shiftId === "string" && typeof proposal.userId === "string"
+      ? [{ shiftId: proposal.shiftId, userId: proposal.userId }]
+      : [];
+  });
+}
+
+/**
+ * A bulk release publishes many event schedules at once. Keep the worker
+ * experience to one inbox row, one push, and one email for the whole batch.
+ */
+export async function createBulkScheduleAssignmentNotifications(batchId: string): Promise<void> {
+  const batch = await db.scheduleBulkAssignment.findUnique({
+    where: { id: batchId },
+    select: {
+      id: true,
+      sportCode: true,
+      rangeStartsAt: true,
+      rangeEndsAt: true,
+      items: {
+        where: { status: "RELEASED" },
+        select: { shiftGroupId: true, proposalPayload: true },
+      },
+    },
+  });
+  if (!batch) return;
+
+  const pairs = batch.items.flatMap((item) => parseBulkAssignmentProposals(item.proposalPayload).map((proposal) => ({
+    ...proposal,
+    shiftGroupId: item.shiftGroupId,
+  })));
+  const uniquePairs = [...new Map(pairs.map((pair) => [`${pair.shiftId}:${pair.userId}`, pair])).values()];
+  if (uniquePairs.length === 0) return;
+
+  const assignments = await db.shiftAssignment.findMany({
+    where: {
+      status: { in: ACTIVE_ASSIGNMENT_STATUSES },
+      OR: uniquePairs.map(({ shiftId, userId }) => ({ shiftId, userId })),
+    },
+    select: {
+      shiftId: true,
+      userId: true,
+      user: { select: { email: true } },
+      shift: { select: { shiftGroupId: true } },
+    },
+  });
+
+  const byUser = new Map<string, { email: string | null; shiftIds: Set<string>; eventIds: Set<string> }>();
+  for (const assignment of assignments) {
+    const current = byUser.get(assignment.userId) ?? {
+      email: assignment.user.email,
+      shiftIds: new Set<string>(),
+      eventIds: new Set<string>(),
+    };
+    current.shiftIds.add(assignment.shiftId);
+    current.eventIds.add(assignment.shift.shiftGroupId);
+    byUser.set(assignment.userId, current);
+  }
+
+  const body = "Click to review your upcoming shifts";
+  await Promise.allSettled([...byUser.entries()].map(async ([userId, assignment]) => {
+    const count = assignment.shiftIds.size;
+    const title = `You were assigned ${count} ${count === 1 ? "shift" : "shifts"}`;
+    const payload = scheduleMyShiftsNotificationPayload({
+      rangeStartsAt: batch.rangeStartsAt,
+      rangeEndsAt: batch.rangeEndsAt,
+      sportCode: batch.sportCode,
+      extra: {
+        bulkAssignmentId: batch.id,
+        shiftCount: count,
+        eventCount: assignment.eventIds.size,
+      },
+    });
+    const dedupeKey = `schedule_bulk_assignment:${batch.id}:${userId}`;
+    try {
+      await db.notification.create({
+        data: {
+          userId,
+          type: "shift_schedule_bulk_assigned",
+          title,
+          body,
+          payload,
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey,
+        },
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
+      throw error;
+    }
+
+    deferPush(sendPushToUser(userId, { title, body, payload, category: "schedule" }));
+    if (assignment.email) {
+      await sendEmailToUser(userId, {
+        to: assignment.email,
+        subject: title,
+        html: buildNotificationEmail({
+          title,
+          body,
+          bookingTitle: batch.sportCode ? `${batch.sportCode} schedule` : "Upcoming shifts",
+        }),
+      }, "schedule");
+    }
+  }));
 }
 
 export async function notifyPublishedShiftGroupWorkers(

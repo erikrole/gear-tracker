@@ -848,6 +848,7 @@ export async function publishShiftGroup(
               shiftId,
               userId: user.id,
               status: "DIRECT_ASSIGNED",
+              source: assignment.source ?? "MANUAL",
               assignedBy: actorId,
               callStartsAt: slot.workerType === "ST" && assignment.callStartsAt ? new Date(assignment.callStartsAt) : null,
               callEndsAt: slot.workerType === "ST" && assignment.callEndsAt ? new Date(assignment.callEndsAt) : null,

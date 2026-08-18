@@ -22,7 +22,7 @@ export type CandidateScoringShift = {
   sportCode?: string | null;
 };
 
-type CandidateScoringAssignment = {
+export type CandidateScoringAssignment = {
   id: string;
   status: ShiftAssignmentStatus;
   callStartsAt?: Date | null;
@@ -40,6 +40,8 @@ type CandidateScoringAssignment = {
 
 export type CandidateScoringUser = {
   id: string;
+  name?: string;
+  email?: string | null;
   role: Role;
   staffingType: ShiftWorkerType;
   primaryArea?: ShiftArea | null;
@@ -318,11 +320,35 @@ export async function getCandidateScoresForTarget(
   opts: { now?: Date } = {},
 ) {
   const targetWindow = effectiveWindow(shift);
+  const candidates = await loadCandidateScoringUsersForRange({
+    startsAt: targetWindow.startsAt,
+    endsAt: targetWindow.endsAt,
+  });
+
+  return scoreCandidatesForShift({
+    shift,
+    candidates,
+    now: opts.now,
+  });
+}
+
+/**
+ * Load the candidate snapshot once for a bounded scheduling window. Bulk
+ * preview uses this instead of querying users and assignments once per slot.
+ */
+export async function loadCandidateScoringUsersForRange(args: {
+  startsAt: Date;
+  endsAt: Date;
+}) {
+  const recentStart = addDays(args.startsAt, -RECENT_LOOKBACK_DAYS);
+  const futureEnd = addDays(args.endsAt, FUTURE_LOOKAHEAD_DAYS);
   const users = await db.user.findMany({
     where: visibleActiveUserWhere(),
     orderBy: { name: "asc" },
     select: {
       id: true,
+      name: true,
+      email: true,
       role: true,
       staffingType: true,
       primaryArea: true,
@@ -347,8 +373,6 @@ export async function getCandidateScoresForTarget(
   });
 
   const userIds = users.map((user) => user.id);
-  const recentStart = addDays(targetWindow.startsAt, -RECENT_LOOKBACK_DAYS);
-  const futureEnd = addDays(targetWindow.startsAt, FUTURE_LOOKAHEAD_DAYS);
   const assignments = userIds.length === 0
     ? []
     : await db.shiftAssignment.findMany({
@@ -394,6 +418,8 @@ export async function getCandidateScoresForTarget(
 
   const candidates: CandidateScoringUser[] = users.map((user) => ({
     id: user.id,
+    name: user.name,
+    email: user.email,
     role: user.role,
     staffingType: user.staffingType,
     primaryArea: user.primaryArea,
@@ -403,11 +429,7 @@ export async function getCandidateScoresForTarget(
     assignments: assignmentsByUser.get(user.id) ?? [],
   }));
 
-  return scoreCandidatesForShift({
-    shift,
-    candidates,
-    now: opts.now,
-  });
+  return candidates;
 }
 
 export type CandidateScoresQuery = Prisma.PromiseReturnType<typeof getCandidateScoresForShift>;

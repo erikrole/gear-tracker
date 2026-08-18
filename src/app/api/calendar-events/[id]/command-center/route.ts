@@ -55,7 +55,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       },
       take: 500,
     }),
-    getScheduleChangeHistory({ eventIds: [eventId], limitPerEvent: 8 }),
+    getScheduleChangeHistory({ eventIds: [eventId], limitPerEvent: 8, includeWorkingCopy: true }),
   ]);
 
   if (!shiftGroup) {

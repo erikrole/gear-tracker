@@ -11,7 +11,12 @@ describe("onboarding dialog source wiring", () => {
     expect(source).toContain("already allowlisted or registered");
     expect(source).toContain("Users set their own password the first time they sign in.");
     expect(source).toContain("No shared first-login password is created.");
-    expect(source).toContain('className="border-[var(--green)]/40 bg-[var(--green-bg)]"');
+    expect(source).toContain("Upload CSV");
+    expect(source).toContain('accept=".csv,text/csv"');
+    expect(source).toContain("Retry failed invitations");
+    expect(source).toContain("failedRows");
+    expect(source).toContain('label="Failed"');
+    expect(source).toContain("border-[var(--green)]/40 bg-[var(--green-bg)]");
     expect(source).not.toContain("border-green-200 bg-green-50");
     expect(source).not.toContain("Temporary password");
     expect(source).not.toContain("temporaryPassword");

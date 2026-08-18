@@ -39,7 +39,7 @@ import {
   uploadPrivateSignatureArtifact,
 } from "@/lib/signatures/storage";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
-import { createStoredZip, type StoredZipEntry } from "@/lib/signatures/zip";
+import { createStoredZip, type SignatureZipFormat, type StoredZipEntry } from "@/lib/signatures/zip";
 
 const signatureJson = (value: unknown) => value as Prisma.InputJsonValue;
 
@@ -657,7 +657,7 @@ export async function applySignatureRosterSnapshot(input: {
     }
     const existing = await tx.signatureMember.findMany({
       where: { collectionId: snapshot.collectionId },
-      select: { id: true, sourceExternalId: true, required: true, roleGroup: true },
+      select: { id: true, sourceExternalId: true, required: true, roleGroup: true, hometown: true },
     });
     const existingBySource = new Map(existing.map((member) => [member.sourceExternalId, member]));
 
@@ -674,6 +674,9 @@ export async function applySignatureRosterSnapshot(input: {
             jerseyNumber: entry.jerseyNumber,
             roleGroup: entry.roleGroup as SignatureMemberGroup,
             title: entry.title,
+            hometown: entry.roleGroup === SignatureMemberGroup.PLAYER
+              ? existingMember.hometown ?? entry.hometown ?? null
+              : null,
             // Players always require a signature. Preserve an admin's
             // readiness decision for unchanged non-player groups.
             required: entry.roleGroup === SignatureMemberGroup.PLAYER
@@ -698,10 +701,11 @@ export async function applySignatureRosterSnapshot(input: {
             jerseyNumber: entry.jerseyNumber,
             roleGroup: entry.roleGroup as SignatureMemberGroup,
             title: entry.title,
+            hometown: entry.roleGroup === SignatureMemberGroup.PLAYER ? entry.hometown ?? null : null,
             required: isRequiredSignatureGroup(entry.roleGroup),
           },
         });
-        existingBySource.set(entry.sourceExternalId, { id: member.id, sourceExternalId: member.sourceExternalId, required: member.required, roleGroup: member.roleGroup });
+        existingBySource.set(entry.sourceExternalId, { id: member.id, sourceExternalId: member.sourceExternalId, required: member.required, roleGroup: member.roleGroup, hometown: entry.roleGroup === SignatureMemberGroup.PLAYER ? entry.hometown ?? null : null });
       }
     }
 
@@ -1589,26 +1593,26 @@ export function signatureArtifactFilename(name: string, kind: "png" | "svg", rev
   return signer ? `${signer}-signature${version}.${kind}` : `signature${version}.${kind}`;
 }
 
-function signatureCollectionArchiveFilename(sportCode: string, season: string) {
+function signatureCollectionArchiveFilename(sportCode: string, season: string, format: SignatureZipFormat) {
   const name = `${sportCode}-${season}-signatures`
     .replace(/[^a-z0-9]+/gi, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase();
-  return `${name || "signatures"}.zip`;
+  return `${name || "signatures"}-${format}.zip`;
 }
 
-function uniqueSignatureSvgFilename(name: string, usedNames: Set<string>) {
-  const initial = signatureArtifactFilename(name, "svg");
+function uniqueSignatureFilename(name: string, format: SignatureZipFormat, usedNames: Set<string>) {
+  const initial = signatureArtifactFilename(name, format);
   if (!usedNames.has(initial)) {
     usedNames.add(initial);
     return initial;
   }
-  const stem = initial.slice(0, -4);
+  const stem = initial.slice(0, -(format.length + 1));
   let suffix = 2;
-  let candidate = `${stem}-${suffix}.svg`;
+  let candidate = `${stem}-${suffix}.${format}`;
   while (usedNames.has(candidate)) {
     suffix += 1;
-    candidate = `${stem}-${suffix}.svg`;
+    candidate = `${stem}-${suffix}.${format}`;
   }
   usedNames.add(candidate);
   return candidate;
@@ -1623,7 +1627,7 @@ async function readSignatureZipEntry(entry: { name: string; path: string }): Pro
   };
 }
 
-export async function getSignatureCollectionZip(collectionId: string) {
+export async function getSignatureCollectionZip(collectionId: string, format: SignatureZipFormat = "svg") {
   const collection = await db.signatureCollection.findUnique({
     where: { id: collectionId },
     select: {
@@ -1638,7 +1642,7 @@ export async function getSignatureCollectionZip(collectionId: string) {
           linkedUserId: true,
           capture: {
             select: {
-              currentRevision: { select: { state: true, svgPath: true } },
+              currentRevision: { select: { state: true, pngPath: true, svgPath: true } },
             },
           },
         },
@@ -1657,12 +1661,12 @@ export async function getSignatureCollectionZip(collectionId: string) {
     },
     select: {
       member: { select: { linkedUserId: true } },
-      currentRevision: { select: { state: true, svgPath: true } },
+      currentRevision: { select: { state: true, pngPath: true, svgPath: true } },
     },
   });
   const canonicalByUserId = new Map(canonicalCaptures
     .filter((capture) => capture.member.linkedUserId && capture.currentRevision?.state === SignatureArtifactState.READY)
-    .map((capture) => [capture.member.linkedUserId as string, capture.currentRevision as { state: SignatureArtifactState; svgPath: string }]));
+    .map((capture) => [capture.member.linkedUserId as string, capture.currentRevision as { state: SignatureArtifactState; pngPath: string; svgPath: string }]));
 
   const usedNames = new Set<string>();
   const fileEntries = members
@@ -1672,13 +1676,13 @@ export async function getSignatureCollectionZip(collectionId: string) {
         : member.capture?.currentRevision;
       if (!revision || revision.state !== SignatureArtifactState.READY) return null;
       return {
-        name: uniqueSignatureSvgFilename(member.name, usedNames),
-        path: revision.svgPath,
+        name: uniqueSignatureFilename(member.name, format, usedNames),
+        path: format === "png" ? revision.pngPath : revision.svgPath,
       };
     })
     .filter((entry): entry is { name: string; path: string } => entry !== null);
 
-  if (fileEntries.length === 0) throw new HttpError(404, "No committed SVG signatures are available for this roster");
+  if (fileEntries.length === 0) throw new HttpError(404, `No committed ${format.toUpperCase()} signatures are available for this roster`);
   if (fileEntries.length > SIGNATURE_ZIP_MAX_ENTRIES) throw new HttpError(413, "This roster is too large to export as one ZIP");
 
   const zipEntries: StoredZipEntry[] = new Array(fileEntries.length);
@@ -1699,7 +1703,7 @@ export async function getSignatureCollectionZip(collectionId: string) {
   if (totalBytes > SIGNATURE_ZIP_MAX_BYTES) throw new HttpError(413, "The signature export is too large to download as one ZIP");
 
   return {
-    filename: signatureCollectionArchiveFilename(collection.sportCode, collection.season),
+    filename: signatureCollectionArchiveFilename(collection.sportCode, collection.season, format),
     body: createStoredZip(zipEntries),
     fileCount: zipEntries.length,
   };

@@ -58,6 +58,7 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
 
   it("keeps readiness cards and Schedule queues URL-backed", () => {
     const readiness = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
+    const changePreview = source("src/app/(app)/schedule/_components/ScheduleChangePreview.tsx");
     const hook = source("src/hooks/use-schedule-data.ts");
     const page = source("src/app/(app)/schedule/page.tsx");
 
@@ -78,6 +79,10 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     expect(hook).toContain('params.set("queue", queue)');
     expect(hook).toContain("filterEntriesForScheduleQueue");
     expect(page).toContain('initialStatusFilter={data.filters.queue === "trade-approval" ? "CLAIMED" : undefined}');
+    expect(readiness).toContain("<ScheduleChangePreview");
+    expect(readiness).toContain('setPreviewFilter("assignee")');
+    expect(changePreview).toContain("Open event");
+    expect(changePreview).toContain("Working copy");
   });
 
   it("keeps automation review cards read-only and routed to existing work surfaces", () => {
@@ -134,10 +139,12 @@ describe("schedule source-of-truth and browser smoke contracts", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
+    const release = source("src/lib/schedule-release.ts");
     const releaseRoute = source("src/app/api/shift-groups/[id]/publish/route.ts");
     const tradeBoard = source("src/components/TradeBoard.tsx");
 
-    expect(editor).toContain("Assignees notified in");
+    expect(editor).toContain("formatScheduleReleaseCountdown");
+    expect(release).toContain("notified in");
     expect(editor).not.toContain("Pending changes");
     expect(editor).not.toContain("Releases at");
     expect(editor).toContain("Revert changes");

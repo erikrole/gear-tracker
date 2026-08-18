@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-15
+Last updated: 2026-08-18
 
 ## Start Here
 
@@ -74,6 +74,8 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-08-18/schedule-activity-counts-plan.md` - restored audit-backed Schedule activity counts for imported calendar and staff working-copy changes while preserving the worker-facing release boundary.
+- `archive/completed-2026-08-18/schedule-activity-preview-plan.md` - made audit-backed Schedule activity counts actionable through read-only previews linked to Event detail.
 - `archive/completed-2026-08-12/ios-launch-splash-loading-polish-plan.md` - unified the native system launch, restore state, and identity-first Login around one branded surface while preserving session and auth authority.
 - `archive/completed-2026-08-07/personal-calendar-all-day-export-fix-plan.md` - corrected private worker ICS feeds so inherited all-day assignments use date-only boundaries while explicit Student call windows remain timed.
 - `archive/completed-2026-08-07/booking-api-hardening-plan.md` - closed booking

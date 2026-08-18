@@ -24,6 +24,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { formatTimeShort } from "@/lib/format";
+import { formatScheduleReleaseCountdown } from "@/lib/schedule-release";
 import type { WorkingScheduleCommand, WorkingSchedulePayload } from "@/lib/schedule-working-copy";
 import type { CandidateRecommendation } from "@/lib/candidate-scoring-types";
 import { cn } from "@/lib/utils";
@@ -40,11 +41,7 @@ import type { CalendarEntry } from "./types";
 import { AREA_LABELS } from "./types";
 
 function formatNotificationCountdown(iso: string, now = Date.now()) {
-  const releaseAt = new Date(iso).getTime();
-  if (!Number.isFinite(releaseAt)) return "Assignees notified after this change is released";
-  const minutes = Math.ceil((releaseAt - now) / 60_000);
-  if (minutes <= 0) return "Assignees notified now";
-  return `Assignees notified in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return formatScheduleReleaseCountdown(iso, now, "Assignees");
 }
 
 type EditorData = {

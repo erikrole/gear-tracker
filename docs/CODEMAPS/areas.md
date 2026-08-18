@@ -121,7 +121,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/reports/audit`, `/reports/badges`, `/reports/bulk-losses`, `/reports/checkouts`, `/reports/overdue`, `/reports`, `/reports/scans`, `/reports/usage`
 - APIs: `/api/audit/export`, `/api/audit/last`, `/api/audit`, `/api/bookings/[id]/audit-logs`, `/api/cron/audit-archive`, `/api/location-mappings/audit`, `/api/reports/audit`, `/api/reports/badges`, `/api/reports/bulk-losses`, `/api/reports/checkouts`
 - Services: `src/lib/services/reports.ts`
-- Tests: `tests/audit-archive-cron.test.ts`, `tests/audit-helper.test.ts`, `tests/audit-last-route.test.ts`, `tests/booking-audit-history-recovery.test.ts`, `tests/ios-audit-inventory.test.ts`, `tests/ios-reports-resilience.test.ts`, `tests/reports-audit-export-route.test.ts`, `tests/reports-partial-failures.test.ts`
+- Tests: `tests/audit-archive-cron.test.ts`, `tests/audit-helper.test.ts`, `tests/audit-last-route.test.ts`, `tests/booking-audit-history-recovery.test.ts`, `tests/calendar-sync-audit.test.ts`, `tests/ios-audit-inventory.test.ts`, `tests/ios-reports-resilience.test.ts`, `tests/reports-audit-export-route.test.ts`
 
 ## reservations
 
@@ -168,7 +168,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Doc: `docs/AREA_SHIFTS.md`
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`, `/api/settings/non-game-schedule`, `/api/shift-assignments/[id]/acknowledge`
-- Services: `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`
+- Services: `src/lib/services/bulk-schedule-assignment.ts`, `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`
 - Tests: `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-edit-times-post-trade-redesign.test.ts`, `tests/ios-schedule-filters-calendar-management-redesign.test.ts`
 
 ## signatures

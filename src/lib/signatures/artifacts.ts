@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import sharp from "sharp";
-import { computeSignatureCropBounds, normalizeSignatureStrokes, signaturePathData } from "./geometry";
+import { computeSignatureCropBounds, normalizeSignatureStrokes, removeAccidentalSignatureStrokes, signaturePathData } from "./geometry";
 import { penSettingsSchema, type SignaturePenSettings, type SignatureStroke } from "./types";
 
 export type SignatureArtifactBundle = {
@@ -30,7 +30,7 @@ export function buildSignatureSvg(
   settingsInput: SignaturePenSettings,
 ): { svg: string; width: number; height: number; cropBounds: ReturnType<typeof computeSignatureCropBounds> } {
   const settings = penSettingsSchema.parse(settingsInput);
-  const normalized = normalizeSignatureStrokes(strokes);
+  const normalized = removeAccidentalSignatureStrokes(normalizeSignatureStrokes(strokes), settings);
   const cropBounds = computeSignatureCropBounds(normalized, settings);
   const paths = normalized
     .map((stroke) => `<path d="${signaturePathData(stroke, cropBounds)}"/>`)

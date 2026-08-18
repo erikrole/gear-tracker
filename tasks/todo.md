@@ -1,6 +1,24 @@
 # Task Queue
 
-Last updated: 2026-08-10
+Last updated: 2026-08-18
+
+---
+## Completed: Schedule activity counts audit coverage (2026-08-18)
+
+Plan: `tasks/archive/completed-2026-08-18/schedule-activity-counts-plan.md`
+
+- [x] Audit changed ICS calendar events transactionally for created and updated activity, including imported cancellations.
+- [x] Include private working-copy assignment and slot edits in staff/admin event-scoped history while keeping student reads published-only.
+- [x] Add focused regression coverage for imported calendar activity and draft assignment history.
+- [x] Reconcile the Schedule and Events area docs with the verified local behavior.
+- [ ] Complete authenticated browser proof of `/schedule` with real recent activity data.
+
+### Review
+
+- **Shipped locally:** Schedule activity cards now read real recent calendar-sync and assignee/schedule changes from the existing audit history contract instead of silently omitting sync and working-copy writers.
+- **Boundary:** No schema or migration, timed-release authority, worker-facing published read, permission matrix, notification policy, or schedule mutation contract changed. Working-copy history is explicitly opt-in for staff/admin surfaces.
+- **Verification:** 120 focused tests, focused ESLint, `npx tsc --noEmit --pretty false`, `npm run build:app`, and `git diff --check` pass. `npm run codemap` and docs verification are recorded after the final docs sync.
+- **Deferred:** Authenticated browser proof remains open because the local preview redirected to `/login` and no approved authenticated browser session was available; no schedule data was mutated.
 
 ---
 ## Completed: Schedule MVP Trade Board and instant-pickup hardening (2026-08-10)
@@ -44,6 +62,8 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - [x] Add the explicit assigned-slot convert-and-replace flow.
 - [x] Carry the settings-owned default call window through new working-copy slots and native Add Shift while preserving peer and explicit overrides.
 - [x] Preserve unchanged worker acknowledgements when a later publish changes only another assignment.
+- [x] Add one shared Event detail/Shift detail notice explaining notification recipients, channels, cadence, and the ten-minute release boundary.
+- [x] Make the shared notice pending-only and show the staff-only release countdown/error state from shift-group reads.
 
 ### Current verification
 
@@ -56,6 +76,7 @@ Plan: `tasks/event-shift-working-schedule-plan.md`
 - Migration `0099_shift_group_working_copy` is applied and Neon reports 101/101 local migrations with no pending, failed, or DB-only rows. Native rollout proof remains tracked as GAP-60.
 - Native working-copy source contracts, `npm run ios:project:check`, and the Wisconsin iOS simulator target build pass. Authenticated native runtime/device proof remains blocked by the absence of isolated credentials/auth state in this checkout.
 - Assignment-scoped acknowledgement regression coverage passes across Schedule summaries, Event detail, and My Shifts. Focused ESLint, TypeScript, `npm run build:app`, codemap/docs verification, and whitespace checks pass; authenticated browser proof remains blocked by the missing isolated Playwright target and identity.
+- The 2026-08-18 follow-up verified the pending-only notice and authenticated Schedule change preview locally. The focused 30-test slice passed; the full suite recorded 3,243/3,244 with the existing `DIRECT_URL` bootstrap failure. The app compiled before type-checking stopped on unrelated dirty-worktree assignment `source` omissions.
 
 ---
 ## Deferred: Kiosk identified-person hub terminology (2026-08-07)

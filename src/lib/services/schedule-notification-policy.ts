@@ -82,6 +82,30 @@ export function scheduleNotificationPayload(args: {
   };
 }
 
+export function scheduleMyShiftsNotificationPayload(args: {
+  rangeStartsAt: Date | string;
+  rangeEndsAt: Date | string;
+  sportCode?: string | null;
+  extra?: Record<string, unknown>;
+}) {
+  const params = new URLSearchParams({
+    myShifts: "true",
+    startDate: new Date(args.rangeStartsAt).toISOString(),
+    endDate: new Date(args.rangeEndsAt).toISOString(),
+  });
+  if (args.sportCode) params.set("sportCode", args.sportCode);
+
+  return {
+    ...(args.extra ?? {}),
+    target: "schedule",
+    href: `/schedule?${params.toString()}`,
+    myShiftsOnly: true,
+    ...(args.sportCode ? { sportCode: args.sportCode } : {}),
+    startDate: new Date(args.rangeStartsAt).toISOString(),
+    endDate: new Date(args.rangeEndsAt).toISOString(),
+  };
+}
+
 export function scheduleQueueHref(queue: ScheduleDigestQueue) {
   return `/schedule?queue=${queue}`;
 }

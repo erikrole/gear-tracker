@@ -1703,6 +1703,20 @@ enum ShiftAssignmentSource {
   AUTO_FILL
 }
 
+enum ScheduleBulkAssignmentStatus {
+  PENDING
+  RELEASED
+  PARTIAL
+  BLOCKED
+}
+
+enum ScheduleBulkAssignmentItemStatus {
+  PENDING
+  RELEASED
+  BLOCKED
+  SUPERSEDED
+}
+
 enum ShiftTradeStatus {
   OPEN
   CLAIMED
@@ -1759,6 +1773,7 @@ model ShiftGroup {
   publishedBy           User?                  @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
   shifts                Shift[]
   workingCopy           ShiftGroupWorkingCopy?
+  bulkAssignmentItems   ScheduleBulkAssignmentItem[]
 
   @@index([publishedAt])
   @@index([publishedById])
@@ -1785,6 +1800,45 @@ model ShiftGroupWorkingCopy {
   @@index([updatedById, updatedAt])
   @@index([autoReleaseAt])
   @@map("shift_group_working_copies")
+}
+
+model ScheduleBulkAssignment {
+  id                    String                         @id @default(cuid())
+  createdById           String                         @map("created_by_id")
+  sportCode             String?                        @map("sport_code")
+  rangeStartsAt         DateTime                       @map("range_starts_at")
+  rangeEndsAt           DateTime                       @map("range_ends_at")
+  area                  ShiftArea?
+  previewFingerprint    String                         @map("preview_fingerprint")
+  releaseAt             DateTime                       @map("release_at")
+  status                ScheduleBulkAssignmentStatus  @default(PENDING)
+  notificationSentAt    DateTime?                     @map("notification_sent_at")
+  createdAt             DateTime                       @default(now()) @map("created_at")
+  updatedAt             DateTime                       @updatedAt @map("updated_at")
+  items                 ScheduleBulkAssignmentItem[]
+
+  @@index([createdById, createdAt])
+  @@index([status, releaseAt])
+  @@map("schedule_bulk_assignments")
+}
+
+model ScheduleBulkAssignmentItem {
+  id                    String                              @id @default(cuid())
+  bulkAssignmentId      String                              @map("bulk_assignment_id")
+  shiftGroupId          String                              @map("shift_group_id")
+  expectedVersion       Int                                 @map("expected_version")
+  proposalPayload       Json                                @map("proposal_payload")
+  status                ScheduleBulkAssignmentItemStatus   @default(PENDING)
+  releasedVersion       Int?                                @map("released_version")
+  error                 String?
+  createdAt             DateTime                            @default(now()) @map("created_at")
+  updatedAt             DateTime                            @updatedAt @map("updated_at")
+  bulkAssignment        ScheduleBulkAssignment              @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)
+  shiftGroup            ShiftGroup                          @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([bulkAssignmentId, shiftGroupId])
+  @@index([shiftGroupId, status])
+  @@map("schedule_bulk_assignment_items")
 }
 
 model Shift {

@@ -19,7 +19,7 @@ Authenticated staff and admins can select a canonical team/season collection, ch
 2. Signature capture is available only on iPadOS. Unsupported web clients show a disabled `Capture on iPad` action with a tooltip explaining that an iPad and Apple Pencil are required; direct desktop visits to the capture surface are blocked. Drawing accepts pen-class pointer input only. Touch, palm, mouse, trackpad, and other non-pen pointers never add ink, while touch remains usable for buttons and navigation.
 3. Each supported team roster comes from its own allowlisted UWBadgers adapter. Football and Volleyball use the source site's starting calendar year URL segment; Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use the source site's full `YYYY-YY` season segment while retaining the canonical `YYYY-YY` Gear Tracker season. Player metadata normalizes source position and academic year into one display title; wrestling weight classes remain metadata and jersey numbers remain nullable. Student-athletes always require a signature and drive the team progress bar; coaching and support staff are imported as optional secondary work, with their signed count shown separately. Mounting `/signatures` automatically invokes the versioned standalone Creative Staff reconciliation mutation; collection-list GET remains read-only. The reconciliation sources active visible full-time users identified by a Video/Photo/Graphics area or an explicit Creative/Digital Media job title into linked signature members, included by default. A same-season non-player team member links only through a unique exact normalized-name match and then shares the canonical Creative Staff capture across both rosters.
 4. Imports persist an immutable normalized snapshot. Applying a preview requires the observed collection version and never deletes members or captures.
-5. The client submits normalized strokes. The server validates them, creates a sanitized path-only SVG, renders the PNG from that SVG, and stores both privately with matching crop bounds and hashes.
+5. The client submits normalized strokes. The server validates them, creates a sanitized path-only SVG, renders the PNG from that SVG, and stores both privately with matching crop bounds and hashes. New stroke artifacts conservatively omit tiny isolated marks outside substantive ink while preserving nearby short marks.
 6. A roster tile becomes green only after both artifacts and the database capture commit. Local drafts never count as complete.
 7. Capture saves are idempotent by request ID, reject stale versions with `409`, and preserve the prior capture when an upload or finalization fails.
 8. Admins own output settings, non-player readiness inclusion, archive, and collection reset. Player readiness cannot be disabled. Staff/admin may capture, replace, remove, preview, download, import, and reconcile.
@@ -38,9 +38,10 @@ Signature members are not `StudentSportAssignment` rows. Imported members are ex
 - SVG contains only sanitized paths and no scripts, HTML, foreign objects, external references, or client-controlled metadata.
 - Unchanged imports are idempotent; source duplicates collapse by profile identity; automatic Creative Staff reconciliation is version-checked, no-op safe, and non-destructive.
 - Failed, stale, or concurrent saves preserve the committed capture and local draft.
+- Collection-card Download All offers separate authenticated private ZIPs of current committed PNG or SVG revisions with deterministic collision-safe filenames.
 - Staff/admin, admin-only, student, and collaborator authorization tests pass.
 - Authenticated browser smoke and physical iPad Safari proof are recorded before production rollout.
 
 ## Deferred
 
-Box signature-file integration, native PencilKit, ZIP export, scheduled sync, Illustrator asset backfill/matching for newly imported sports, additional sport adapters beyond the 2026-27 target set, and pressure-sensitive width.
+Box signature-file integration, native PencilKit, scheduled sync, Illustrator asset backfill/matching for newly imported sports, additional sport adapters beyond the 2026-27 target set, and pressure-sensitive width.

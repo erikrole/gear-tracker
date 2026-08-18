@@ -35,6 +35,8 @@ export type ShiftGroupSummary = {
     acknowledgedCount: number;
     unacknowledgedCount: number;
   } | null;
+  autoReleaseAt?: string | null;
+  autoReleaseError?: string | null;
   shifts: Array<{
     id: string;
     area: string;

@@ -594,8 +594,8 @@ describe("signature collection ZIP export", () => {
       sportCode: "MBB",
       season: "2026-27",
       members: [
-        { name: "José Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, svgPath: "one.svg" } } },
-        { name: "Jose Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, svgPath: "two.svg" } } },
+        { name: "José Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
+        { name: "Jose Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
         { name: "Blank Signer", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: null } },
       ],
     });
@@ -604,7 +604,7 @@ describe("signature collection ZIP export", () => {
     }) as never);
 
     await expect(getSignatureCollectionZip("collection-1")).resolves.satisfy((archive: { filename: string; fileCount: number; body: Buffer }) => {
-      expect(archive.filename).toBe("mbb-2026-27-signatures.zip");
+      expect(archive.filename).toBe("mbb-2026-27-signatures-svg.zip");
       expect(archive.fileCount).toBe(2);
       expect(archive.body.includes(Buffer.from("jose-role-signature.svg"))).toBe(true);
       expect(archive.body.includes(Buffer.from("jose-role-signature-2.svg"))).toBe(true);
@@ -612,6 +612,30 @@ describe("signature collection ZIP export", () => {
     });
     expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("one.svg");
     expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("two.svg");
+  });
+
+  it("exports current PNGs when the PNG format is requested", async () => {
+    dbMock.signatureCollection.findUnique.mockResolvedValue({
+      sportCode: "FB",
+      season: "2026-27",
+      members: [
+        { name: "Player One", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
+        { name: "Player Two", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
+      ],
+    });
+    vi.mocked(getPrivateSignatureArtifact).mockImplementation(async (path) => ({
+      stream: new Response(`png:${path}`).body,
+    }) as never);
+
+    await expect(getSignatureCollectionZip("collection-1", "png")).resolves.satisfy((archive: { filename: string; fileCount: number; body: Buffer }) => {
+      expect(archive.filename).toBe("fb-2026-27-signatures-png.zip");
+      expect(archive.fileCount).toBe(2);
+      expect(archive.body.includes(Buffer.from("player-one-signature.png"))).toBe(true);
+      expect(archive.body.includes(Buffer.from("player-two-signature.png"))).toBe(true);
+      return true;
+    });
+    expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("one.png");
+    expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("two.png");
   });
 
   it("refuses an empty export", async () => {
@@ -636,7 +660,7 @@ describe("signature collection ZIP export", () => {
     });
     dbMock.signatureCapture.findMany.mockResolvedValue([{
       member: { linkedUserId: "user-1" },
-      currentRevision: { state: SignatureArtifactState.READY, svgPath: "creative.svg" },
+      currentRevision: { state: SignatureArtifactState.READY, pngPath: "creative.png", svgPath: "creative.svg" },
     }]);
     vi.mocked(getPrivateSignatureArtifact).mockResolvedValue({ stream: new Response("<svg />").body } as never);
 
@@ -792,6 +816,58 @@ describe("roster apply concurrency", () => {
     });
     expect(tx.signatureMember.update).not.toHaveBeenCalled();
     expect(tx.signatureCollection.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("roster hometown defaults", () => {
+  it("seeds missing player hometowns without overwriting a manual value", async () => {
+    tx.signatureRosterSnapshot.findUnique.mockResolvedValue({
+      id: "snapshot-1",
+      collectionId: "collection-1",
+      status: SignatureSnapshotStatus.PREVIEW,
+      entries: [
+        {
+          sourceExternalId: "existing-player",
+          sourceProfileUrl: "https://uwbadgers.com/sports/mens-basketball/roster/existing-player/1",
+          name: "Existing Player",
+          normalizedName: "existing player",
+          jerseyNumber: 4,
+          roleGroup: "PLAYER",
+          title: "Guard • Junior",
+          hometown: "Madison, Wis.",
+        },
+        {
+          sourceExternalId: "new-player",
+          sourceProfileUrl: "https://uwbadgers.com/sports/mens-basketball/roster/new-player/2",
+          name: "New Player",
+          normalizedName: "new player",
+          jerseyNumber: 5,
+          roleGroup: "PLAYER",
+          title: "Forward • Freshman",
+          hometown: "Austin, Texas",
+        },
+      ],
+      collection: { status: SignatureCollectionStatus.OPEN, collectionVersion: 4, settingsVersion: 1 },
+    });
+    tx.signatureMember.findMany
+      .mockResolvedValueOnce([{ id: "member-existing", sourceExternalId: "existing-player", required: true, roleGroup: "PLAYER", hometown: "Milwaukee, WI" }])
+      .mockResolvedValueOnce([{ id: "member-existing" }, { id: "member-new" }]);
+    tx.signatureMember.create.mockResolvedValue({ id: "member-new", sourceExternalId: "new-player", required: true, roleGroup: "PLAYER" });
+    tx.signatureCollection.update.mockResolvedValue({ id: "collection-1", collectionVersion: 5 });
+
+    await expect(applySignatureRosterSnapshot({
+      actor,
+      snapshotId: "snapshot-1",
+      expectedCollectionVersion: 4,
+    })).resolves.toMatchObject({ collectionId: "collection-1", collectionVersion: 5, memberCount: 2 });
+
+    expect(tx.signatureMember.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "member-existing" },
+      data: expect.objectContaining({ hometown: "Milwaukee, WI" }),
+    }));
+    expect(tx.signatureMember.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ hometown: "Austin, Texas" }),
+    });
   });
 });
 

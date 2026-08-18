@@ -8,7 +8,7 @@ import { buildSignatureDraft, isFreshSignatureDraft, signatureDraftKey, signatur
 import { renderSignatureArtifacts, SIGNATURE_PNG_MIN_WIDTH } from "@/lib/signatures/artifacts";
 import { buildSignatureCurve, signaturePathData } from "@/lib/signatures/geometry";
 import { acceptsSignaturePointer, appendCoalescedPointerEvents } from "@/lib/signatures/pointer";
-import { captureSaveRequestSchema, DEFAULT_SIGNATURE_PEN_SETTINGS, isRequiredSignatureGroup, SIGNATURE_IMPORTED_SPORT_CODES, SIGNATURE_SPORT_REGISTRY, signatureAdHocMemberSchema, signatureAthleteProfileSchema, signatureCollectionTitle, signatureCollectionVersionSchema } from "@/lib/signatures/types";
+import { captureSaveRequestSchema, DEFAULT_SIGNATURE_PEN_SETTINGS, isRequiredSignatureGroup, SIGNATURE_IMPORTED_SPORT_CODES, SIGNATURE_SPORT_REGISTRY, signatureAdHocMemberSchema, signatureAthleteProfileSchema, signatureCollectionTitle, signatureCollectionVersionSchema, signatureRosterEntrySchema } from "@/lib/signatures/types";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
 import { buildUWBadgersRosterUrl, isAllowedUWBadgersUrl, normalizedRosterHash, parseUWBadgersRosterHtml } from "@/lib/signatures/uwbadgers";
 
@@ -156,7 +156,7 @@ describe("UWBadgers signature roster adapter", () => {
     "<section><h2>Players</h2>",
     "<a href=\"/sports/mens-basketball/roster/alpha-player/100\">Jersey Number 4</a>",
     "<a href=\"/sports/mens-basketball/roster/alpha-player/100\">Alpha Player</a>",
-    "<div>Position G Academic Year Jr.</div>",
+    "<div>Position G Academic Year Jr. Height 6' 4'' Hometown Madison, Wis. Last School Madison East</div>",
     "<a href=\"/sports/mens-basketball/roster/alpha-player/100\">Alpha Player</a>",
     "<a href=\"/sports/mens-basketball/roster/beta-player/101\">Jersey Number 22</a>",
     "<a href=\"/sports/mens-basketball/roster/beta-player/101\">Beta Player</a>",
@@ -188,6 +188,7 @@ describe("UWBadgers signature roster adapter", () => {
     expect(entries.map((entry) => entry.name)).toEqual(["Alpha Player", "Beta Player", "Greg Coach", "Sam Support"]);
     expect(entries.find((entry) => entry.sourceExternalId === "100")?.jerseyNumber).toBe(4);
     expect(entries.find((entry) => entry.sourceExternalId === "100")?.title).toBe("Guard • Junior");
+    expect(entries.find((entry) => entry.sourceExternalId === "100")?.hometown).toBe("Madison, Wis.");
     expect(entries.find((entry) => entry.sourceExternalId === "200")?.roleGroup).toBe("COACHING_STAFF");
     expect(entries.find((entry) => entry.sourceExternalId === "300")?.roleGroup).toBe("SUPPORT_STAFF");
     expect(normalizedRosterHash(entries)).toBe(normalizedRosterHash([...entries]));
@@ -204,7 +205,7 @@ describe("UWBadgers signature roster adapter", () => {
       "<h1>2026 Football Roster</h1>",
       "<a href=\"/sports/football/roster/alpha-player/500\">Jersey Number 7</a>",
       "<a href=\"/sports/football/roster/alpha-player/500\">Alpha Player</a>",
-      "<div>Position WR Academic Year R-Sr.Height 6' 2''</div>",
+      "<div>Position WR Academic Year R-Sr.Height 6' 2'' Hometown Austin, Texas Last School Vandergrift</div>",
     ].join(""), "FB");
     const volleyballEntries = parseUWBadgersRosterHtml([
       "<h1>2026 Volleyball Roster</h1>",
@@ -219,6 +220,7 @@ describe("UWBadgers signature roster adapter", () => {
       name: "Alpha Player",
       jerseyNumber: 7,
       title: "Wide Receiver • Redshirt Senior",
+      hometown: "Austin, Texas",
     });
     expect(volleyballEntries).toHaveLength(1);
     expect(volleyballEntries[0]).toMatchObject({
@@ -329,6 +331,16 @@ describe("signature roster presentation", () => {
       hometown: "Madison, WI",
       instagramHandle: "https://instagram.com/badger",
     })).toThrow();
+
+    expect(signatureRosterEntrySchema.parse({
+      sourceExternalId: "100",
+      sourceProfileUrl: "https://uwbadgers.com/sports/mens-basketball/roster/alpha-player/100",
+      name: "Alpha Player",
+      normalizedName: "alpha player",
+      jerseyNumber: 4,
+      roleGroup: "PLAYER",
+      title: "Guard • Junior",
+    }).hometown).toBeUndefined();
   });
 
   it("keeps roster rows uniform and aligns the signature rail without hiding team positions", () => {
@@ -336,6 +348,7 @@ describe("signature roster presentation", () => {
       "src/app/(app)/signatures/[id]/SignatureCollectionPage.tsx",
       "utf8",
     );
+    const profileFormSource = readFileSync("src/components/signatures/SignatureAthleteProfileForm.tsx", "utf8");
 
     expect(source).toContain("grid h-16 grid-cols-");
     expect(source).toContain('<span className="text-center">Signature</span>');
@@ -373,6 +386,8 @@ describe("signature roster presentation", () => {
     expect(source).toContain("SignatureAthleteProfileForm");
     expect(source).toContain("member.roleGroup === \"PLAYER\"");
     expect(source).toContain("/profile");
+    expect(profileFormSource).toContain('autoComplete="address-level2"');
+    expect(profileFormSource).toContain("official roster pre-fills this value");
     expect(source).not.toContain("syncCreativeStaff");
     expect(source).toContain("<AlertDialogTitle>Reset every captured signature?</AlertDialogTitle>");
     expect(source).toContain("/png?download=1");
@@ -423,6 +438,8 @@ describe("signature roster presentation", () => {
     expect(landingSource).toContain("automaticSyncAttempt");
     expect(landingSource).toContain("/creative-staff");
     expect(landingSource).toContain("Download All");
+    expect(landingSource).toContain("PNG files");
+    expect(landingSource).toContain("SVG files");
     expect(landingSource).toContain("downloadableCount");
     expect(landingSource).toContain("/download");
     expect(landingSource).toContain('method: "DELETE"');
@@ -481,6 +498,25 @@ describe("signature artifact contract", () => {
     expect(artifact.svg).toMatch(/M [^ ]+ [^ ]+ L [^ ]+ [^ ]+/);
     const metadata = await sharp(artifact.png).metadata();
     expect(metadata.hasAlpha).toBe(true);
+  });
+
+  it("removes a tiny isolated stroke while retaining the substantive signature", async () => {
+    const artifact = await renderSignatureArtifacts([
+      { points: [{ x: 100, y: 100 }, { x: 300, y: 120 }] },
+      { points: [{ x: 1_200, y: 800 }] },
+    ], DEFAULT_SIGNATURE_PEN_SETTINGS);
+
+    expect(artifact.svg.match(/<path d=/g)).toHaveLength(1);
+    expect(artifact.cropBounds.x).toBeLessThan(100);
+  });
+
+  it("retains a short mark that sits next to the substantive signature", async () => {
+    const artifact = await renderSignatureArtifacts([
+      { points: [{ x: 100, y: 100 }, { x: 300, y: 120 }] },
+      { points: [{ x: 320, y: 112 }] },
+    ], DEFAULT_SIGNATURE_PEN_SETTINGS);
+
+    expect(artifact.svg.match(/<path d=/g)).toHaveLength(2);
   });
 
   it("uses midpoint quadratic curves for multi-point strokes", () => {

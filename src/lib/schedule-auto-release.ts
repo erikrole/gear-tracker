@@ -18,14 +18,17 @@ export async function enqueuePendingScheduleRelease(args: {
   shiftGroupId: string;
   version: number;
   now?: Date;
+  batchId?: string;
 }): Promise<PendingScheduleRelease> {
   const at = new Date((args.now ?? new Date()).getTime() + SCHEDULE_RELEASE_DELAY_MS);
   try {
-    const run = await start(pendingScheduleReleaseWorkflow, [
+    const workflowArgs: [string, number, string] | [string, number, string, string] = [
       args.shiftGroupId,
       args.version,
       at.toISOString(),
-    ]);
+    ];
+    if (args.batchId) workflowArgs.push(args.batchId);
+    const run = await start(pendingScheduleReleaseWorkflow, workflowArgs);
     return { at, runId: run.runId };
   } catch (error) {
     console.error("[Schedule] failed to enqueue pending release", {

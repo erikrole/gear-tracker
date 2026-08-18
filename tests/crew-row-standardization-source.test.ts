@@ -51,7 +51,7 @@ describe("crew row standardization", () => {
     // Event detail is a shared read; buffered authoring belongs to Schedule.
     expect(eventCrew).toContain("const canEditPublishedSchedule = false;");
     expect(eventCrew).toContain("const rowCallTarget = !canEditPublishedSchedule");
-    expect(eventCrew).toContain("Make crew changes in");
+    expect(eventCrew).toContain("<ScheduleReleaseNotice");
     expect(eventCrew).not.toContain("Acknowledge");
   });
 

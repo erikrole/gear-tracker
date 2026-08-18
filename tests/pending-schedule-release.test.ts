@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createInitialNotifications: vi.fn(),
   notifyWorkers: vi.fn(),
   notifyFollowers: vi.fn(),
+  recordBulkOutcome: vi.fn(),
 }));
 
 vi.mock("workflow", () => ({ sleep: vi.fn() }));
@@ -26,6 +27,9 @@ vi.mock("@/lib/services/notifications", () => ({
   createPublishedShiftGroupNotifications: mocks.createInitialNotifications,
   notifyPublishedShiftGroupWorkers: mocks.notifyWorkers,
   notifyPublishedScheduleFollowers: mocks.notifyFollowers,
+}));
+vi.mock("@/lib/services/bulk-schedule-assignment", () => ({
+  recordBulkScheduleReleaseOutcome: mocks.recordBulkOutcome,
 }));
 
 import { releasePendingScheduleVersion } from "@/workflows/pending-schedule-release";
@@ -62,6 +66,38 @@ describe("pending schedule release step", () => {
     expect(mocks.notifyWorkers).toHaveBeenCalledWith("group-1", ["student-1"]);
     expect(mocks.notifyFollowers).toHaveBeenCalledWith("group-1");
     expect(mocks.createInitialNotifications).not.toHaveBeenCalled();
+  });
+
+  it("suppresses event-level worker notifications for a bulk release and records the batch outcome", async () => {
+    mocks.publishShiftGroup.mockResolvedValue({
+      before: { publishedAt: "2026-08-07T12:00:00.000Z" },
+      after: {},
+      workingVersion: 1,
+      publishedSnapshotChanged: true,
+      affectedUserIds: ["student-1"],
+    });
+
+    await expect(releasePendingScheduleVersion("group-1", 4, "batch-1")).resolves.toMatchObject({ status: "released" });
+    expect(mocks.createInitialNotifications).not.toHaveBeenCalled();
+    expect(mocks.notifyWorkers).not.toHaveBeenCalled();
+    expect(mocks.notifyFollowers).toHaveBeenCalledWith("group-1");
+    expect(mocks.recordBulkOutcome).toHaveBeenCalledWith({
+      batchId: "batch-1",
+      shiftGroupId: "group-1",
+      expectedVersion: 4,
+      status: "RELEASED",
+      releasedVersion: 1,
+    });
+  });
+
+  it("records a superseded bulk item when the sleeping release finds a newer version", async () => {
+    await expect(releasePendingScheduleVersion("group-1", 3, "batch-1")).resolves.toMatchObject({ status: "superseded" });
+    expect(mocks.recordBulkOutcome).toHaveBeenCalledWith({
+      batchId: "batch-1",
+      shiftGroupId: "group-1",
+      expectedVersion: 3,
+      status: "SUPERSEDED",
+    });
   });
 
   it("persists a permanent validation blocker on the same pending version", async () => {

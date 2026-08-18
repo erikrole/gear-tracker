@@ -46,6 +46,7 @@ const groupEditorSelect = {
           id: true,
           userId: true,
           status: true,
+          source: true,
           callStartsAt: true,
           callEndsAt: true,
           callNote: true,
@@ -168,6 +169,7 @@ export function buildWorkingSchedulePayload(group: EditorGroup): WorkingSchedule
         assignmentHistoryCount: shift._count.assignments,
         assignment: assignment ? {
           sourceAssignmentId: assignment.id,
+          source: assignment.source,
           userId: assignment.userId,
           status: assignment.status === "APPROVED" ? "APPROVED" : "DIRECT_ASSIGNED",
           callStartsAt: shift.workerType === "FT" ? null : iso(assignment.callStartsAt),

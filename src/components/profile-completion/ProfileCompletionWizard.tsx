@@ -117,7 +117,6 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   const queryClient = useQueryClient();
   const { data } = useProfileCompletion();
   const reduceMotion = Boolean(useReducedMotion());
-  const [isDesktop, setIsDesktop] = useState(false);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<ProfileCompletionStep>("EMAIL");
   const [stepDirection, setStepDirection] = useState<StepDirection>(1);
@@ -143,14 +142,6 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   const [shoeSizeChoice, setShoeSizeChoice] = useState("");
   const [shoeSizeOther, setShoeSizeOther] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 768px)");
-    const sync = () => setIsDesktop(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
 
   useEffect(() => {
     if (!data) return;
@@ -190,15 +181,15 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
   }, [data]);
 
   useEffect(() => {
-    if (!isDesktop || !data?.completion.shouldPrompt || autoOpenedRef.current) return;
+    if (!data?.completion.shouldPrompt || autoOpenedRef.current) return;
     autoOpenedRef.current = true;
     setStep(data.completion.firstIncompleteStep ?? (data.profile.role === "STUDENT" || data.profile.role === "COLLABORATOR" ? "PHONES" : "EMAIL"));
     setOpen(true);
-  }, [data, isDesktop]);
+  }, [data]);
 
   useEffect(() => {
     const openWizard = () => {
-      if (!isDesktop || !data) return;
+      if (!data) return;
       closeWithoutSnoozeRef.current = false;
       manualReviewRef.current = data.completion.isComplete;
       setError("");
@@ -207,7 +198,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
     };
     window.addEventListener(OPEN_PROFILE_COMPLETION_EVENT, openWizard);
     return () => window.removeEventListener(OPEN_PROFILE_COMPLETION_EVENT, openWizard);
-  }, [data, isDesktop]);
+  }, [data]);
 
   const visibleSteps = useMemo(() => data ? visibleProfileSteps(data.profile.role) : [], [data]);
   const stepIndex = visibleSteps.indexOf(step);
@@ -435,11 +426,11 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
     }
   }
 
-  if (!isDesktop || !data) return null;
+  if (!data) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl overflow-hidden">
+      <DialogContent className="grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg sm:max-w-2xl">
         <DialogHeader className="flex-col items-start gap-3 pr-14">
           <div className="flex w-full items-center justify-between gap-4">
             <Badge variant="orange" size="sm">Step {stepIndex + 1} of {visibleSteps.length}</Badge>
@@ -466,7 +457,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
           </div>
         </DialogHeader>
 
-        <DialogBody className="flex min-h-[300px] flex-col gap-5 py-5">
+        <DialogBody className="flex min-h-0 flex-col gap-5 py-5 sm:min-h-[300px]">
           <div className="relative grid flex-1">
             <AnimatePresence initial={false} custom={stepMotionContext}>
               <motion.div
@@ -526,7 +517,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                   </ToggleGroup>
                 </div>
               )}
-              <div className={hasSimplePhoneStep ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
+              <div className={hasSimplePhoneStep ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-personal-phone">Personal phone</Label>
                   <Input
@@ -572,7 +563,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
 
           {step === "WISCARD" && (
             <div className="flex flex-col gap-5">
-              <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-wiscard-number">Wiscard number</Label>
                   <Input
@@ -633,7 +624,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
 
           {step === "APPAREL" && (
             <div className="flex flex-col gap-5">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-top-fit">Clothing fit</Label>
                   <Select value={topSizeFit} onValueChange={(value) => setTopSizeFit(value as typeof topSizeFit)} disabled={saving}>
@@ -662,7 +653,7 @@ export function ProfileCompletionWizard({ onComplete, onSnooze }: { onComplete?:
                   <Input id="profile-completion-top-other" value={topSizeOther} onChange={(event) => setTopSizeOther(event.target.value)} maxLength={40} disabled={saving} />
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-completion-shoe-system">Shoe sizing</Label>
                   <Select

@@ -174,6 +174,13 @@ function extractPlayerTitle(context: string, sportCode: SignatureImportedSportCo
   return `${position} • ${academicYear}`.slice(0, 160);
 }
 
+function extractHometown(context: string): string | null {
+  const text = stripTags(context);
+  const matches = [...text.matchAll(/\bhometown\s+(.+?)(?=\s+(?:last school|previous school|full bio|expand for more info)\b|$)/gi)];
+  const hometown = matches.at(-1)?.[1]?.trim();
+  return hometown ? hometown.slice(0, 160) : null;
+}
+
 function extractTitle(context: string, group: SignatureMemberGroup, sportCode: SignatureImportedSportCode): string | null {
   if (group === "PLAYER") return extractPlayerTitle(context, sportCode);
 
@@ -213,7 +220,7 @@ export function parseUWBadgersRosterHtml(
     if (/^(?:jersey\s+number|full\s+bio|expand\s+for|\d+)\b/i.test(name)) continue;
     if (!name || name.length > 160) continue;
     const index = match.index ?? 0;
-    const context = html.slice(Math.max(0, index - 500), Math.min(html.length, index + match[0].length + 700));
+    const context = html.slice(Math.max(0, index - 500), Math.min(html.length, index + match[0].length + 1_200));
     const roleGroup = profileRoleGroup(profileUrl) ?? structuralGroupBefore(html, index) ?? headingGroup(headingBefore(html, index));
     const entry = signatureRosterEntrySchema.parse({
       sourceExternalId: externalIdFromProfileUrl(profileUrl),
@@ -223,6 +230,7 @@ export function parseUWBadgersRosterHtml(
       jerseyNumber: extractJerseyNumber(context),
       roleGroup,
       title: extractTitle(context, roleGroup, sportCode),
+      hometown: roleGroup === "PLAYER" ? extractHometown(context) : null,
     });
     const existing = candidates.get(entry.sourceExternalId);
     if (!existing) {
@@ -233,6 +241,7 @@ export function parseUWBadgersRosterHtml(
       ...existing,
       jerseyNumber: existing.jerseyNumber ?? entry.jerseyNumber,
       title: existing.title ?? entry.title,
+      hometown: existing.hometown ?? entry.hometown,
       sourceProfileUrl: existing.sourceProfileUrl || entry.sourceProfileUrl,
       roleGroup: existing.roleGroup === "PLAYER" && entry.roleGroup !== "PLAYER" ? entry.roleGroup : existing.roleGroup,
     });

@@ -61,7 +61,20 @@ export function SignatureAthleteProfileForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="athlete-hometown">Hometown <span className="text-destructive">*</span></Label>
-          <Input id="athlete-hometown" value={hometown} onChange={(event) => setHometown(event.target.value)} maxLength={160} required disabled={busy} placeholder="Madison, WI" />
+          <Input
+            id="athlete-hometown"
+            name="hometown"
+            value={hometown}
+            onChange={(event) => setHometown(event.target.value)}
+            maxLength={160}
+            required
+            disabled={busy}
+            placeholder="Madison, Wis."
+            autoComplete="address-level2"
+            autoCapitalize="words"
+            aria-describedby="athlete-hometown-help"
+          />
+          <p id="athlete-hometown-help" className="text-xs text-muted-foreground">When available, the official roster pre-fills this value. You can edit it before saving.</p>
         </div>
       </div>
 

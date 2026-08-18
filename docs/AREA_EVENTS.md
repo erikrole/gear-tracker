@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-13
+- Last Updated: 2026-08-18
 - Status: Active
 
 ## Direction
@@ -56,6 +56,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 - [x] AC-3: Sync pipeline is idempotent and observable.
 - [x] AC-4: Missing fields degrade gracefully without blocking checkout creation.
 - [x] AC-5: Schedule surfaces stale or unavailable calendar-source context without blocking manual events or event-linked booking work.
+- [x] AC-6: Changed ICS events write audit history consumed by staff Schedule activity cards without auditing unchanged feed rows.
 
 ## Edge Cases
 - Event cancellations or updates in source feed.
@@ -80,6 +81,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-08-18: **Calendar sync now feeds Schedule activity history.** Changed imported events write system audit rows in the same transaction as their create/update, using the existing event-history actions so recent imports, updates, and cancellations can appear in the staff/admin Schedule readiness cards. Unchanged feed rows remain quiet, and the working-copy privacy boundary is preserved in the Schedule area.
 - 2026-08-09: **Native booking detail preserves every linked event.** The tolerant Booking model now decodes the ordered `events` array returned by booking detail and renders each linked event in Schedule context, while retaining the legacy primary `event` fallback for older list/detail payloads.
 
 - 2026-07-30: **Travel roster accountability and event mutation limits shipped.** Adding or removing an event travel member now writes an audit entry keyed to the event, closing the only event mutation pair that changed an operational record with no accountability trail. Travel add resolves the target through the shared visible-active user filter first, so an unknown or deactivated id returns `404 That person is not an active user` instead of reaching Postgres as an unmapped foreign-key violation and surfacing as a 500; hidden and inactive identities stay out of travel rosters for the same reason they stay out of staffing decisions. A duplicate add is left to the `@@unique([eventId, userId])` constraint and mapped to a named `409 <name> is already on the travel roster` rather than a race-prone pre-read. Manual event create, event PATCH, visibility PATCH, and both travel mutations now carry the shared `SCHEDULE_MUTATION_LIMIT`. No event schema, sync, classification, or read contract changed.

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeBookingTitle,
   normalizeManualEventTitle,
+  STATE_ABBREVIATION_TERMS,
   normalizeTeamAbbreviations,
 } from "@/lib/title-normalization";
 import { splitEventsForSync } from "@/lib/services/calendar-sync";
@@ -27,6 +28,8 @@ describe("operational title normalization", () => {
     ["b1g media days", "B1G Media Days"],
     ["B1g Media Days", "B1G Media Days"],
     ["ncaa tournament", "NCAA Tournament"],
+    ["avca first serve", "AVCA First Serve"],
+    ["MSOC vs Saint Mary's (Ca)", "MSOC vs Saint Mary's (CA)"],
     ["wbb b1g championship", "WBB B1G Championship"],
     ["espn setup", "ESPN Setup"],
     ["av cart pull", "AV Cart Pull"],
@@ -48,6 +51,14 @@ describe("operational title normalization", () => {
       "Women's Soccer vs TCU / USC / UCLA",
     );
     expect(normalizeTeamAbbreviations("Iowa at UConn")).toBe("Iowa at UConn");
+  });
+
+  it("preserves all 50 state postal abbreviations without uppercasing normal words", () => {
+    expect(STATE_ABBREVIATION_TERMS.size).toBe(50);
+    expect(normalizeBookingTitle("Women's Soccer vs Iowa (WI) at Madison, WI")).toBe(
+      "Women's Soccer vs Iowa (WI) at Madison, WI",
+    );
+    expect(normalizeBookingTitle("Football in Indiana or Ohio")).toBe("Football in Indiana or Ohio");
   });
 
   it("preserves non-UW acronyms in imported event summaries", () => {

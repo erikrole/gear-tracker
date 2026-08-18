@@ -20,6 +20,7 @@ export const GET = withAuth(async (req, { user }) => {
     includePast: searchParams.get("includePast") === "true",
     includeArchived: searchParams.get("includeArchived") === "true",
     sportCode: optionalSportCodeSchema.parse(searchParams.get("sportCode") ?? undefined) ?? null,
+    includeWorkingCopy: user.role === "ADMIN" || user.role === "STAFF",
   });
 
   return ok({ data });

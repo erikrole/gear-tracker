@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
@@ -30,6 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScheduleReleaseNotice } from "@/components/ScheduleReleaseNotice";
 import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerSlotLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
@@ -86,6 +86,8 @@ type ShiftGroupDetail = {
     acknowledgedCount: number;
     unacknowledgedCount: number;
   } | null;
+  autoReleaseAt?: string | null;
+  autoReleaseError?: string | null;
   manuallyEdited?: boolean;
   notes: string | null;
   archivedAt: string | null;
@@ -558,11 +560,12 @@ export default function ShiftDetailPanel({
         ) : (
           <SheetBody className="px-6 py-4">
             {isStaff && (
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Make crew changes in <Link href="/schedule" className="font-medium underline">Schedule</Link>. Each edit restarts a 10-minute buffer before workers see it.
-                </AlertDescription>
-              </Alert>
+              <ScheduleReleaseNotice
+                hasWorkingCopy={group.hasWorkingCopy}
+                autoReleaseAt={group.autoReleaseAt}
+                autoReleaseError={group.autoReleaseError}
+                onRefresh={fetchGroup}
+              />
             )}
             {(actionError || createdShiftNotice) && (
               <Alert variant={actionError ? "destructive" : "default"} className="mb-4">

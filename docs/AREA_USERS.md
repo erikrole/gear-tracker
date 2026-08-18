@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-17
+- Last Updated: 2026-08-18
 - Status: Active
 - Version: V1.2
 
@@ -119,6 +119,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-18: **Onboarding recovery now works at phone width.** The shared returning-user profile wizard mounts on mobile web with a height-bounded, scrollable dialog, the profile reminder remains visible on narrow roster pages, and collaborator Welcome copy now reflects the photo-only contract. The shared Add users dialog accepts a local `email, role` CSV upload in addition to paste and shows an explicit retryable failed-row state when the server, response, or network does not confirm a batch. This recovery state does not invent persisted failed invitations; broader roster-field preload and authenticated browser/native proof remain open.
 
 - 2026-08-17: **Invite-first onboarding now starts at app login.** Web and native iOS submit a rate-limited email discovery request, route an unclaimed allowed email into self-chosen password setup, and then reuse the existing registration transaction and role-aware Welcome flow. Existing users, claimed or missing invites, and inactive collaborator policies stay on password sign-in. Onboarding Status now copies the generic app login link, while `/register` redirects there for older links; authenticated rollout proof remains open.
 

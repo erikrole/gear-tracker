@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, ShieldCheck, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileUp, ShieldCheck, UserPlus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,12 +46,22 @@ type ServerPreviewStatus = "ready" | "duplicate" | "existing_user" | "pending_in
 type InviteResponse = {
   skipped?: boolean | number;
   created?: number;
+  failed?: number;
+  failedRows?: FailedInviteRow[];
+};
+
+type FailedInviteRow = {
+  email: string;
+  role: InviteRole;
+  reason: string;
 };
 
 type CompletionResult = {
   created: number;
   skipped: number;
   requested: number;
+  failed: number;
+  failedRows: FailedInviteRow[];
 };
 
 type InvitePreviewRow = {
@@ -299,6 +309,7 @@ export default function OnboardingDialog({
   const [inviteRole, setInviteRole] = useState<InviteRole>("STUDENT");
   const [singleEmail, setSingleEmail] = useState("");
   const [bulkEmails, setBulkEmails] = useState("");
+  const [bulkFileName, setBulkFileName] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
   const [serverPreview, setServerPreview] = useState<(ServerPreviewResponse & { signature: string }) | null>(null);
@@ -377,6 +388,7 @@ export default function OnboardingDialog({
     setInviteMode("bulk");
     setSingleEmail("");
     setBulkEmails("");
+    setBulkFileName("");
     setInviteError("");
     setServerPreview(null);
     setPreviewing(false);
@@ -486,6 +498,53 @@ export default function OnboardingDialog({
     setServerPreview(null);
     setSingleEmail("");
     setBulkEmails("");
+    setBulkFileName("");
+  }
+
+  function retryFailed() {
+    if (!completion || completion.failedRows.length === 0) return;
+    setCompletion(null);
+    setInviteMode("bulk");
+    setSingleEmail("");
+    setBulkEmails(completion.failedRows.map((row) => `${row.email}, ${row.role.toLowerCase()}`).join("\n"));
+    setBulkFileName("");
+    setInviteError("");
+    setPreviewError("");
+    setServerPreview(null);
+  }
+
+  function failedRowsForAttempt(rows: Array<{ email: string; role: InviteRole }>, reason: string): FailedInviteRow[] {
+    return rows.map((row) => ({ ...row, reason }));
+  }
+
+  function showFailedAttempt(rows: Array<{ email: string; role: InviteRole }>, reason: string) {
+    const failedRows = failedRowsForAttempt(rows, reason);
+    setInviteError("");
+    setCompletion({
+      requested: failedRows.length,
+      created: 0,
+      skipped: 0,
+      failed: failedRows.length,
+      failedRows,
+    });
+  }
+
+  async function handleBulkFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > 2_000_000) {
+      setInviteError("CSV files must be smaller than 2 MB.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      setBulkEmails(text);
+      setBulkFileName(file.name);
+      setInviteError("");
+    } catch {
+      setInviteError("That CSV could not be read. Try saving it as UTF-8 and upload it again.");
+    }
   }
 
   async function handleInviteSubmit(event: FormEvent<HTMLFormElement>) {
@@ -493,6 +552,9 @@ export default function OnboardingDialog({
     setInviteError("");
 
     const emails = inviteMode === "single" ? [singleEmail.trim().toLowerCase()].filter(Boolean) : finalReadyPreviewRows.map((row) => row.email);
+    const attemptedRows = inviteMode === "single"
+      ? emails.map((email) => ({ email, role: inviteRole }))
+      : finalReadyPreviewRows.map((row) => ({ email: row.email, role: row.role }));
     if (emails.length === 0) {
       const message = inviteMode === "single" ? "Email address is required." : "Paste at least one email.";
       setInviteError(message);
@@ -553,12 +615,24 @@ export default function OnboardingDialog({
 
       if (!response.ok) {
         const message = await parseErrorMessage(response, "Failed to save invitations");
-        setInviteError(message);
+        showFailedAttempt(attemptedRows, message);
         toast.error(message);
         return;
       }
 
       const result = await parseJsonSafely<InviteResponse>(response);
+      if (!result) {
+        const message = "The server did not confirm these invitations. Retry the failed rows.";
+        showFailedAttempt(attemptedRows, message);
+        toast.error(message);
+        return;
+      }
+      const failed = result.failed ?? result.failedRows?.length ?? 0;
+      const failedRows = result.failedRows?.length
+        ? result.failedRows
+        : failed > 0
+          ? failedRowsForAttempt(attemptedRows, "The server did not confirm this invitation")
+          : [];
       if (inviteMode === "single") {
         if (result?.skipped === true) {
           toast.message("No new invitation was created. This address is already allowlisted or registered.");
@@ -577,20 +651,23 @@ export default function OnboardingDialog({
         }
       }
 
-      onInvitesChanged?.();
+      if ((result.created ?? (result.skipped === true ? 0 : 1)) > 0) onInvitesChanged?.();
       setSingleEmail("");
       setBulkEmails("");
+      setBulkFileName("");
       setInviteError("");
       setCompletion({
         created: result?.created ?? (result?.skipped === true ? 0 : 1),
         skipped: typeof result?.skipped === "number" ? result.skipped : result?.skipped === true ? 1 : 0,
         requested: emails.length,
+        failed,
+        failedRows,
       });
     } catch (error) {
       if (isAbortError(error)) return;
       const kind = classifyError(error);
       const message = kind === "network" ? "You're offline. Check your connection." : "Failed to save invitations";
-      setInviteError(message);
+      showFailedAttempt(attemptedRows, message);
       toast.error(message);
     } finally {
       setInviting(false);
@@ -617,22 +694,48 @@ export default function OnboardingDialog({
         {completion ? (
           <>
             <DialogBody className="min-h-0 overflow-y-auto flex flex-col gap-4 py-5">
-              <Alert className="border-[var(--green)]/40 bg-[var(--green-bg)]">
-                <CheckCircle2 className="size-4 text-[var(--green-text)]" />
-                <AlertTitle>Invitations saved</AlertTitle>
+              <Alert className={completion.failed > 0 ? "border-[var(--orange)]/50 bg-[var(--orange-bg)]" : "border-[var(--green)]/40 bg-[var(--green-bg)]"}>
+                {completion.failed > 0 ? <AlertCircle className="size-4 text-[var(--orange-text)]" /> : <CheckCircle2 className="size-4 text-[var(--green-text)]" />}
+                <AlertTitle>{completion.failed > 0 ? "Some invitations need attention" : "Invitations saved"}</AlertTitle>
                 <AlertDescription className="text-muted-foreground">
-                  Send users to the app login page. They enter their invited email and are routed to password setup automatically. No shared first-login password is created.
+                  {completion.failed > 0
+                    ? "These rows were not confirmed by the server. Retry them below; existing rows are safe to retry because the server skips duplicates."
+                    : "Send users to the app login page. They enter their invited email and are routed to password setup automatically. No shared first-login password is created."}
                 </AlertDescription>
               </Alert>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className={`grid grid-cols-2 gap-2 ${completion.failed > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
                 <OnboardingMetricCard label="Requested" value={completion.requested} />
                 <OnboardingMetricCard label="Added" value={completion.created} />
                 <OnboardingMetricCard label="Skipped" value={completion.skipped} />
+                {completion.failed > 0 && <OnboardingMetricCard label="Failed" value={completion.failed} />}
               </div>
+
+              {completion.failed > 0 && (
+                <div className="grid gap-2 rounded-lg border border-[var(--orange)]/40 bg-[var(--orange-bg)]/40 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Failed rows</p>
+                    <Badge variant="orange" size="sm">Retry available</Badge>
+                  </div>
+                  <div className="grid max-h-40 gap-1 overflow-y-auto text-xs">
+                    {completion.failedRows.slice(0, 8).map((row) => (
+                      <div key={`${row.email}-${row.role}`} className="flex items-start justify-between gap-3 rounded-sm bg-background px-2 py-1.5">
+                        <span className="min-w-0 truncate">{row.email}</span>
+                        <span className="shrink-0 text-muted-foreground">{row.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {completion.failedRows.length > 8 && <p className="text-xs text-muted-foreground">Showing 8 of {completion.failedRows.length} failed rows.</p>}
+                </div>
+              )}
             </DialogBody>
 
             <DialogFooter className="border-t border-border/40 px-6 py-4">
+              {completion.failed > 0 && (
+                <Button type="button" className="h-10" onClick={retryFailed}>
+                  Retry failed invitations
+                </Button>
+              )}
               <Button type="button" variant="outline" className="h-10" onClick={resetForAnother}>
                 Add another
               </Button>
@@ -664,7 +767,16 @@ export default function OnboardingDialog({
                 <TabsContent value="bulk" className="m-0">
                   <div className="grid gap-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-                      <Label htmlFor="onboard-bulk-emails">Paste emails separated by spaces, commas, or new lines</Label>
+                      <Label htmlFor="onboard-bulk-emails">Paste a roster or upload a CSV</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" asChild disabled={inviting}>
+                          <label htmlFor="onboard-bulk-file">
+                            <FileUp data-icon="inline-start" />
+                            Upload CSV
+                          </label>
+                        </Button>
+                        <input id="onboard-bulk-file" type="file" accept=".csv,text/csv" className="sr-only" onChange={handleBulkFileChange} disabled={inviting} />
+                      </div>
                       <div className="flex items-center gap-2">
                         <Label htmlFor="onboard-bulk-role" className="text-xs font-normal text-muted-foreground whitespace-nowrap">Role for all</Label>
                         <Select name="bulkInvitationRole" value={inviteRole} onValueChange={(value) => setInviteRole(value as InviteRole)} disabled={inviting}>
@@ -692,7 +804,7 @@ export default function OnboardingDialog({
                       className="w-full font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Paste plain emails or CSV rows with `email, role`. Admins may use `collaborator`; those rows use the affiliation selected below. Blank roles use the selected default. Max 50 ready rows per batch.
+                      {bulkFileName ? `Loaded ${bulkFileName}. ` : "Paste plain emails or CSV rows with `email, role`. "}Admins may use `collaborator`; those rows use the affiliation selected below. Blank roles use the selected default. Max 50 ready rows per batch.
                     </p>
                   </div>
                   {previewRows.length > 0 && (

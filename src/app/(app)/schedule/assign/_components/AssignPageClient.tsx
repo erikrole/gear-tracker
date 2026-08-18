@@ -17,9 +17,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { useAssignmentGrid } from "@/hooks/use-assignment-grid";
 import { AssignmentGrid } from "./AssignmentGrid";
+import { BulkAssignmentDialog } from "./BulkAssignmentDialog";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { SPORT_CODES } from "@/lib/sports";
-import { AREAS, AREA_LABELS } from "@/types/areas";
+import { AREAS, AREA_LABELS, type Area } from "@/types/areas";
+import type { BulkAssignmentScope } from "@/lib/bulk-schedule-assignment-types";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
@@ -42,6 +44,7 @@ export function AssignPageClient() {
   const router = useRouter();
   const grid = useAssignmentGrid();
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
+  const [bulkAssignmentOpen, setBulkAssignmentOpen] = useState(false);
 
   const {
     data: allUsers = [],
@@ -66,6 +69,20 @@ export function AssignPageClient() {
     [grid.events, reviewFilter],
   );
   const monthLabel = grid.month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const bulkScope = useMemo<BulkAssignmentScope>(() => {
+    const monthStart = new Date(grid.month.getFullYear(), grid.month.getMonth(), 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = monthStart < today ? today : monthStart;
+    const end = new Date(grid.month.getFullYear(), grid.month.getMonth() + 1, 0, 23, 59, 59, 999);
+    const area = AREAS.includes(grid.areaFilter as Area) ? grid.areaFilter as Area : null;
+    return {
+      sportCode: grid.sportFilter || null,
+      rangeStartsAt: start.toISOString(),
+      rangeEndsAt: end.toISOString(),
+      area,
+    };
+  }, [grid.areaFilter, grid.month, grid.sportFilter]);
   const currentMonthStart = new Date();
   currentMonthStart.setDate(1);
   currentMonthStart.setHours(0, 0, 0, 0);
@@ -90,6 +107,9 @@ export function AssignPageClient() {
   return (
     <FadeUp>
       <PageHeader title="Assign shifts">
+        <Button size="sm" onClick={() => setBulkAssignmentOpen(true)} disabled={grid.loading}>
+          Bulk assign
+        </Button>
         <Button variant="outline" size="sm" onClick={() => router.push("/schedule")}>
           <ChevronLeft className="size-4" />
           Schedule
@@ -256,6 +276,13 @@ export function AssignPageClient() {
         }}
         monthLabel={monthLabel}
         onViewSchedule={() => router.push("/schedule")}
+      />
+
+      <BulkAssignmentDialog
+        open={bulkAssignmentOpen}
+        onOpenChange={setBulkAssignmentOpen}
+        scope={bulkScope}
+        onApplied={() => grid.refetch()}
       />
     </FadeUp>
   );

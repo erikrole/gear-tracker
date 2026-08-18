@@ -12,6 +12,8 @@ type ScheduleChangeHistoryInput = {
   eventIds: string[];
   limitPerEvent?: number;
   since?: Date;
+  /** Working-copy edits are private to internal staffing surfaces. */
+  includeWorkingCopy?: boolean;
 };
 
 type AuditRow = {
@@ -60,7 +62,7 @@ function unique(values: string[]) {
   return [...new Set(values)];
 }
 
-function jsonObject(value: Prisma.JsonValue | null): Record<string, unknown> {
+function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
@@ -96,6 +98,36 @@ function changedFieldDetail(before: Record<string, unknown>, after: Record<strin
   return null;
 }
 
+function workingScheduleActionMeta(row: AuditRow): { kind: ScheduleChangeKind; label: string; detail: string | null } | null {
+  const command = jsonObject(jsonObject(row.beforeJson).command);
+  const commandType = stringValue(command.type);
+  if (!commandType) return null;
+
+  switch (commandType) {
+    case "assign":
+      return { kind: "assignment_assigned", label: "Assigned worker", detail: "Working copy" };
+    case "unassign":
+      return { kind: "assignment_removed", label: "Removed worker", detail: "Working copy" };
+    case "convertAndReplace":
+      return { kind: "assignment_updated", label: "Replaced worker", detail: "Working copy" };
+    case "setCallWindow":
+    case "setCallWindowForAll":
+      return { kind: "assignment_updated", label: "Updated call time", detail: "Working copy" };
+    case "adjustSlots": {
+      const delta = numberValue(command.delta);
+      return delta === -1
+        ? { kind: "shift_deleted", label: "Removed shift", detail: "Working copy" }
+        : { kind: "shift_created", label: "Added shift", detail: "Working copy" };
+    }
+    case "removeSlot":
+      return { kind: "shift_deleted", label: "Removed shift", detail: "Working copy" };
+    case "convertSlot":
+      return { kind: "shift_updated", label: "Converted shift", detail: "Working copy" };
+    default:
+      return null;
+  }
+}
+
 function actionMeta(row: AuditRow, lookup: {
   shift?: ShiftLookup;
   assignment?: AssignmentLookup;
@@ -103,6 +135,14 @@ function actionMeta(row: AuditRow, lookup: {
 }): { kind: ScheduleChangeKind; label: string; detail: string | null } {
   const before = jsonObject(row.beforeJson);
   const after = jsonObject(row.afterJson);
+
+  if (row.entityType === "shift_group_working_copy") {
+    return workingScheduleActionMeta(row) ?? {
+      kind: "unknown",
+      label: row.action.replaceAll("_", " "),
+      detail: null,
+    };
+  }
 
   switch (row.action) {
     case "shift_assigned":
@@ -187,6 +227,7 @@ function targetFor(row: AuditRow, lookup: {
 }): ScheduleChangeItem["target"] {
   if (row.entityType === "calendar_event") return { type: "event", id: row.entityId, label: null };
   if (row.entityType === "shift_group") return { type: "shift_group", id: row.entityId, label: null };
+  if (row.entityType === "shift_group_working_copy") return { type: "shift_group", id: row.entityId, label: null };
   if (row.entityType === "shift") return { type: "shift", id: row.entityId, label: lookup.shift?.label ?? null };
   if (row.entityType === "shift_assignment") return { type: "assignment", id: row.entityId, label: lookup.assignment?.label ?? null };
   if (row.entityType === "booking") return { type: "booking", id: row.entityId, label: lookup.booking?.label ?? null };
@@ -208,6 +249,7 @@ export async function getScheduleChangeHistory({
   eventIds,
   limitPerEvent = 5,
   since,
+  includeWorkingCopy = false,
 }: ScheduleChangeHistoryInput): Promise<ScheduleChangeHistorySnapshot> {
   const scopedEventIds = unique(eventIds).filter(Boolean);
   const events = Object.fromEntries(scopedEventIds.map((eventId) => [eventId, emptySummary(eventId)]));
@@ -304,6 +346,7 @@ export async function getScheduleChangeHistory({
   const auditFilters: Prisma.AuditLogWhereInput[] = [
     { entityType: "calendar_event", entityId: { in: scopedEventIds } },
     ...(groupEvent.size ? [{ entityType: "shift_group", entityId: { in: [...groupEvent.keys()] } }] : []),
+    ...(includeWorkingCopy && groupEvent.size ? [{ entityType: "shift_group_working_copy", entityId: { in: [...groupEvent.keys()] } }] : []),
     ...(shiftLookup.size ? [{ entityType: "shift", entityId: { in: [...shiftLookup.keys()] } }] : []),
     ...(assignmentLookup.size ? [{ entityType: "shift_assignment", entityId: { in: [...assignmentLookup.keys()] } }] : []),
     ...(bookingLookup.size ? [{ entityType: "booking", entityId: { in: [...bookingLookup.keys()] } }] : []),
@@ -325,6 +368,7 @@ export async function getScheduleChangeHistory({
     const affectedEventIds =
       row.entityType === "calendar_event" ? [row.entityId]
       : row.entityType === "shift_group" ? [groupEvent.get(row.entityId)].filter((value): value is string => Boolean(value))
+      : row.entityType === "shift_group_working_copy" ? [groupEvent.get(row.entityId)].filter((value): value is string => Boolean(value))
       : row.entityType === "shift" ? [shiftLookup.get(row.entityId)?.eventId].filter((value): value is string => Boolean(value))
       : row.entityType === "shift_assignment" ? [assignmentLookup.get(row.entityId)?.eventId].filter((value): value is string => Boolean(value))
       : row.entityType === "booking" ? booking?.eventIds ?? []

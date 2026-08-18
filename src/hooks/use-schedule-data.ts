@@ -33,6 +33,12 @@ export type ViewMode = "list" | "calendar" | "week";
 
 export type HomeAwayFilter = VenueFilter;
 
+type ScheduleDeepLink = {
+  myShiftsOnly: boolean;
+  sportCode: string;
+  dateRange: { startDate: string; endDate: string } | null;
+};
+
 export type ScheduleFilters = {
   viewMode: ViewMode;
   setViewMode: (v: ViewMode) => void;
@@ -113,7 +119,15 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
 }
 
 /** Build schedule fetch URL based on current view params */
-function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, includeArchived: boolean, sportFilter: string) {
+function buildScheduleUrls(
+  viewMode: string,
+  calMonth: Date,
+  weekStart: Date,
+  includePast: boolean,
+  includeArchived: boolean,
+  sportFilter: string,
+  dateRange: ScheduleDeepLink["dateRange"],
+) {
   const evParams = new URLSearchParams({ limit: "200" });
   const sgParams = new URLSearchParams({ limit: "200" });
   const healthParams = new URLSearchParams();
@@ -151,7 +165,16 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
     automationParams.set("endDate", endDate);
     automationParams.set("includePast", "true");
   } else {
-    if (!includePast) {
+    if (dateRange) {
+      evParams.set("startDate", dateRange.startDate);
+      evParams.set("endDate", dateRange.endDate);
+      sgParams.set("startDate", dateRange.startDate);
+      sgParams.set("endDate", dateRange.endDate);
+      healthParams.set("startDate", dateRange.startDate);
+      healthParams.set("endDate", dateRange.endDate);
+      automationParams.set("startDate", dateRange.startDate);
+      automationParams.set("endDate", dateRange.endDate);
+    } else if (!includePast) {
       // Use start-of-today to avoid constantly changing URLs
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -288,6 +311,23 @@ export function useScheduleData(): UseScheduleDataResult {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const searchParamsString = searchParams.toString();
+  const deepLink = useMemo<ScheduleDeepLink>(() => {
+    const query = new URLSearchParams(searchParamsString);
+    const start = query.get("startDate");
+    const end = query.get("endDate");
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+    const dateRange = startDate && endDate && !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate > startDate
+      ? { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+      : null;
+    return {
+      myShiftsOnly: query.get("myShifts") === "true",
+      sportCode: query.get("sportCode") ?? "",
+      dateRange,
+    };
+  }, [searchParamsString]);
+  const [deepLinkApplied, setDeepLinkApplied] = useState(false);
   const activeQueue = parseScheduleQueue(searchParams.get("queue"));
   const activeQueueMeta = activeQueue ? SCHEDULE_QUEUE_META[activeQueue] : null;
 
@@ -305,7 +345,7 @@ export function useScheduleData(): UseScheduleDataResult {
 
   useEffect(() => {
     const storedView = localStorage.getItem(LS_VIEW_MODE);
-    if (storedView === "calendar" || storedView === "week") {
+    if (!deepLink.myShiftsOnly && !deepLink.dateRange && (storedView === "calendar" || storedView === "week")) {
       setViewMode(storedView);
     }
 
@@ -314,8 +354,15 @@ export function useScheduleData(): UseScheduleDataResult {
       setMyShiftsOnly(storedMyShifts === "true");
     }
 
+    if (deepLink.myShiftsOnly || deepLink.dateRange) {
+      setViewMode("list");
+      if (deepLink.myShiftsOnly) setMyShiftsOnly(true);
+    }
+    if (deepLink.sportCode) setSportFilter(deepLink.sportCode);
+
     setPreferencesLoaded(true);
-  }, []);
+    setDeepLinkApplied(true);
+  }, [deepLink, searchParamsString]);
 
   useEffect(() => {
     if (!preferencesLoaded) return;
@@ -372,7 +419,17 @@ export function useScheduleData(): UseScheduleDataResult {
   }, [calendarSources]);
 
   // --- React Query: schedule entries ---
-  const { eventsUrl, groupsUrl, healthUrl, automationUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, includeArchived, sportFilter);
+  const effectiveViewMode = deepLink.myShiftsOnly || deepLink.dateRange ? "list" : viewMode;
+  const effectiveSportFilter = deepLinkApplied ? sportFilter : sportFilter || deepLink.sportCode;
+  const { eventsUrl, groupsUrl, healthUrl, automationUrl } = buildScheduleUrls(
+    effectiveViewMode,
+    calMonth,
+    weekStart,
+    includePast,
+    includeArchived,
+    effectiveSportFilter,
+    deepLink.dateRange,
+  );
   const scheduleQueryKey = ["schedule", eventsUrl, groupsUrl];
 
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
@@ -446,7 +503,7 @@ export function useScheduleData(): UseScheduleDataResult {
     return groups;
   }, [filteredEntries]);
 
-  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly || activeQueue);
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly || activeQueue || deepLink.dateRange);
 
   const sourceSignal = useMemo(() => {
     if (!canViewSourceStatus) return null;
@@ -502,7 +559,14 @@ export function useScheduleData(): UseScheduleDataResult {
         setIncludePast(false);
         setIncludeArchived(false);
         setMyShiftsOnly(false);
-        setQueue(null);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("queue");
+        params.delete("myShifts");
+        params.delete("sportCode");
+        params.delete("startDate");
+        params.delete("endDate");
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
       },
     },
     calMonth,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStaffScheduleDigestCandidates,
   categoryForScheduleNotificationType,
+  scheduleMyShiftsNotificationPayload,
   scheduleNotificationPayload,
   shouldNotifyGearPrep,
   shouldNotifyWorkerForScheduleEvent,
@@ -52,6 +53,24 @@ describe("schedule notification policy", () => {
       assignmentId: "assignment-1",
       tradeId: "trade-1",
       area: "VIDEO",
+    });
+  });
+
+  it("builds a recipient-scoped My Shifts deep link for a bulk assignment", () => {
+    expect(scheduleMyShiftsNotificationPayload({
+      rangeStartsAt: "2026-08-01T00:00:00.000Z",
+      rangeEndsAt: "2026-08-31T23:59:59.999Z",
+      sportCode: "MSOC",
+      extra: { bulkAssignmentId: "batch-1", shiftCount: 42 },
+    })).toEqual({
+      bulkAssignmentId: "batch-1",
+      shiftCount: 42,
+      target: "schedule",
+      href: "/schedule?myShifts=true&startDate=2026-08-01T00%3A00%3A00.000Z&endDate=2026-08-31T23%3A59%3A59.999Z&sportCode=MSOC",
+      myShiftsOnly: true,
+      sportCode: "MSOC",
+      startDate: "2026-08-01T00:00:00.000Z",
+      endDate: "2026-08-31T23:59:59.999Z",
     });
   });
 

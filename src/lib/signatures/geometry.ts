@@ -24,6 +24,46 @@ export type SignatureCurve = {
   segments: SignatureCurveSegment[];
 };
 
+type SignatureBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+/**
+ * A pen can leave a tiny isolated mark when it touches down in a corner
+ * before the signer starts. Keep short marks that sit inside/near the real
+ * signature (for example, the dot in an initial), but remove an isolated
+ * corner mark when there is other substantive ink.
+ */
+export function removeAccidentalSignatureStrokes(
+  strokes: SignatureStroke[],
+  settings: Pick<SignaturePenSettings, "strokeWidth" | "cropPadding">,
+): SignatureStroke[] {
+  if (strokes.length < 2) return strokes;
+
+  const maxAccidentalLength = Math.max(8, settings.strokeWidth * 2);
+  const shortStrokeIndexes = new Set(
+    strokes.flatMap((stroke, index) => signatureStrokeLength(stroke) <= maxAccidentalLength ? [index] : []),
+  );
+  if (shortStrokeIndexes.size === strokes.length) return strokes;
+
+  const substantiveBounds = strokes
+    .filter((_stroke, index) => !shortStrokeIndexes.has(index))
+    .map(signatureStrokeBounds)
+    .reduce(combineSignatureBounds, null);
+  if (!substantiveBounds) return strokes;
+
+  const allowedGap = Math.max(32, settings.cropPadding * 1.5);
+  const cleaned = strokes.filter((stroke, index) => {
+    if (!shortStrokeIndexes.has(index)) return true;
+    return signatureBoundsGap(signatureStrokeBounds(stroke), substantiveBounds) <= allowedGap;
+  });
+
+  return cleaned.length > 0 ? cleaned : strokes;
+}
+
 /**
  * Builds the shared display/artifact curve for a normalized stroke. Midpoints
  * keep the curve close to the Pencil path while removing the visible corners
@@ -77,6 +117,54 @@ export function normalizeSignatureStrokes(
       }),
     };
   });
+}
+
+function signatureStrokeLength(stroke: SignatureStroke): number {
+  let length = 0;
+  for (let index = 1; index < stroke.points.length; index += 1) {
+    const previous = stroke.points[index - 1]!;
+    const current = stroke.points[index]!;
+    length += Math.hypot(current.x - previous.x, current.y - previous.y);
+  }
+  return length;
+}
+
+function signatureStrokeBounds(stroke: SignatureStroke): SignatureBounds {
+  return stroke.points.reduce<SignatureBounds>((bounds, point) => ({
+    minX: Math.min(bounds.minX, point.x),
+    minY: Math.min(bounds.minY, point.y),
+    maxX: Math.max(bounds.maxX, point.x),
+    maxY: Math.max(bounds.maxY, point.y),
+  }), {
+    minX: Number.POSITIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+  });
+}
+
+function combineSignatureBounds(left: SignatureBounds | null, right: SignatureBounds): SignatureBounds {
+  if (!left) return right;
+  return {
+    minX: Math.min(left.minX, right.minX),
+    minY: Math.min(left.minY, right.minY),
+    maxX: Math.max(left.maxX, right.maxX),
+    maxY: Math.max(left.maxY, right.maxY),
+  };
+}
+
+function signatureBoundsGap(left: SignatureBounds, right: SignatureBounds): number {
+  const horizontalGap = left.maxX < right.minX
+    ? right.minX - left.maxX
+    : right.maxX < left.minX
+      ? left.minX - right.maxX
+      : 0;
+  const verticalGap = left.maxY < right.minY
+    ? right.minY - left.maxY
+    : right.maxY < left.minY
+      ? left.minY - right.maxY
+      : 0;
+  return Math.hypot(horizontalGap, verticalGap);
 }
 
 export function computeSignatureCropBounds(

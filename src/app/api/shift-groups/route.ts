@@ -84,7 +84,7 @@ export const GET = withAuth(async (req, { user }) => {
         },
         orderBy: [{ area: "asc" }, { workerType: "asc" }],
       },
-      workingCopy: { select: { version: true } },
+      workingCopy: { select: { version: true, autoReleaseAt: true, autoReleaseError: true } },
     },
     orderBy: { event: { startsAt: "asc" } },
   }),
@@ -115,6 +115,12 @@ export const GET = withAuth(async (req, { user }) => {
 
     const publication = getSchedulePublicationState(g);
     const staffCanSeeWorkingState = user.role === "ADMIN" || user.role === "STAFF";
+    const pendingRelease = staffCanSeeWorkingState && g.workingCopy
+      ? {
+          autoReleaseAt: g.workingCopy.autoReleaseAt?.toISOString() ?? null,
+          autoReleaseError: g.workingCopy.autoReleaseError,
+        }
+      : null;
     return {
       ...g,
       workingCopy: undefined,
@@ -129,6 +135,8 @@ export const GET = withAuth(async (req, { user }) => {
         ? { ...publication, status: "changed" as const, changedAfterPublish: true, workingVersion: g.workingCopy.version }
         : publication,
       hasWorkingCopy: staffCanSeeWorkingState ? Boolean(g.workingCopy) : undefined,
+      autoReleaseAt: pendingRelease?.autoReleaseAt,
+      autoReleaseError: pendingRelease?.autoReleaseError,
       coverage: {
         total: totalShifts,
         filled: filledShifts,

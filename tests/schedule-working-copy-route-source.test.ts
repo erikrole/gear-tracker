@@ -22,10 +22,12 @@ describe("schedule working-copy route wiring", () => {
     const route = readFileSync("src/app/api/shift-groups/[id]/working-copy/route.ts", "utf8");
     const editor = readFileSync("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx", "utf8");
     const workingService = readFileSync("src/lib/services/schedule-working-copy.ts", "utf8");
+    const release = readFileSync("src/lib/schedule-release.ts", "utf8");
 
     expect(editor).toContain("/working-copy");
     expect(editor).not.toContain("/publish");
-    expect(editor).toContain("Assignees notified in");
+    expect(editor).toContain("formatScheduleReleaseCountdown");
+    expect(release).toContain("notified in");
     expect(route).toContain("enqueuePendingScheduleRelease");
     expect(route.indexOf("await enqueuePendingScheduleRelease")).toBeLessThan(route.indexOf("await mutateWorkingSchedule"));
     expect(route).toContain("version: body.expectedVersion + 1");

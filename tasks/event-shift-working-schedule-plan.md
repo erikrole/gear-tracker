@@ -179,6 +179,25 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Run focused services/routes/workflow/defaults/collaborator/call-time/trade tests, TypeScript, focused lint, Prisma gates, `build:app`, codemap/docs checks, and diff hygiene.
 - [x] Run iOS source contracts, project/drift checks, and the Wisconsin iPhone 16 Pro simulator build; authenticated web/native runtime proof remains open.
 
+### 21. Notification policy disclosure
+
+- [x] Explain the timed-release notification recipients, delivery channels, cadence, and quiet-period boundary in the Event detail Crew and Schedule shift-detail notices.
+- [x] Reuse one shared notice so staff see the same policy from both read-only crew surfaces without changing notification behavior.
+- [x] Add source-contract coverage for the disclosure and verify the authenticated Event detail route.
+
+### 22. Stateful pending-release notice
+
+- [x] Return the staff-only release timestamp and blocked-release error from Event detail shift-group reads.
+- [x] Show the shared notice only while a working copy is pending, with a live countdown and a quiet refresh loop until release.
+- [x] Link blocked releases back to Schedule for review or revert, and reuse the countdown formatter across Schedule and Event detail.
+
+## Review: Slice 22 (2026-08-18)
+
+- Shipped: Event detail Crew and the read-only Shift detail panel now show the actual `Affected users notified in …` countdown only while a working copy exists. The notice refreshes on the existing 15-second operational cadence, disappears after release, and exposes a Schedule recovery link when the release is blocked.
+- Boundary: Release authority, affected-user selection, notification delivery, and worker-facing published reads are unchanged. The timestamp and error are staff-gated at both shift-group read routes.
+- Verified: focused notification/source contracts (30 tests), full Vitest (3,243/3,244; one existing bootstrap environment failure), ESLint (three unrelated warnings), codemap/docs checks, and authenticated Schedule browser proof with the Assignee changes preview open and no console errors.
+- Deferred: `npm run build:app` compiles successfully but its type-check is currently blocked by unrelated dirty-worktree assignment `source` omissions in `src/lib/schedule-working-copy.ts` and existing fixtures. Exact external push/email receipt remains open under GAP-60.
+
 ## Review: Slices 14–20 (2026-08-07)
 
 - Shipped to production 2026-08-07: every working-schedule edit pre-enqueues an exact-version durable Workflow release ten minutes out. Newer edits supersede sleeping runs, permanent validation blockers persist on the pending version, and the old manual release endpoint returns `410`.
@@ -186,6 +205,14 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - Timing and visibility: Staff/collaborator slots retain event-window storage for schedule integrity but expose no call-time value or event-time substitute across notifications, exports, ICS, web, and iOS. Only Student slots expose call-time controls. Active acknowledgement controls and readiness state are retired while historical fields remain compatible.
 - Verified: 67 focused scheduling/notification/native source tests, TypeScript, focused ESLint, `npm run build:app`, codemap/docs checks, iOS project/drift checks, and the exact iPhone 16 Pro simulator build pass after the neutral/Staff-timing correction. The full repository suite passes 2,974 tests and retains three unrelated failures from concurrent App Store, login-domain, and Social-area work; repository-wide lint still stops in `.tmp/call-time-sync-bundle.mjs`.
 - Production evidence: migration health reports 114/114 local migrations applied with no pending, failed, or database-only rows. Vercel deployment `dpl_7oiHWXm3s2A7q3jkTbebXUq2RcN9` is READY and aliased at `https://gear.erikrole.com`; public deploy smoke passed. Authenticated ten-minute release and consolidated notification proof on web/native remains open.
+
+## Review: Slice 21 (2026-08-18)
+
+- Shipped: Event detail Crew and the read-only Shift detail panel now share one notification-policy notice. It names affected active workers and event-following collaborators, separates in-app/email/push delivery, states the one-summary-per-released-version cadence, and explains the ten-minute quiet-period restart behavior.
+- Boundary: This is explanatory UI only. Release timing, worker/collaborator selection, notification preferences, dedupe keys, and publication authority are unchanged.
+- Verified: focused source-contract coverage, schedule notification-policy tests, pending-release tests, focused ESLint, TypeScript, and authenticated Event detail browser inspection pass.
+- Deferred: exact ten-minute release and external delivery acceptance remain open under GAP-60; this slice does not claim push or email receipt proof.
+- Next slice or stop: stop unless a separate notification-delivery or release-timer failure is selected.
 
 ## Review: Slice 6 Native working-copy adoption
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowRight, Download, Eye, EyeOff, FilePenLine, FolderPen, Plus, RefreshCw, Trash2, UsersRound } from "lucide-react";
+import { Archive, ArrowRight, Download, Eye, EyeOff, FileCode2, FileImage, FilePenLine, FolderPen, Plus, RefreshCw, Trash2, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { FadeUp } from "@/components/ui/motion";
@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -54,6 +54,8 @@ type Preview = {
   sourceHash: string;
   entries: Array<{ name: string; roleGroup: string; jerseyNumber: number | null }>;
 };
+
+type SignatureZipFormat = "png" | "svg";
 
 const SIGNATURE_SEASON_OPTIONS = Array.from({ length: 9 }, (_, index) => {
   const startYear = 2024 + index;
@@ -203,22 +205,22 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
     }
   }
 
-  async function downloadAll(collection: Collection) {
+  async function downloadAll(collection: Collection, format: SignatureZipFormat) {
     setWorkingCollectionId(collection.id);
     try {
-      const response = await fetch(`/api/signatures/collections/${collection.id}/download`);
+      const response = await fetch(`/api/signatures/collections/${collection.id}/download?format=${format}`);
       if (handleAuthRedirect(response)) throw new Error("Session expired");
       if (!response.ok) throw new Error(await parseErrorMessage(response, "Signature archive could not be downloaded"));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${collection.sportCode.toLowerCase()}-${collection.season}-signatures.zip`;
+      anchor.download = `${collection.sportCode.toLowerCase()}-${collection.season}-signatures-${format}.zip`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
-      toast.success(`${signatureCollectionTitle(collection.sportCode)} signatures downloaded`);
+      toast.success(`${signatureCollectionTitle(collection.sportCode)} ${format.toUpperCase()} signatures downloaded`);
     } catch (requestError) {
       toast.error(requestError instanceof Error ? requestError.message : "Signature archive could not be downloaded");
     } finally {
@@ -351,10 +353,22 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                       <div className="flex shrink-0 items-center gap-1">
                         <Badge variant={collection.status === "OPEN" ? "default" : "outline"}>{collection.status === "OPEN" ? "Open" : "Archived"}</Badge>
                         <OperationalRowActions label={`Actions for ${signatureCollectionTitle(collection.sportCode)} ${collection.season}`}>
-                          <DropdownMenuItem disabled={isWorking || downloadableCount === 0} onSelect={() => void downloadAll(collection)}>
-                            <Download />
-                            Download All{downloadableCount === 0 ? " (none yet)" : ""}
-                          </DropdownMenuItem>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger disabled={isWorking || downloadableCount === 0}>
+                              <Download />
+                              Download All{downloadableCount === 0 ? " (none yet)" : ""}
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuItem disabled={isWorking} onSelect={() => void downloadAll(collection, "png")}>
+                                <FileImage />
+                                PNG files
+                              </DropdownMenuItem>
+                              <DropdownMenuItem disabled={isWorking} onSelect={() => void downloadAll(collection, "svg")}>
+                                <FileCode2 />
+                                SVG files
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
                           {isAdmin && (
                             <>
                               <DropdownMenuSeparator />

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
+import { ScheduleReleaseNotice } from "@/components/ScheduleReleaseNotice";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel } from "@/lib/shift-display";
@@ -628,11 +629,12 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
 
       <CardContent>
         {isStaffOrAdmin && (
-          <Alert className="mb-4">
-            <AlertDescription>
-              Make crew changes in <Link href="/schedule" className="font-medium underline">Schedule</Link>. Each edit restarts a 10-minute buffer before workers see it.
-            </AlertDescription>
-          </Alert>
+          <ScheduleReleaseNotice
+            hasWorkingCopy={shiftGroup.hasWorkingCopy}
+            autoReleaseAt={shiftGroup.autoReleaseAt}
+            autoReleaseError={shiftGroup.autoReleaseError}
+            onRefresh={onUpdated}
+          />
         )}
         {(actionError || createdShiftNotice) && (
           <Alert variant={actionError ? "destructive" : "default"} className="mb-4">

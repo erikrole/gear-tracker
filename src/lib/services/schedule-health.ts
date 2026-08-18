@@ -12,6 +12,7 @@ type ScheduleHealthInput = {
   includePast: boolean;
   includeArchived: boolean;
   sportCode: string | null;
+  includeWorkingCopy?: boolean;
   now?: Date;
 };
 
@@ -239,6 +240,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
         eventIds,
         limitPerEvent: 3,
         since: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        includeWorkingCopy: input.includeWorkingCopy,
       }),
     ]);
 

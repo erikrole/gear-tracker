@@ -7,9 +7,11 @@ describe("profile completion web wiring", () => {
   const shell = readFileSync("src/components/AppShell.tsx", "utf8");
   const profilePage = readFileSync("src/app/(app)/users/[id]/page.tsx", "utf8");
 
-  it("mounts one desktop-only returning-user wizard in authenticated web chrome", () => {
+  it("mounts one responsive returning-user wizard in authenticated web chrome", () => {
     expect(shell).toContain('pathname !== "/welcome" && <ProfileCompletionWizard />');
-    expect(wizard).toContain('matchMedia("(min-width: 768px)")');
+    expect(wizard).not.toContain('matchMedia("(min-width: 768px)")');
+    expect(wizard).toContain('if (!data) return null;');
+    expect(wizard).toContain("max-h-[calc(100dvh-1rem)]");
     expect(wizard).toContain("data?.completion.shouldPrompt");
     expect(wizard).toContain("Remind me tomorrow");
     expect(wizard).toContain('step: "SNOOZE"');
@@ -61,8 +63,16 @@ describe("profile completion web wiring", () => {
     expect(profilePage).toContain("isSelf && <ProfileCompletionNotice />");
     expect(notice).toContain("Needed:");
     expect(notice).toContain("Complete profile");
-    expect(notice).toContain("hidden");
-    expect(notice).toContain("md:block");
+    expect(notice).not.toContain("hidden");
+    expect(notice).not.toContain("md:block");
     expect(notice).toContain("if (data.completion.isComplete) return null");
+  });
+
+  it("keeps collaborator Welcome copy aligned with the photo-only contract", () => {
+    const welcome = readFileSync("src/app/(app)/welcome/page.tsx", "utf8");
+
+    expect(welcome).toContain("Add a profile photo so the Wisconsin Creative team can recognize you.");
+    expect(welcome).not.toContain("Add a phone number and a profile photo");
+    expect(welcome).not.toContain("Add a phone number so the team can reach you.");
   });
 });

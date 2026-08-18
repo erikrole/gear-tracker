@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { createAuditEntriesTx } from "@/lib/audit";
 import type { CalendarEventStatus } from "@prisma/client";
 import {
   buildVenueSearchText,
@@ -402,6 +403,36 @@ export type ExistingEventRow = {
   locationLocked: boolean;
 };
 
+type CalendarEventAuditSource = {
+  externalId: string;
+  summary: string;
+  description: string | null;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  status: string;
+  locationId: string | null;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
+};
+
+function calendarEventAuditSnapshot(event: CalendarEventAuditSource) {
+  return {
+    externalId: event.externalId,
+    summary: event.summary,
+    description: event.description,
+    startsAt: event.startsAt.toISOString(),
+    endsAt: event.endsAt.toISOString(),
+    allDay: event.allDay,
+    status: event.status,
+    locationId: event.locationId,
+    sportCode: event.sportCode,
+    opponent: event.opponent,
+    isHome: event.isHome,
+  };
+}
+
 export type ParsedIcsEvent = {
   uid: string;
   summary: string;
@@ -681,6 +712,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   let skipped = skippedErrors.length;
   const errors: SyncEventError[] = [...skippedErrors];
   const MAX_STORED_ERRORS = 10;
+  const existingById = new Map(existingRows.map((row) => [row.id, row]));
 
   // ── Phase 3: Batch writes in chunks ──
 
@@ -688,11 +720,36 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   for (let i = 0; i < toCreate.length; i += WRITE_CHUNK_SIZE) {
     const chunk = toCreate.slice(i, i + WRITE_CHUNK_SIZE);
     try {
-      await db.calendarEvent.createMany({
-        data: chunk.map((c) => ({ sourceId, ...c })),
-        skipDuplicates: true,
+      const created = await db.$transaction(async (tx) => {
+        const inserted = await tx.calendarEvent.createManyAndReturn({
+          data: chunk.map((c) => ({ sourceId, ...c })),
+          skipDuplicates: true,
+          select: {
+            id: true,
+            externalId: true,
+            summary: true,
+            description: true,
+            startsAt: true,
+            endsAt: true,
+            allDay: true,
+            status: true,
+            locationId: true,
+            sportCode: true,
+            opponent: true,
+            isHome: true,
+          },
+        });
+        await createAuditEntriesTx(tx, inserted.map((event) => ({
+          actorId: null,
+          actorRole: null,
+          entityType: "calendar_event",
+          entityId: event.id,
+          action: "calendar_event_created",
+          after: calendarEventAuditSnapshot(event),
+        })));
+        return inserted;
       });
-      added += chunk.length;
+      added += created.length;
     } catch (err) {
       skipped += chunk.length;
       if (errors.length < MAX_STORED_ERRORS) {
@@ -711,11 +768,24 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   for (let i = 0; i < toUpdate.length; i += WRITE_CHUNK_SIZE) {
     const chunk = toUpdate.slice(i, i + WRITE_CHUNK_SIZE);
     try {
-      await Promise.all(
-        chunk.map((item) =>
-          db.calendarEvent.update({ where: { id: item.id }, data: item.data })
-        )
-      );
+      await db.$transaction(async (tx) => {
+        await Promise.all(
+          chunk.map((item) =>
+            tx.calendarEvent.update({ where: { id: item.id }, data: item.data })
+          )
+        );
+        await createAuditEntriesTx(tx, chunk.map((item) => ({
+          actorId: null,
+          actorRole: null,
+          entityType: "calendar_event",
+          entityId: item.id,
+          action: "calendar_event_updated",
+          before: existingById.has(item.id)
+            ? calendarEventAuditSnapshot(existingById.get(item.id)!)
+            : undefined,
+          after: calendarEventAuditSnapshot(item.data),
+        })));
+      });
     } catch (err) {
       if (errors.length < MAX_STORED_ERRORS) {
         const reason = err instanceof Error ? err.message : "Unknown error";

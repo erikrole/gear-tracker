@@ -6,23 +6,26 @@ import {
   notifyPublishedScheduleFollowers,
   notifyPublishedShiftGroupWorkers,
 } from "@/lib/services/notifications";
+import { recordBulkScheduleReleaseOutcome } from "@/lib/services/bulk-schedule-assignment";
 import { publishShiftGroup } from "@/lib/services/schedule-publication";
 
 export async function pendingScheduleReleaseWorkflow(
   shiftGroupId: string,
   expectedVersion: number,
   releaseAtIso: string,
+  batchId?: string,
 ) {
   "use workflow";
 
   const releaseAt = new Date(releaseAtIso);
   if (releaseAt.getTime() > Date.now()) await sleep(releaseAt);
-  return releasePendingScheduleVersion(shiftGroupId, expectedVersion);
+  return releasePendingScheduleVersion(shiftGroupId, expectedVersion, batchId);
 }
 
 export async function releasePendingScheduleVersion(
   shiftGroupId: string,
   expectedVersion: number,
+  batchId?: string,
 ) {
   "use step";
 
@@ -35,6 +38,14 @@ export async function releasePendingScheduleVersion(
     },
   });
   if (!pending || pending.version !== expectedVersion) {
+    if (batchId) {
+      await recordBulkScheduleReleaseOutcome({
+        batchId,
+        shiftGroupId,
+        expectedVersion,
+        status: "SUPERSEDED",
+      });
+    }
     return { status: "superseded" as const, shiftGroupId, expectedVersion };
   }
 
@@ -46,7 +57,18 @@ export async function releasePendingScheduleVersion(
       pending.updatedBy.role,
     );
 
-    if (!result.before.publishedAt) {
+    if (batchId) {
+      if (result.publishedSnapshotChanged) {
+        await Promise.allSettled([notifyPublishedScheduleFollowers(shiftGroupId)]);
+      }
+      await recordBulkScheduleReleaseOutcome({
+        batchId,
+        shiftGroupId,
+        expectedVersion,
+        status: "RELEASED",
+        releasedVersion: result.workingVersion ?? expectedVersion,
+      });
+    } else if (!result.before.publishedAt) {
       await createPublishedShiftGroupNotifications(shiftGroupId);
     } else if (result.publishedSnapshotChanged) {
       await Promise.allSettled([
@@ -66,6 +88,15 @@ export async function releasePendingScheduleVersion(
         where: { shiftGroupId, version: expectedVersion },
         data: { autoReleaseError: error.message },
       });
+      if (batchId) {
+        await recordBulkScheduleReleaseOutcome({
+          batchId,
+          shiftGroupId,
+          expectedVersion,
+          status: "BLOCKED",
+          error: error.message,
+        });
+      }
       return {
         status: "blocked" as const,
         shiftGroupId,
