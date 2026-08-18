@@ -6,15 +6,15 @@ Started: 2026-07-21
 
 ## Outcome
 
-Make the main web Schedule the event triage and crew-setup surface, with Home, Away, and empty crew setup available from each staff event row. Event detail is the primary staff/admin crew workstation for assignment, removal, worker-class conversion, replacement, slot, and call-window management through one trustworthy ten-minute staging window. Pending edits stay private and quiet until ten minutes have passed without another edit; then the newest version releases automatically to worker-facing Schedule reads and sends one consolidated notification. Existing iOS clients continue reading the last released schedule while current web and native staff surfaces expose the timer and recovery state without manual Draft or Publish actions.
+Make the main web Schedule the event triage, crew-setup, and day-to-day crew-management surface, with Home, Away, and empty crew setup available from each staff event row. Schedule and Event detail both call the same staff/admin working-copy crew editor for assignment, removal, worker-class conversion, replacement, slot, call-window, and timed-release management; Schedule uses its compact presentation while Event detail adds deeper event, gear, and history context. Pending edits stay private and quiet until ten minutes have passed without another edit; then the newest version releases automatically to worker-facing Schedule reads and sends one consolidated notification. Existing iOS clients continue reading the last released schedule while current web and native staff surfaces expose the timer and recovery state without manual Draft or Publish actions.
 
 ## Product contract
 
 > Superseding direction accepted 2026-08-07: the timed-release contract below replaces the earlier deliberate manual-publish contract wherever they conflict. D-046 records the accepted architecture; D-042 remains historical context for the staging data model.
 
-- Web Schedule is the high-volume event triage and setup surface. Multiple events may stay expanded for read-only crew context; Event detail is the high-volume editing surface for one event.
-- Staff choose a Home, Away, or empty crew template from the Schedule event-row overflow menu. Once a group exists, Manage crew routes to Event detail.
-- Staff/admin assignment, removal, conversion, replacement, slot, call-window, and revert actions use the Event detail working-copy editor. Expanded Schedule rows do not author crew.
+- Web Schedule is the high-volume event triage, setup, and compact crew-management surface. Multiple events may stay expanded for day-to-day crew edits; Event detail keeps the same editor with deeper event context.
+- Staff choose a Home, Away, or empty crew template from the Schedule event-row overflow menu. Once a group exists, Manage crew opens the shared compact editor in the expanded row, while Open Event detail remains available for deeper context.
+- Staff/admin assignment, removal, conversion, replacement, slot, call-window, timed-release, and revert actions use one shared working-copy editor from both Schedule and Event detail. The compact and detail presentations must not introduce separate mutation paths.
 - The last released relational schedule remains the worker-facing source for My Shifts, Dashboard, ICS, Open Work, Trade Board, collaborator Schedule, and existing iOS clients.
 - Every staff edit writes a versioned pending copy and pre-enqueues a durable ten-minute release. Another edit creates a newer version and restarts the quiet period; an older workflow must no-op when it wakes.
 - Automatic release validates and reconciles the newest pending copy atomically, increments the released version, and sends at most one event summary per affected worker. A permanent validation blocker becomes visible recovery state rather than an indefinitely silent pending copy.
@@ -57,8 +57,8 @@ Make the main web Schedule the event triage and crew-setup surface, with Home, A
 - [x] Allow multiple expanded events.
 - [x] Keep event rows grouped by date with coverage, crew summary, and row-level setup/manage actions.
 - [x] Keep Home, Away, and empty crew setup in the staff Schedule row overflow menu.
-- [x] Keep expanded crew rows read-only so the list remains triage context rather than a second authoring surface.
-- [x] Route staff/admin assignment, removal, conversion, replacement, slot, call-window, timed-release, and revert actions through Event detail's working-copy editor.
+- [x] Render the same versioned working-copy editor in a compact expanded Schedule row for day-to-day assignment, replacement, slot, call-window, timed-release, and revert actions.
+- [x] Keep the compact Schedule editor and deeper Event detail editor on one shared component and command path.
 - [ ] Verify the authenticated desktop route and narrow responsive behavior.
 
 ### 5. Default staffing hardening
@@ -203,10 +203,38 @@ Make the main web Schedule the event triage and crew-setup surface, with Home, A
 ### 24. Schedule setup and Event detail crew ownership
 
 - [x] Keep crew setup available from staff Schedule row overflow menus, with Home, Away, and empty template choices.
-- [x] Remove staff assignment and working-copy editing controls from expanded Schedule rows; keep the main list focused on event triage and read-only crew context.
-- [x] Move the versioned working-copy crew editor to staff/admin Event detail so assignment, slot management, replacement, and call-window changes remain available from the event's operational context.
+- [x] Establish the initial Schedule setup and Event detail working-copy ownership split; expanded-row authoring was superseded by Slice 25's shared compact editor.
+- [x] Move the versioned working-copy crew editor into Event detail as the first full staff/admin workstation, then reuse it from Schedule in Slice 25.
 - [x] Preserve the existing timed-release, permission, rate-limit, audit, and worker-facing publication boundaries.
 - [x] Add focused source contracts; authenticated Schedule/Event detail browser proof remains gated by an available local browser session.
+
+### 25. Shared Schedule and Event detail crew editor
+
+- [x] Make the working-copy crew editor self-contained for picker loading and call it from both Schedule and Event detail.
+- [x] Open the compact shared editor from the Schedule row dropdown while retaining a direct Open Event detail action.
+- [x] Remove the unused legacy direct-assignment path from expanded Schedule rows so staff mutations have one helper and one versioned command boundary.
+- [x] Preserve worker read-only rows, Student-only call-time rules, timed release, optimistic versions, permissions, audit entries, and publication boundaries.
+
+### 26. Shared editor hardening and interaction polish
+
+- [x] Review the shared helper and both integrations for duplicate mounting, stale async responses, version-conflict recovery, and parity gaps without adding another mutation path.
+- [x] Improve compact and detail hierarchy, keyboard/focus behavior, responsive wrapping, loading/empty/error recovery, and pending-action feedback with existing primitives.
+- [x] Preserve server-owned optimistic versions, permissions, audit, timed release/revert, worker read-only rows, and Student-only call-time boundaries.
+- [x] Stop if a proposed polish change requires a new API or conflicts with D-046; keep this slice to the existing working-copy contract.
+- [x] Verify focused source/working-copy tests, TypeScript, targeted lint, app build, docs/codemap checks, and authenticated desktop browser smoke without mutating schedule data.
+- [ ] Complete narrow-width visual browser smoke when the in-app browser exposes viewport resizing.
+
+## Review: Slice 26 (2026-08-18)
+
+- Shipped: the shared helper now aborts superseded editor reads, cleans up in-flight picker/editor requests on unmount, filters already-assigned candidates, exposes retryable editor and user-picker failures, confirms pending-change reverts, preserves replacement context after a failed mutation, refreshes parent release metadata after successful reconciliation, and wraps compact call-time/dialog surfaces for narrow screens. Schedule and Event detail continue to call one versioned mutation path.
+- Verified: 46 focused crew/Schedule source and mutation-contract tests, all 498 Vitest files / 3,258 tests, `npx tsc --noEmit --pretty false`, targeted ESLint, `npm run lint` (one pre-existing warning in `scripts/backfill-signature-artifacts.ts`), `npm run build:app`, codemap/docs verification, `git diff --check`, and authenticated desktop browser smoke of Schedule row actions, compact assignment picker, Event detail replacement picker, and 200 responses from the exercised API reads. No schedule data was mutated.
+- Deferred: narrow-width visual browser smoke because the current in-app browser binding does not expose viewport resizing, and real assignment/release mutation proof remains intentionally deferred to avoid changing shared schedule data.
+
+## Review: Slice 25
+
+- Shipped: `WorkingCrewEditor` now owns picker loading plus assignment, replacement, slot, Student call-window, timed-release, revert, and conflict-refresh actions. Schedule opens its compact instance from the row menu and keeps a direct Event detail link; Event detail calls the same helper with deeper gear/history context.
+- Verified: 8 focused source-contract tests, all 498 Vitest files / 3,257 tests with a process-local placeholder `DIRECT_URL`, `npx tsc --noEmit --pretty false`, `npm run lint` (one pre-existing warning in `scripts/backfill-signature-artifacts.ts`), `npm run build:app`, codemap/docs verification, `git diff --check`, and authenticated desktop browser smoke of the Schedule menu, compact editor, Event detail editor, and replacement actions. No schedule data was mutated.
+- Deferred: narrow responsive visual acceptance and exercising a real assignment/release mutation in the shared editor; source and read-only browser proof cover the command surface without changing the shared schedule data.
 
 ## Review: Slice 24
 

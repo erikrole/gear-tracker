@@ -69,7 +69,7 @@ export default function SchedulePage() {
 function InternalSchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
-  const { loadData, setTradeSheetOpen } = data;
+  const { loadData, setExpandedRowId, setTradeSheetOpen } = data;
   const { queue, setQueue } = data.filters;
   const hidingRef = useRef<Set<string>>(new Set());
   const [hidingEventIds, setHidingEventIds] = useState<Set<string>>(() => new Set());
@@ -128,6 +128,10 @@ function InternalSchedulePage() {
     void handleSetEventVisibility(eventId, true);
   }, [handleSetEventVisibility]);
 
+  const handleQuickManageCrew = useCallback((eventId: string) => {
+    setExpandedRowId(eventId);
+  }, [setExpandedRowId]);
+
   const handleSetupCrew = useCallback(async (eventId: string, templateSide: CrewTemplateSide) => {
     if (settingUpRef.current.has(eventId)) return;
     settingUpRef.current.add(eventId);
@@ -141,7 +145,8 @@ function InternalSchedulePage() {
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const templateLabel = templateSide === "EMPTY" ? "Empty" : templateSide === "HOME" ? "Home" : "Away";
-        toast.success(`${templateLabel} crew setup created. Open Manage crew to assign staff.`);
+        setExpandedRowId(eventId);
+        toast.success(`${templateLabel} crew setup created. Manage crew is open below.`);
         loadData();
       } else {
         toast.error(await parseErrorMessage(res, "Failed to set up crew"));
@@ -157,7 +162,7 @@ function InternalSchedulePage() {
         return next;
       });
     }
-  }, [loadData]);
+  }, [loadData, setExpandedRowId]);
 
   const openTradeBoard = useCallback(() => {
     setTradeSheetOpen(true);
@@ -334,6 +339,7 @@ function InternalSchedulePage() {
           hidingEventIds={hidingEventIds}
           onHideEvent={isStaff ? handleHideEvent : undefined}
           onSetupCrew={isStaff ? handleSetupCrew : undefined}
+          onQuickManageCrew={isStaff ? handleQuickManageCrew : undefined}
           settingUpEventIds={settingUpEventIds}
         />
       )}

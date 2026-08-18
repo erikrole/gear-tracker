@@ -48,7 +48,7 @@ describe("crew row standardization", () => {
     expect(eventCrew).not.toContain("const studentTable = (");
     expect(eventCrew).toContain(": crewTable");
 
-    // Event detail owns buffered staff authoring while workers keep a shared read.
+    // Schedule and Event detail share buffered staff authoring while workers keep a shared read.
     expect(eventCrew).toContain("<WorkingCrewEditor");
     expect(eventCrew).toContain("showReleaseCountdown={false}");
     expect(eventCrew).not.toContain("canEditPublishedSchedule");

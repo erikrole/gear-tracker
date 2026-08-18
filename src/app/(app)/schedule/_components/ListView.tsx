@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, UsersRoundIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon, UsersRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -11,8 +11,6 @@ import { formatCalendarEventAllDayLabel, formatCalendarEventDateRange } from "@/
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuItem,
@@ -35,20 +33,19 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
-import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
-import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
 import { callWindowKey, effectiveCallWindow, formatCallWindowLabel, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
 import {
   CREW_ROW_GROUP,
-  CREW_ROW_REVEAL,
   CrewAreaDot,
   CrewAreaLabel,
   CrewTypeLabel,
 } from "@/components/shift-detail/crew-row";
 import type { CalendarEntry, Shift } from "./types";
+import { WorkingCrewEditor, type WorkingCrewEntry } from "./WorkingCrewEditor";
 import type { ScheduleQueueMeta } from "@/lib/schedule-queues";
 import {
   ACTIVE_STATUSES,
@@ -83,6 +80,7 @@ type ListViewProps = {
   hidingEventIds?: Set<string>;
   onHideEvent?: (eventId: string) => void;
   onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  onQuickManageCrew?: (eventId: string) => void;
   settingUpEventIds?: Set<string>;
 };
 
@@ -106,12 +104,14 @@ function CrewRowActions({
   isHiding,
   onHide,
   onSetupCrew,
+  onQuickManageCrew,
   isSettingUp,
 }: {
   entry: CalendarEntry;
   isHiding: boolean;
   onHide?: () => void;
   onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  onQuickManageCrew?: (eventId: string) => void;
   isSettingUp: boolean;
 }) {
   const hasCrew = Boolean(entry.shiftGroupId);
@@ -125,12 +125,18 @@ function CrewRowActions({
       triggerClassName={isHiding || isSettingUp ? "opacity-100" : undefined}
     >
       {hasCrew ? (
-        <DropdownMenuItem asChild>
-          <Link href={`/events/${entry.id}`}>
+        <>
+          <DropdownMenuItem onSelect={() => onQuickManageCrew?.(entry.id)}>
             <UsersRoundIcon className="size-4" />
             Manage crew{openCount > 0 ? ` · ${openCount} open` : ""}
-          </Link>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/events/${entry.id}`}>
+              <UsersRoundIcon className="size-4" />
+              Open Event detail
+            </Link>
+          </DropdownMenuItem>
+        </>
       ) : onSetupCrew ? (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger disabled={isSettingUp}>
@@ -241,41 +247,17 @@ function CrewSummary({
 
 function ShiftRowList({
   entry,
-  isStaff,
-  pickerUsers,
-  pickerLoading,
-  pickerSearch,
-  assigning,
-  onOpenPicker,
-  onClosePicker,
-  onPickerSearchChange,
-  onInlineAssign,
   currentUserId,
   postingTradeId,
   onPostTrade,
-  removingAssignmentId,
-  onRemoveAssignment,
   onSelectGroup,
-  onCallWindowSaved,
   compact = false,
 }: {
   entry: CalendarEntry;
-  isStaff: boolean;
-  pickerUsers: PickerUser[];
-  pickerLoading: boolean;
-  pickerSearch: string;
-  assigning: boolean;
-  onOpenPicker: (shiftId: string) => void;
-  onClosePicker: () => void;
-  onPickerSearchChange: (value: string) => void;
-  onInlineAssign: (shiftId: string, userId: string) => void;
   currentUserId: string;
   postingTradeId: string | null;
   onPostTrade?: (assignmentId: string) => void;
-  removingAssignmentId: string | null;
-  onRemoveAssignment?: (assignmentId: string) => void;
   onSelectGroup: () => void;
-  onCallWindowSaved: () => void;
   compact?: boolean;
 }) {
   const commonCall = commonCallWindow(entry);
@@ -295,46 +277,20 @@ function ShiftRowList({
         const activeAssignment = activeShiftAssignment(shift);
         const user = activeAssignment?.user ?? null;
         const myAssignment = shift.assignments.find(
-          (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
+          (assignment) => assignment.user.id === currentUserId && ACTIVE_STATUSES.includes(assignment.status),
         );
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const workerType = workerKindForShift(shift);
         const slotLabel = roleSlotLabel(workerType);
         const assignedClassLabel = user ? shiftWorkerLabelForProfile(user) : null;
         const assignedClassDiffersFromSlot = Boolean(assignedClassLabel && `${assignedClassLabel} slot` !== slotLabel);
-        const emptyAssignLabel = compact ? "Assign" : "Assign";
-        const emptyAssignAriaLabel = `Assign open ${slotLabel.toLowerCase()} to ${areaLabel}`;
-        const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
         const slotWindow = effectiveCallWindow(shift);
         const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
         const visibleWindow = assignmentWindow ?? slotWindow;
-        const callEditorTarget = activeAssignment
-          ? { type: "assignment" as const, id: activeAssignment.id }
-          : { type: "slot" as const, id: shift.id };
-        const callEditorOverride = activeAssignment
-          ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
-          : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
         const showCallWindows = !entry.allDay && workerType === "ST";
-        const showStaffCallEditor = showCallWindows && !isInheritedFullDayCallWindow(visibleWindow);
         const callMatchesCommon = Boolean(commonCall && callWindowKey(visibleWindow) === commonCall.key);
-        const showRowCallWindow = showStaffCallEditor && !callMatchesCommon;
-
-        const callCell = isStaff && showRowCallWindow ? (
-          <CallWindowEditor
-            target={callEditorTarget}
-            effectiveWindow={visibleWindow}
-            overrideWindow={callEditorOverride}
-            onSaved={onCallWindowSaved}
-            disabled={Boolean(removingAssignmentId)}
-            compact
-            variant="bare"
-          />
-        ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
-          <CallWindowEditor
-            effectiveWindow={visibleWindow}
-            compact
-            variant="bare"
-          />
+        const callCell = showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) && !callMatchesCommon ? (
+          <CallWindowEditor effectiveWindow={visibleWindow} compact variant="bare" />
         ) : null;
 
         return (
@@ -357,8 +313,6 @@ function ShiftRowList({
             )}
 
             {!compact && (
-              // An assigned person whose class differs from the slot keeps the
-              // emphasis the old inline mismatch label carried.
               <CrewTypeLabel
                 label={assignedClassLabel ?? shiftWorkerLabel(workerType)}
                 emphasis={assignedClassDiffersFromSlot}
@@ -375,110 +329,32 @@ function ShiftRowList({
                     onClick={onSelectGroup}
                   >
                     <span className="flex size-6 shrink-0 items-center justify-center">
-                      <UserAvatar
-                        name={user.name}
-                        avatarUrl={user.avatarUrl}
-                        size="sm"
-                      />
+                      <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
                     </span>
-                    <span className="min-w-0 truncate text-sm font-medium">
-                      {user.name}
-                    </span>
-                  </button>
-                  {isStaff && activeAssignment && onRemoveAssignment && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className={cn(
-                            "relative ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-destructive active:scale-[0.96]",
-                            CREW_ROW_REVEAL,
-                          )}
-                          disabled={Boolean(removingAssignmentId)}
-                          aria-label={`Remove ${user.name} from ${areaLabel} shift`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveAssignment(activeAssignment.id);
-                          }}
-                        >
-                          <XIcon className={cn("size-3.5", isRemovingAssignment && "animate-pulse")} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Remove assignment</TooltipContent>
-                    </Tooltip>
-                  )}
-                  {compact && assignedClassDiffersFromSlot && (
-                    <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
-                      {assignedClassLabel}
-                    </span>
-                  )}
-                </div>
-              ) : isStaff ? (
-                <Popover
-                  onOpenChange={(open) => {
-                    if (open) onOpenPicker(shift.id);
-                    else onClosePicker();
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="group flex min-h-10 w-full items-center gap-2 rounded-md bg-muted/25 px-2 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
-                      disabled={assigning}
-                      aria-label={emptyAssignAriaLabel}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--border)_55%,transparent)]">
-                        <UserIcon className="size-3 opacity-70" />
-                      </div>
-                      <span className="min-w-0 truncate text-sm font-medium text-muted-foreground group-hover:text-foreground">
-                        {emptyAssignLabel}
+                    <span className="min-w-0 truncate text-sm font-medium">{user.name}</span>
+                    {compact && assignedClassDiffersFromSlot && (
+                      <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
+                        {assignedClassLabel}
                       </span>
-                      {compact && (
-                        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                          {slotLabel}
-                        </span>
-                      )}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-80 max-w-[calc(100vw-2rem)] p-2 sm:w-96"
-                    align="start"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <UserAvatarPicker
-                      users={pickerUsers}
-                      loading={pickerLoading}
-                      search={pickerSearch}
-                      onSearchChange={onPickerSearchChange}
-                      onSelect={(userId) => onInlineAssign(shift.id, userId)}
-                      disabled={assigning}
-                      slotWorkerType={workerType}
-                    />
-                  </PopoverContent>
-                </Popover>
+                    )}
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
-                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-1 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--border)_55%,transparent)] transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                   aria-label={`Open unassigned ${areaLabel} shift`}
                   onClick={onSelectGroup}
                 >
                   <div className="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-muted-foreground/30 text-muted-foreground">
                     <UserIcon className="size-3 opacity-65" />
                   </div>
-                  <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
-                    {slotLabel}
-                  </span>
+                  <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">{slotLabel}</span>
                 </button>
               )}
             </div>
 
-            {compact && (
-              <div className="flex min-w-0 flex-col items-start gap-1">{callCell}</div>
-            )}
+            {compact && <div className="flex min-w-0 flex-col items-start gap-1">{callCell}</div>}
 
             <div className={cn("flex min-h-10", compact ? "justify-start" : "shrink-0 justify-end")}>
               <div className={cn("flex min-w-0 items-center gap-1.5", compact && "flex-wrap")}>
@@ -488,8 +364,8 @@ function ShiftRowList({
                     size="sm"
                     className="h-10 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
                     disabled={postingTradeId === myAssignment.id}
-                    onClick={async (e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       onPostTrade(myAssignment.id);
                     }}
                   >
@@ -527,6 +403,7 @@ export function ListView({
   hidingEventIds,
   onHideEvent,
   onSetupCrew,
+  onQuickManageCrew,
   settingUpEventIds,
 }: ListViewProps) {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(() =>
@@ -561,63 +438,11 @@ export function ListView({
     todayGroupRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [includePast, groupedEntries]);
 
-  // Inline assignment state
-  const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const usersLoadedRef = useRef(false);
-  const [userSearch, setUserSearch] = useState("");
-  const [assigning, setAssigning] = useState(false);
-  const assigningRef = useRef(false);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const loadUsers = useCallback(async () => {
-    if (usersLoadedRef.current) return;
-    usersLoadedRef.current = true;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setUsersLoading(true);
-    try {
-      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<{ data?: PickerUser[] }>(res);
-        if (!Array.isArray(json?.data)) {
-          usersLoadedRef.current = false;
-          toast.error("Failed to load users");
-          return;
-        }
-        setAllUsers(json.data ?? []);
-      } else {
-        usersLoadedRef.current = false;
-        const msg = await parseErrorMessage(res, "Failed to load users");
-        toast.error(msg);
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      toast.error("Failed to load users");
-      usersLoadedRef.current = false;
-    }
-    finally { setUsersLoading(false); }
-  }, []);
-
-  const filteredUsers = useMemo(() => {
-    let users = allUsers;
-    if (userSearch) {
-      const q = userSearch.toLowerCase();
-      users = users.filter((u) => u.name.toLowerCase().includes(q));
-    }
-    return users;
-  }, [allUsers, userSearch]);
-
   const [postingTradeId, setPostingTradeId] = useState<string | null>(null);
   const postingTradeRef = useRef<string | null>(null);
   const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
   const [tradeNotes, setTradeNotes] = useState("");
   const [tradeError, setTradeError] = useState<string | null>(null);
-  const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null);
-  const removingAssignmentRef = useRef(false);
 
   const openTradeDialog = useCallback((assignmentId: string) => {
     if (postingTradeRef.current) return;
@@ -666,58 +491,6 @@ export function ListView({
     } finally {
       postingTradeRef.current = null;
       setPostingTradeId(null);
-    }
-  }, [loadData]);
-
-  const handleInlineAssign = useCallback(async (shiftId: string, userId: string) => {
-    if (assigningRef.current) return;
-    assigningRef.current = true;
-    setAssigning(true);
-    try {
-      const res = await fetch("/api/shift-assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId, userId }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const selectedUser = allUsers.find((user) => user.id === userId);
-        const json = await parseJsonSafely<{ meta?: { roleSlotOutcome?: RoleSlotOutcomeLike } }>(res);
-        setUserSearch("");
-        loadData();
-        toast.success(formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome, selectedUser?.name));
-      } else {
-        const msg = await parseErrorMessage(res, "Failed to assign shift");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Network error - could not assign shift");
-    }
-    finally {
-      assigningRef.current = false;
-      setAssigning(false);
-    }
-  }, [allUsers, loadData]);
-
-  const handleRemoveAssignment = useCallback(async (assignmentId: string) => {
-    if (removingAssignmentRef.current) return;
-    removingAssignmentRef.current = true;
-    setRemovingAssignmentId(assignmentId);
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("Assignment removed");
-        loadData();
-      } else {
-        const msg = await parseErrorMessage(res, "Failed to remove assignment");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Network error - could not remove assignment");
-    } finally {
-      removingAssignmentRef.current = false;
-      setRemovingAssignmentId(null);
     }
   }, [loadData]);
 
@@ -836,27 +609,13 @@ export function ListView({
                             onHide={
                               onHideEvent ? () => onHideEvent(entry.id) : undefined
                             }
-                            pickerUsers={filteredUsers}
-                            pickerLoading={usersLoading}
-                            pickerSearch={userSearch}
-                            assigning={assigning}
-                            onOpenPicker={() => {
-                              setUserSearch("");
-                              loadUsers();
-                            }}
-                            onClosePicker={() => {
-                              setUserSearch("");
-                            }}
-                            onPickerSearchChange={setUserSearch}
-                            onInlineAssign={handleInlineAssign}
                             currentUserId={currentUserId}
                             showShiftStatus={myShiftsOnly}
                             postingTradeId={postingTradeId}
-                            removingAssignmentId={removingAssignmentId}
-                            onRemoveAssignment={handleRemoveAssignment}
-                            onCallWindowSaved={loadData}
                             onPostTrade={isStaff ? undefined : openTradeDialog}
                             onSetupCrew={isStaff ? onSetupCrew : undefined}
+                            onQuickManageCrew={isStaff ? onQuickManageCrew : undefined}
+                            onPublished={loadData}
                             isSettingUp={settingUpEventIds?.has(entry.id) ?? false}
                           />
                         );
@@ -973,6 +732,7 @@ export function ListView({
                         isHiding={hidingEventIds?.has(entry.id) ?? false}
                         onHide={onHideEvent ? () => onHideEvent(entry.id) : undefined}
                         onSetupCrew={onSetupCrew}
+                        onQuickManageCrew={onQuickManageCrew}
                         isSettingUp={settingUpEventIds?.has(entry.id) ?? false}
                       />
                     </div>
@@ -980,31 +740,27 @@ export function ListView({
 
                   {isExpanded && canExpand && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
-                      <ShiftRowList
-                        entry={entry}
-                        isStaff={false}
-                        pickerUsers={filteredUsers}
-                        pickerLoading={usersLoading}
-                        pickerSearch={userSearch}
-                        assigning={assigning}
-                        onOpenPicker={() => {
-                          setUserSearch("");
-                          loadUsers();
-                        }}
-                        onClosePicker={() => {
-                          setUserSearch("");
-                        }}
-                        onPickerSearchChange={setUserSearch}
-                        onInlineAssign={handleInlineAssign}
-                        currentUserId={currentUserId}
-                        postingTradeId={postingTradeId}
-                        removingAssignmentId={removingAssignmentId}
-                        onRemoveAssignment={handleRemoveAssignment}
-                        onCallWindowSaved={loadData}
-                        onPostTrade={isStaff ? undefined : openTradeDialog}
-                        onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
-                        compact
-                      />
+                      {isStaff && entry.shiftGroupId ? (
+                        <WorkingCrewEditor
+                          entry={{
+                            shiftGroupId: entry.shiftGroupId,
+                            allDay: entry.allDay,
+                            shifts: entry.shifts,
+                          } satisfies WorkingCrewEntry}
+                          onPublished={loadData}
+                          compact
+                          eventDetailHref={`/events/${entry.id}`}
+                        />
+                      ) : (
+                        <ShiftRowList
+                          entry={entry}
+                          currentUserId={currentUserId}
+                          postingTradeId={postingTradeId}
+                          onPostTrade={isStaff ? undefined : openTradeDialog}
+                          onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
+                          compact
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -1088,22 +844,13 @@ function EventRows({
   onToggle,
   onSelectGroup,
   onHide,
-  pickerUsers,
-  pickerLoading,
-  pickerSearch,
-  assigning,
-  onOpenPicker,
-  onClosePicker,
-  onPickerSearchChange,
-  onInlineAssign,
   currentUserId,
   showShiftStatus,
   postingTradeId,
-  removingAssignmentId,
-  onRemoveAssignment,
-  onCallWindowSaved,
   onPostTrade,
   onSetupCrew,
+  onQuickManageCrew,
+  onPublished,
   isSettingUp,
 }: {
   entry: CalendarEntry;
@@ -1116,22 +863,13 @@ function EventRows({
   onToggle: () => void;
   onSelectGroup: () => void;
   onHide?: () => void;
-  pickerUsers: PickerUser[];
-  pickerLoading: boolean;
-  pickerSearch: string;
-  assigning: boolean;
-  onOpenPicker: (shiftId: string) => void;
-  onClosePicker: () => void;
-  onPickerSearchChange: (value: string) => void;
-  onInlineAssign: (shiftId: string, userId: string) => void;
   currentUserId: string;
   showShiftStatus: boolean;
   postingTradeId: string | null;
-  removingAssignmentId: string | null;
-  onRemoveAssignment?: (assignmentId: string) => void;
-  onCallWindowSaved: () => void;
   onPostTrade?: (assignmentId: string) => void;
   onSetupCrew?: (eventId: string, templateSide: CrewTemplateSide) => void;
+  onQuickManageCrew?: (eventId: string) => void;
+  onPublished: () => void;
   isSettingUp: boolean;
 }) {
   const titleParts = scheduleEventTitleParts(entry);
@@ -1209,6 +947,7 @@ function EventRows({
                 isHiding={isHiding}
                 onHide={onHide}
                 onSetupCrew={onSetupCrew}
+                onQuickManageCrew={onQuickManageCrew}
                 isSettingUp={isSettingUp}
               />
             ) : (
@@ -1223,25 +962,26 @@ function EventRows({
         <tr className="bg-muted/10">
           <td className="border-b border-border/15 px-4 py-2">
             <div className="pl-[116px] pr-10">
-              <ShiftRowList
-                entry={entry}
-                isStaff={false}
-                pickerUsers={pickerUsers}
-                pickerLoading={pickerLoading}
-                pickerSearch={pickerSearch}
-                assigning={assigning}
-                onOpenPicker={onOpenPicker}
-                onClosePicker={onClosePicker}
-                onPickerSearchChange={onPickerSearchChange}
-                onInlineAssign={onInlineAssign}
-                currentUserId={currentUserId}
-                postingTradeId={postingTradeId}
-                removingAssignmentId={removingAssignmentId}
-                onRemoveAssignment={onRemoveAssignment}
-                onPostTrade={onPostTrade}
-                onSelectGroup={onSelectGroup}
-                onCallWindowSaved={onCallWindowSaved}
-              />
+              {isStaff && entry.shiftGroupId ? (
+                <WorkingCrewEditor
+                  entry={{
+                    shiftGroupId: entry.shiftGroupId,
+                    allDay: entry.allDay,
+                    shifts: entry.shifts,
+                  } satisfies WorkingCrewEntry}
+                  onPublished={onPublished}
+                  compact
+                  eventDetailHref={`/events/${entry.id}`}
+                />
+              ) : (
+                <ShiftRowList
+                  entry={entry}
+                  currentUserId={currentUserId}
+                  postingTradeId={postingTradeId}
+                  onPostTrade={onPostTrade}
+                  onSelectGroup={onSelectGroup}
+                />
+              )}
             </div>
           </td>
         </tr>

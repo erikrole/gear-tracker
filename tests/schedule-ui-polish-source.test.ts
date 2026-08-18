@@ -44,8 +44,12 @@ describe("Schedule interaction-detail contracts", () => {
     expect(list).toContain("Use Home defaults");
     expect(list).toContain("Use Away defaults");
     expect(list).toContain("Start empty");
+    expect(list).toContain("<WorkingCrewEditor");
+    expect(list).toContain("onQuickManageCrew");
+    expect(list).toContain("Open Event detail");
+    expect(list).toContain("eventDetailHref");
     expect(list).not.toContain("Assign {openCount} open");
-    expect(list).not.toContain("WorkingCrewEditor");
+    expect(list).not.toContain("/api/shift-assignments");
     expect(list).not.toContain("onSelectGroup();\n          }}\n        >\n          Assign {openCount}");
   });
 
@@ -68,6 +72,23 @@ describe("Schedule interaction-detail contracts", () => {
     expect(editor).not.toContain("Tooltip");
     expect(editor).not.toContain('<Badge variant="green" size="sm">Published</Badge>');
     expect(editor).not.toContain('size="icon-xs"');
+  });
+
+  it("hardens the shared crew editor without creating a second mutation surface", () => {
+    const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
+
+    expect(editor).toContain("const editorAbortRef = useRef<AbortController | null>(null);");
+    expect(editor).toContain("signal: controller.signal");
+    expect(editor).toContain("if (isAbortError(error)) return null;");
+    expect(editor).toContain("loadError={usersLoadError}");
+    expect(editor).toContain("onRetry={retryUsers}");
+    expect(editor).toContain("!assignedUserIds.has(candidate.id)");
+    expect(editor).toContain("Revert pending crew changes?");
+    expect(editor).toContain("void refreshFromLive(data, true).then(() => onPublished());");
+    expect(editor).toContain("void mutate(");
+    expect(editor).toContain("if (!succeeded) return;");
+    expect(editor).toContain("max-w-[calc(100vw-2rem)]");
+    expect(editor).toContain("grid grid-cols-1 gap-2 sm:grid-cols-2");
   });
 
   it("does not expose call-time controls for all-day expanded events", () => {
