@@ -1576,21 +1576,22 @@ export async function getReadySignatureArtifact(revisionId: string, kind: "png" 
     filename: signatureArtifactFilename(
       revision.capture.member.name,
       kind,
+      revision.capture.member.jerseyNumber,
       revision.capture.currentRevisionId === revision.id ? undefined : revision.revision,
     ),
   };
 }
 
-export function signatureArtifactFilename(name: string, kind: "png" | "svg", revision?: number) {
+export function signatureArtifactFilename(name: string, kind: "png" | "svg", jerseyNumber: number | null = null, revision?: number) {
   const signer = name
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .replace(/[’']/g, "")
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  const version = revision === undefined ? "" : `-v${revision}`;
-  return signer ? `${signer}-signature${version}.${kind}` : `signature${version}.${kind}`;
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "");
+  const prefix = jerseyNumber === null || jerseyNumber === undefined ? "" : `${jerseyNumber}_`;
+  const version = revision === undefined ? "" : `_v${revision}`;
+  return `${prefix}${signer || "signature"}${version}.${kind}`;
 }
 
 function signatureCollectionArchiveFilename(sportCode: string, season: string, format: SignatureZipFormat) {
@@ -1601,18 +1602,18 @@ function signatureCollectionArchiveFilename(sportCode: string, season: string, f
   return `${name || "signatures"}-${format}.zip`;
 }
 
-function uniqueSignatureFilename(name: string, format: SignatureZipFormat, usedNames: Set<string>) {
-  const initial = signatureArtifactFilename(name, format);
+function uniqueSignatureFilename(name: string, jerseyNumber: number | null, format: SignatureZipFormat, usedNames: Set<string>) {
+  const initial = signatureArtifactFilename(name, format, jerseyNumber);
   if (!usedNames.has(initial)) {
     usedNames.add(initial);
     return initial;
   }
   const stem = initial.slice(0, -(format.length + 1));
   let suffix = 2;
-  let candidate = `${stem}-${suffix}.${format}`;
+  let candidate = `${stem}_${suffix}.${format}`;
   while (usedNames.has(candidate)) {
     suffix += 1;
-    candidate = `${stem}-${suffix}.${format}`;
+    candidate = `${stem}_${suffix}.${format}`;
   }
   usedNames.add(candidate);
   return candidate;
@@ -1638,6 +1639,7 @@ export async function getSignatureCollectionZip(collectionId: string, format: Si
         orderBy: { name: "asc" },
         select: {
           name: true,
+          jerseyNumber: true,
           roleGroup: true,
           linkedUserId: true,
           capture: {
@@ -1676,7 +1678,7 @@ export async function getSignatureCollectionZip(collectionId: string, format: Si
         : member.capture?.currentRevision;
       if (!revision || revision.state !== SignatureArtifactState.READY) return null;
       return {
-        name: uniqueSignatureFilename(member.name, format, usedNames),
+        name: uniqueSignatureFilename(member.name, member.jerseyNumber, format, usedNames),
         path: format === "png" ? revision.pngPath : revision.svgPath,
       };
     })

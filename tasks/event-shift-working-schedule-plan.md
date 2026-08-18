@@ -191,6 +191,23 @@ Make the expanded web Schedule list the primary crew workstation: fast Staff and
 - [x] Show the shared notice only while a working copy is pending, with a live countdown and a quiet refresh loop until release.
 - [x] Link blocked releases back to Schedule for review or revert, and reuse the countdown formatter across Schedule and Event detail.
 
+### 23. All-day expanded crew row call-time suppression
+
+- [x] Hide per-slot Student call-time labels and editors in the expanded web Schedule rows when the owning event is all-day, matching the existing event-level control guard and published Schedule display contract.
+- [x] Preserve working-copy/API storage and release semantics; this is a presentation-only correction for all-day event rows.
+- [x] Add a focused source-contract regression and run the web and docs verification gates.
+- [ ] Authenticated browser smoke of the expanded `/schedule` row; blocked by the local missing `SESSION_COOKIE_NAME` environment variable.
+
+## Review: Slice 23 (2026-08-18)
+
+- Shipped: The expanded Schedule working-crew editor now suppresses both assigned and open Student call-time controls when the owning event is all-day. Staff/collaborator rows remain call-time-free, and timed events retain their existing Student call-time behavior.
+- Boundary: This is a presentation-only guard. Working-copy/API storage, timed release, publication, audit, and calendar sync semantics are unchanged.
+- Verified: 34 focused tests across Schedule source contracts, working-copy route contracts, call-window helpers, and date helpers; targeted ESLint; TypeScript; full lint with one pre-existing warning; `npm run build:app`; codemap/docs verification; and `git diff --check` pass.
+- Deferred: None for this bounded UI correction.
+- Blocked: Authenticated browser proof is unavailable because local dev fails closed on missing `SESSION_COOKIE_NAME`; the Schedule route returned Error ID `2165316873`. No schedule data was mutated.
+- Proof artifacts: `tests/schedule-ui-polish-source.test.ts` asserts the all-day guard is applied to both row call-time render paths; server logs captured the missing environment variable and recovery digest.
+- Next slice or stop: Stop implementation here; repeat the authenticated Schedule smoke when the local session configuration is restored.
+
 ## Review: Slice 22 (2026-08-18)
 
 - Shipped: Event detail Crew and the read-only Shift detail panel now show the actual `Affected users notified in …` countdown only while a working copy exists. The notice refreshes on the existing 15-second operational cadence, disappears after release, and exposes a Schedule recovery link when the release is blocked.

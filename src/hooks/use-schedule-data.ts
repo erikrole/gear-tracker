@@ -12,6 +12,7 @@ import type {
 import { getMonday, userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { calendarDate } from "@/lib/format";
+import { sortCalendarEventsForDisplay } from "@/lib/calendar-event-dates";
 import {
   buildScheduleSourceSignal,
   getCalendarSourceFreshness,
@@ -485,7 +486,7 @@ export function useScheduleData(): UseScheduleDataResult {
       currentUserId,
       staleSourceIds,
     });
-    return result;
+    return sortCalendarEventsForDisplay(result);
   }, [visibleEntries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId, activeQueue, scheduleHealth, staleSourceIds]);
 
   // Group entries by date for list view

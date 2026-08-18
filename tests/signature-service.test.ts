@@ -561,11 +561,12 @@ describe("signature save lifecycle", () => {
 });
 
 describe("signature download filenames", () => {
-  it("uses clean signer filenames without internal IDs", () => {
-    expect(signatureArtifactFilename("Erik Role", "png")).toBe("erik-role-signature.png");
-    expect(signatureArtifactFilename("José O’Neill Jr.", "svg")).toBe("jose-oneill-jr-signature.svg");
+  it("uses jersey-number and roster-name filenames", () => {
+    expect(signatureArtifactFilename("Colton Joseph", "svg", 1)).toBe("1_Colton_Joseph.svg");
+    expect(signatureArtifactFilename("José O’Neill Jr.", "svg", 5)).toBe("5_Jose_ONeill_Jr.svg");
+    expect(signatureArtifactFilename("Erik Role", "png")).toBe("Erik_Role.png");
     expect(signatureArtifactFilename("---", "png")).toBe("signature.png");
-    expect(signatureArtifactFilename("Erik Role", "svg", 2)).toBe("erik-role-signature-v2.svg");
+    expect(signatureArtifactFilename("Erik Role", "svg", null, 2)).toBe("Erik_Role_v2.svg");
   });
 
   it("allows a retained READY revision to download with a versioned filename", async () => {
@@ -577,13 +578,13 @@ describe("signature download filenames", () => {
       svgPath: "old.svg",
       capture: {
         currentRevisionId: "revision-3",
-        member: { name: "Erik Role" },
+        member: { name: "Erik Role", jerseyNumber: null },
       },
     });
 
     await expect(getReadySignatureArtifact("revision-2", "png")).resolves.toMatchObject({
       path: "old.png",
-      filename: "erik-role-signature-v2.png",
+      filename: "Erik_Role_v2.png",
     });
   });
 });
@@ -594,9 +595,9 @@ describe("signature collection ZIP export", () => {
       sportCode: "MBB",
       season: "2026-27",
       members: [
-        { name: "José Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
-        { name: "Jose Role", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
-        { name: "Blank Signer", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: null } },
+        { name: "José Role", jerseyNumber: 1, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
+        { name: "Jose Role", jerseyNumber: 1, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
+        { name: "Blank Signer", jerseyNumber: null, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: null } },
       ],
     });
     vi.mocked(getPrivateSignatureArtifact).mockImplementation(async (path) => ({
@@ -606,8 +607,8 @@ describe("signature collection ZIP export", () => {
     await expect(getSignatureCollectionZip("collection-1")).resolves.satisfy((archive: { filename: string; fileCount: number; body: Buffer }) => {
       expect(archive.filename).toBe("mbb-2026-27-signatures-svg.zip");
       expect(archive.fileCount).toBe(2);
-      expect(archive.body.includes(Buffer.from("jose-role-signature.svg"))).toBe(true);
-      expect(archive.body.includes(Buffer.from("jose-role-signature-2.svg"))).toBe(true);
+      expect(archive.body.includes(Buffer.from("1_Jose_Role.svg"))).toBe(true);
+      expect(archive.body.includes(Buffer.from("1_Jose_Role_2.svg"))).toBe(true);
       return true;
     });
     expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("one.svg");
@@ -619,8 +620,8 @@ describe("signature collection ZIP export", () => {
       sportCode: "FB",
       season: "2026-27",
       members: [
-        { name: "Player One", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
-        { name: "Player Two", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
+        { name: "Player One", jerseyNumber: 1, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "one.png", svgPath: "one.svg" } } },
+        { name: "Player Two", jerseyNumber: 2, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: { state: SignatureArtifactState.READY, pngPath: "two.png", svgPath: "two.svg" } } },
       ],
     });
     vi.mocked(getPrivateSignatureArtifact).mockImplementation(async (path) => ({
@@ -630,8 +631,8 @@ describe("signature collection ZIP export", () => {
     await expect(getSignatureCollectionZip("collection-1", "png")).resolves.satisfy((archive: { filename: string; fileCount: number; body: Buffer }) => {
       expect(archive.filename).toBe("fb-2026-27-signatures-png.zip");
       expect(archive.fileCount).toBe(2);
-      expect(archive.body.includes(Buffer.from("player-one-signature.png"))).toBe(true);
-      expect(archive.body.includes(Buffer.from("player-two-signature.png"))).toBe(true);
+      expect(archive.body.includes(Buffer.from("1_Player_One.png"))).toBe(true);
+      expect(archive.body.includes(Buffer.from("2_Player_Two.png"))).toBe(true);
       return true;
     });
     expect(getPrivateSignatureArtifact).toHaveBeenCalledWith("one.png");
@@ -642,7 +643,7 @@ describe("signature collection ZIP export", () => {
     dbMock.signatureCollection.findUnique.mockResolvedValue({
       sportCode: "VB",
       season: "2026-27",
-      members: [{ name: "Blank Signer", roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: null } }],
+      members: [{ name: "Blank Signer", jerseyNumber: null, roleGroup: "PLAYER", linkedUserId: null, capture: { currentRevision: null } }],
     });
 
     await expect(getSignatureCollectionZip("collection-1")).rejects.toMatchObject({
@@ -656,7 +657,7 @@ describe("signature collection ZIP export", () => {
     dbMock.signatureCollection.findUnique.mockResolvedValue({
       sportCode: "MBB",
       season: "2026-27",
-      members: [{ name: "Erik Role", roleGroup: "SUPPORT_STAFF", linkedUserId: "user-1", capture: { currentRevision: null } }],
+      members: [{ name: "Erik Role", jerseyNumber: null, roleGroup: "SUPPORT_STAFF", linkedUserId: "user-1", capture: { currentRevision: null } }],
     });
     dbMock.signatureCapture.findMany.mockResolvedValue([{
       member: { linkedUserId: "user-1" },

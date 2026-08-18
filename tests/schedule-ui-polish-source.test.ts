@@ -64,6 +64,13 @@ describe("Schedule interaction-detail contracts", () => {
     expect(editor).not.toContain('size="icon-xs"');
   });
 
+  it("does not expose call-time controls for all-day expanded events", () => {
+    const editor = source("src/app/(app)/schedule/_components/WorkingCrewEditor.tsx");
+
+    expect(editor).toContain('const showCallWindow = !data.allDay && slot.workerType === "ST";');
+    expect(editor.match(/\{showCallWindow \?/g)?.length).toBe(2);
+  });
+
   it("cross-fades collaborator follow-state icons without animating initial render", () => {
     const collaborator = source("src/app/(app)/schedule/_components/CollaboratorSchedule.tsx");
 

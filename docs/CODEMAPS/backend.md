@@ -19,7 +19,7 @@
 | `src/lib/services/bookings-lifecycle.ts` | 2149 |
 | `src/lib/services/bookings-queries.ts` | 301 |
 | `src/lib/services/bookings.ts` | 4 |
-| `src/lib/services/bulk-schedule-assignment.ts` | 742 |
+| `src/lib/services/bulk-schedule-assignment.ts` | 743 |
 | `src/lib/services/bulk-unit-scans.ts` | 617 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
 | `src/lib/services/calendar-sync.ts` | 834 |
@@ -42,7 +42,7 @@
 | `src/lib/services/live-activities.ts` | 632 |
 | `src/lib/services/non-game-schedule-defaults.ts` | 49 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 1354 |
+| `src/lib/services/notifications.ts` | 1469 |
 | `src/lib/services/onboarding-lifecycle.ts` | 766 |
 | `src/lib/services/pending-pickup-expiry.ts` | 281 |
 | `src/lib/services/reports.ts` | 1927 |
@@ -64,7 +64,7 @@
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
-| `src/lib/services/signatures.ts` | 1741 |
+| `src/lib/services/signatures.ts` | 1743 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -99,10 +99,10 @@
 | `src/lib/booking-statuses.ts` | 9 |
 | `src/lib/breadcrumbs.ts` | 144 |
 | `src/lib/bulk-batteries.ts` | 28 |
-| `src/lib/bulk-schedule-assignment-types.ts` | 97 |
+| `src/lib/bulk-schedule-assignment-types.ts` | 98 |
 | `src/lib/bulk-unit-qr.ts` | 111 |
 | `src/lib/bulk-unit-status.ts` | 52 |
-| `src/lib/calendar-event-dates.ts` | 168 |
+| `src/lib/calendar-event-dates.ts` | 198 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/category-options.ts` | 34 |
@@ -161,7 +161,7 @@
 | `src/lib/resource-search.ts` | 124 |
 | `src/lib/sanitize.ts` | 40 |
 | `src/lib/schedule-assignee.ts` | 27 |
-| `src/lib/schedule-auto-release.ts` | 39 |
+| `src/lib/schedule-auto-release.ts` | 42 |
 | `src/lib/schedule-automation-types.ts` | 55 |
 | `src/lib/schedule-availability-context.ts` | 93 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
@@ -546,6 +546,8 @@
 ### `/api/schedule`
 
 - `/api/schedule/automation`
+- `/api/schedule/bulk-assignment/apply`
+- `/api/schedule/bulk-assignment/preview`
 - `/api/schedule/export`
 - `/api/schedule/health`
 - `/api/schedule/open-work`

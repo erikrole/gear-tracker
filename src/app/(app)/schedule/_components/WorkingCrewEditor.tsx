@@ -583,6 +583,7 @@ export function WorkingCrewEditor({
                   const user = slot.assignment ? userById.get(slot.assignment.userId) : null;
                   const roleLabel = slot.workerType === "FT" ? "Staff" : "Student";
                   const otherWorkerType = slot.workerType === "FT" ? "ST" : "FT";
+                  const showCallWindow = !data.allDay && slot.workerType === "ST";
                   const canConvert = !slot.assignment && slot.assignmentHistoryCount === 0;
                   const eligibleUsers = pickerUsers.filter((candidate) => {
                     return isEligibleScheduleCandidate(candidate)
@@ -590,7 +591,7 @@ export function WorkingCrewEditor({
                   });
                   return slot.assignment ? (
                     <div key={slot.key} className={cn(`${CREW_ROW_GROUP} grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20`, SLOT_ROW_GRID_CLASS)}>
-                      {slot.workerType === "ST" ? (
+                      {showCallWindow ? (
                         <CallWindowEditor
                           slot={slot}
                           disabled={Boolean(actingKey)}
@@ -646,7 +647,7 @@ export function WorkingCrewEditor({
                     </div>
                   ) : (
                     <div key={slot.key} className={cn(`${CREW_ROW_GROUP} grid min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:bg-muted/20`, SLOT_ROW_GRID_CLASS)}>
-                      {slot.workerType === "ST" ? (
+                      {showCallWindow ? (
                         <CallWindowEditor
                           slot={slot}
                           disabled={Boolean(actingKey)}

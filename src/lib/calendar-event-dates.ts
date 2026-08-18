@@ -82,6 +82,36 @@ function allDayEndExclusiveMs(event: CalendarEventDateLike): number {
   return rawEndMs > startMs ? rawEndMs : startMs + DAY_MS;
 }
 
+function displayDayKey(event: CalendarEventDateLike): number {
+  const start = toDate(event.startsAt);
+  return event.allDay
+    ? Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())
+    : Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+}
+
+/**
+ * Sort schedule rows in the order they appear to a local/Central user.
+ * All-day starts are encoded date values at UTC midnight, so only their
+ * encoded calendar date is used for ordering. Timed starts remain local
+ * instants and are ordered by their actual start time within that day.
+ */
+export function sortCalendarEventsForDisplay<T extends CalendarEventDateLike>(events: readonly T[]): T[] {
+  return events
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => {
+      const dayDelta = displayDayKey(a.event) - displayDayKey(b.event);
+      if (dayDelta !== 0) return dayDelta;
+
+      const aAllDay = Boolean(a.event.allDay);
+      const bAllDay = Boolean(b.event.allDay);
+      if (aAllDay !== bAllDay) return aAllDay ? -1 : 1;
+
+      const startDelta = toDate(a.event.startsAt).getTime() - toDate(b.event.startsAt).getTime();
+      return startDelta !== 0 ? startDelta : a.index - b.index;
+    })
+    .map(({ event }) => event);
+}
+
 export function allDayInclusiveEndDate(event: CalendarEventDateLike): Date {
   return utcDateFromMs(allDayEndExclusiveMs(event) - DAY_MS);
 }
