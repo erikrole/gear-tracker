@@ -45,13 +45,32 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import type { SoftwareCredentialSummary } from "./types";
+import type { SoftwareCredentialAudience, SoftwareCredentialSummary } from "./types";
 
 const SUGGESTED_SOFTWARE = ["Photo Mechanic", "Envato Elements", "APM Music", "Motion Array"];
+const DEFAULT_VISIBLE_TO: SoftwareCredentialAudience[] = ["STAFF", "STUDENT"];
+const AUDIENCE_OPTIONS: Array<{
+  value: SoftwareCredentialAudience;
+  label: string;
+  description: string;
+}> = [
+  { value: "STAFF", label: "Staff", description: "Staff and administrators can always manage the vault." },
+  { value: "STUDENT", label: "Students", description: "Students can use this department login." },
+  { value: "COLLABORATOR", label: "Collaborators", description: "Only collaborators with Shared software access can use it." },
+];
+
+function formatAudience(visibleTo: SoftwareCredentialAudience[]) {
+  const labels = visibleTo.map((audience) => AUDIENCE_OPTIONS.find((option) => option.value === audience)?.label ?? audience);
+  if (labels.length === 0) return "no audience";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
+}
 
 function SecretAction({
   label,
@@ -69,12 +88,18 @@ function SecretAction({
       type="button"
       variant="ghost"
       size="icon"
-      className="size-10 shrink-0 text-muted-foreground hover:text-foreground"
-      aria-label={label}
+      className={copied
+        ? "size-10 shrink-0 bg-primary/10 text-primary transition-[background-color,color,transform] duration-200 hover:bg-primary/10 hover:text-primary"
+        : "size-10 shrink-0 text-muted-foreground transition-[background-color,color,transform] duration-200 hover:text-foreground"}
+      aria-label={copied ? `${label} — copied` : label}
       onClick={onClick}
       disabled={disabled}
     >
-      {copied ? <Check className="size-4 text-[var(--green-text)]" /> : <Copy className="size-4" />}
+      {copied ? (
+        <Check key="copied" className="size-4 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-50 motion-safe:duration-200" />
+      ) : (
+        <Copy key="copy" className="size-4" />
+      )}
     </Button>
   );
 }
@@ -95,6 +120,7 @@ function SoftwareCredentialDialog({
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [visibleTo, setVisibleTo] = useState<SoftwareCredentialAudience[]>(DEFAULT_VISIBLE_TO);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -105,8 +131,17 @@ function SoftwareCredentialDialog({
     setWebsiteUrl(editing?.websiteUrl ?? "");
     setAccountEmail(editing?.accountEmail ?? "");
     setPassword("");
+    setVisibleTo(editing?.visibleTo?.length ? [...editing.visibleTo] : [...DEFAULT_VISIBLE_TO]);
     setErrorMessage(null);
   }, [editing, open]);
+
+  function toggleAudience(audience: SoftwareCredentialAudience, checked: boolean) {
+    setVisibleTo((current) => {
+      if (checked) return current.includes(audience) ? current : [...current, audience];
+      if (current.length === 1) return current;
+      return current.filter((value) => value !== audience);
+    });
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -119,6 +154,7 @@ function SoftwareCredentialDialog({
         category: category.trim() || null,
         websiteUrl: websiteUrl.trim() || null,
         accountEmail: accountEmail.trim(),
+        visibleTo,
       };
       if (password || !editing) body.password = password;
 
@@ -223,6 +259,31 @@ function SoftwareCredentialDialog({
                   Passwords are never included in the software list or audit log. Reveals are explicit and audited.
                 </p>
               </div>
+              <fieldset className="space-y-2 sm:col-span-2">
+                <legend className="text-sm font-medium">Who can use this login?</legend>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Choose at least one audience. Staff includes administrators and can always manage the record.
+                </p>
+                <div className="grid gap-2">
+                  {AUDIENCE_OPTIONS.map((option) => {
+                    const checked = visibleTo.includes(option.value);
+                    return (
+                      <label key={option.value} className="flex min-h-10 cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          disabled={checked && visibleTo.length === 1}
+                          onCheckedChange={(nextChecked) => toggleAudience(option.value, nextChecked === true)}
+                          aria-label={option.label}
+                        />
+                        <span>
+                          <span className="block font-medium">{option.label}</span>
+                          <span className="block text-xs text-muted-foreground">{option.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </div>
             {errorMessage && (
               <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -234,7 +295,7 @@ function SoftwareCredentialDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" loading={saving} disabled={!name.trim() || !accountEmail.trim() || (!editing && !password)}>
+            <Button type="submit" loading={saving} disabled={!name.trim() || !accountEmail.trim() || !visibleTo.length || (!editing && !password)}>
               {editing ? "Save changes" : "Add account"}
             </Button>
           </DialogFooter>
@@ -252,6 +313,7 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
   const [revealingId, setRevealingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const revealTimers = useRef<Record<string, number>>({});
+  const copyTimer = useRef<number | null>(null);
 
   const { data, loading, error, reload } = useFetch<SoftwareCredentialSummary[]>({
     url: isAdmin ? "/api/software?includeArchived=1" : "/api/software",
@@ -262,6 +324,7 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
     const timers = revealTimers.current;
     return () => {
       Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+      if (copyTimer.current) window.clearTimeout(copyTimer.current);
     };
   }, []);
 
@@ -326,8 +389,7 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
   async function copyEmail(record: SoftwareCredentialSummary) {
     try {
       await navigator.clipboard.writeText(record.accountEmail);
-      setCopiedId(`${record.id}:email`);
-      window.setTimeout(() => setCopiedId(null), 1500);
+      showCopied(`${record.id}:email`);
       toast.success("Login email copied");
     } catch {
       toast.error("Could not copy the login email. Select it and copy manually.");
@@ -338,12 +400,20 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
     try {
       const password = revealedPasswords[record.id] ?? await requestPassword(record.id);
       await navigator.clipboard.writeText(password);
-      setCopiedId(`${record.id}:password`);
-      window.setTimeout(() => setCopiedId(null), 1500);
+      showCopied(`${record.id}:password`);
       toast.success("Password copied");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not copy the password");
     }
+  }
+
+  function showCopied(id: string) {
+    setCopiedId(id);
+    if (copyTimer.current) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => {
+      setCopiedId(null);
+      copyTimer.current = null;
+    }, 1500);
   }
 
   async function archiveRecord() {
@@ -416,7 +486,8 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
             </div>
           </div>
           <CardDescription>
-            {isArchived ? "Archived from the shared software list." : "Department login · available to the internal team"}
+            <span className="block">{isArchived ? "Archived from the shared software list." : "Department login · available to the authorized team"}</span>
+            {!isArchived && <span className="mt-1 block text-xs">Shared with {formatAudience(record.visibleTo)}.</span>}
           </CardDescription>
         </CardHeader>
         {!isArchived ? (

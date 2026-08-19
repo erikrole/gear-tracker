@@ -10,6 +10,7 @@ export const COLLABORATOR_CAPABILITIES = [
   "RESERVATION_EXTEND_OWN",
   "PUBLISHED_SCHEDULE_VIEW",
   "PEOPLE_DIRECTORY_VIEW",
+  "SOFTWARE_VAULT_VIEW",
   "SCHEDULE_FOLLOW",
   "KIOSK_ROSTER_ELIGIBLE",
 ] as const;
@@ -26,6 +27,7 @@ export const COLLABORATOR_CAPABILITY_CATALOG: ReadonlyArray<{
   { key: "MY_GEAR_VIEW", label: "My Gear", group: "SEE", description: "See only the collaborator's reservations and checkouts." },
   { key: "PUBLISHED_SCHEDULE_VIEW", label: "Published Schedule", group: "SEE", description: "See snapshot-backed published events and crew." },
   { key: "PEOPLE_DIRECTORY_VIEW", label: "People directory", group: "SEE", description: "See active teammates and minimized work profiles." },
+  { key: "SOFTWARE_VAULT_VIEW", label: "Shared software", group: "SEE", description: "See software logins explicitly shared with collaborators." },
   { key: "RESERVATION_CREATE", label: "Create reservations", group: "DO", description: "Reserve gear for the collaborator's own use." },
   { key: "RESERVATION_EDIT_OWN", label: "Edit own reservations", group: "DO", description: "Change eligible owned reservations." },
   { key: "RESERVATION_CANCEL_OWN", label: "Cancel own reservations", group: "DO", description: "Cancel eligible owned reservations." },

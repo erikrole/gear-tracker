@@ -5,6 +5,10 @@
 
 Values: `ADMIN`, `STAFF`, `STUDENT`, `COLLABORATOR`
 
+## Enum `SoftwareCredentialAudience`
+
+Values: `STAFF`, `STUDENT`, `COLLABORATOR`
+
 ## Enum `Affiliation`
 
 Values: `BIG_TEN_NETWORK`
@@ -1785,17 +1789,18 @@ Indexes and constraints:
 
 ## Model `SoftwareCredential`
 
-Fields: 9
+Fields: 10
 
-- `id                     String    @id @default(cuid())`
-- `name                   String    @unique`
+- `id                     String                       @id @default(cuid())`
+- `name                   String                       @unique`
 - `category               String?`
-- `websiteUrl             String?   @map("website_url")`
-- `accountEmailCiphertext String    @map("account_email_ciphertext")`
-- `passwordCiphertext     String    @map("password_ciphertext")`
-- `archivedAt             DateTime? @map("archived_at")`
-- `createdAt              DateTime  @default(now()) @map("created_at")`
-- `updatedAt              DateTime  @updatedAt @map("updated_at")`
+- `websiteUrl             String?                      @map("website_url")`
+- `accountEmailCiphertext String                       @map("account_email_ciphertext")`
+- `passwordCiphertext     String                       @map("password_ciphertext")`
+- `visibleTo              SoftwareCredentialAudience[] @default([STAFF, STUDENT]) @map("visible_to")`
+- `archivedAt             DateTime?                    @map("archived_at")`
+- `createdAt              DateTime                     @default(now()) @map("created_at")`
+- `updatedAt              DateTime                     @updatedAt @map("updated_at")`
 
 Indexes and constraints:
 

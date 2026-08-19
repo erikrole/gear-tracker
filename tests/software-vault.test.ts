@@ -1,6 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { decryptSoftwareSecret, encryptSoftwareSecret } from "../src/lib/software-vault-crypto";
+import { canViewSoftwareCredential } from "../src/lib/software-vault-access";
+import {
+  createSoftwareCredentialSchema,
+  updateSoftwareCredentialSchema,
+} from "../src/lib/software-vault-validation";
 
 const originalVaultKey = process.env.SOFTWARE_VAULT_KEY;
 
@@ -61,25 +66,27 @@ describe("software vault crypto", () => {
 });
 
 describe("software vault source contracts", () => {
-  it("keeps passwords out of list responses and gates internal access", () => {
+  it("keeps passwords out of list responses and gates role or capability access", () => {
     const route = source("src/app/api/software/route.ts");
     const permissions = source("src/lib/permissions.ts");
     const service = source("src/lib/services/software.ts");
 
-    expect(route).toContain('requirePermission(user.role, "software", "view")');
-    expect(route).toContain("listSoftwareCredentials(includeArchived)");
+    expect(route).toContain('requirePermissionOrCollaboratorCapability(user, "software", "view", "SOFTWARE_VAULT_VIEW")');
+    expect(route).toContain("listSoftwareCredentials({");
     expect(route).not.toContain("password: body.password");
     expect(permissions).toContain('software: {');
     expect(permissions).toContain('view: ["ADMIN", "STAFF", "STUDENT"]');
     expect(permissions).toContain('manage: ["ADMIN", "STAFF"]');
     expect(service).toContain("decryptSoftwareSecret(row.accountEmailCiphertext)");
+    expect(service).toContain("canViewSoftwareCredential(role, row.visibleTo, collaboratorCanView)");
+    expect(service).toContain("visibleTo: row.visibleTo");
     expect(service).toContain("passwordCiphertext");
   });
 
   it("uses an audited, rate-limited reveal boundary", () => {
     const route = source("src/app/api/software/[id]/secret/route.ts");
 
-    expect(route).toContain('requirePermission(user.role, "software", "reveal")');
+    expect(route).toContain('requirePermissionOrCollaboratorCapability(user, "software", "reveal", "SOFTWARE_VAULT_VIEW")');
     expect(route).toContain('software:reveal:${user.id}');
     expect(route).toContain('action: "reveal_password"');
     expect(route).toContain('return ok({ data: { password: credential.password } });');
@@ -97,7 +104,49 @@ describe("software vault source contracts", () => {
     expect(vault).toContain('fetch(`/api/software/${id}/secret`)');
     expect(vault).toContain("••••••••••••");
     expect(vault).toContain("Reveals are logged");
+    expect(vault).toContain("<Checkbox");
+    expect(vault).toContain("Who can use this login?");
+    expect(vault).toContain('key="copied"');
+    expect(vault).toContain('showCopied(`${record.id}:password`)');
     expect(schema).toContain("accountEmailCiphertext");
     expect(schema).toContain("passwordCiphertext");
+    expect(schema).toContain("visibleTo");
+  });
+
+  it("keeps collaborator access capability-gated and audience metadata editable", () => {
+    const collaboratorAccess = source("src/lib/collaborator-access.ts");
+    const collaboratorSettings = source("src/app/(app)/settings/collaborator-access/page.tsx");
+    const validation = source("src/lib/software-vault-validation.ts");
+    const migration = source("prisma/migrations/0126_software_credential_visibility/migration.sql");
+
+    expect(collaboratorAccess).toContain('"SOFTWARE_VAULT_VIEW"');
+    expect(collaboratorSettings).toContain('key: "SOFTWARE_VAULT_VIEW"');
+    expect(validation).toContain("DEFAULT_SOFTWARE_CREDENTIAL_AUDIENCES");
+    expect(migration).toContain('"visible_to"');
+    expect(migration).toContain("'STAFF', 'STUDENT'");
+  });
+});
+
+describe("software vault audiences", () => {
+  it("keeps staff operators omniscient and filters students and collaborators", () => {
+    expect(canViewSoftwareCredential("ADMIN", ["COLLABORATOR"])).toBe(true);
+    expect(canViewSoftwareCredential("STAFF", ["STUDENT"])).toBe(true);
+    expect(canViewSoftwareCredential("STUDENT", ["STUDENT"])).toBe(true);
+    expect(canViewSoftwareCredential("STUDENT", ["STAFF"])).toBe(false);
+    expect(canViewSoftwareCredential("COLLABORATOR", ["COLLABORATOR"], true)).toBe(true);
+    expect(canViewSoftwareCredential("COLLABORATOR", ["COLLABORATOR"], false)).toBe(false);
+    expect(canViewSoftwareCredential("COLLABORATOR", ["STUDENT"], true)).toBe(false);
+  });
+
+  it("defaults new records to staff and students and preserves partial lifecycle patches", () => {
+    const created = createSoftwareCredentialSchema.parse({
+      name: "Photo Mechanic",
+      accountEmail: "shared@example.com",
+      password: "not-a-real-secret",
+    });
+
+    expect(created.visibleTo).toEqual(["STAFF", "STUDENT"]);
+    expect(updateSoftwareCredentialSchema.parse({ archived: true })).toEqual({ archived: true });
+    expect(() => updateSoftwareCredentialSchema.parse({ visibleTo: [] })).toThrow("Choose at least one audience");
   });
 });

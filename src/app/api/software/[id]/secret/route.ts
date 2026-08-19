@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { ok, HttpError } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
+import { requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revealSoftwarePassword } from "@/lib/services/software";
@@ -8,11 +8,14 @@ import { revealSoftwarePassword } from "@/lib/services/software";
 const REVEAL_LIMIT = { max: 20, windowMs: 5 * 60_000 };
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
-  requirePermission(user.role, "software", "reveal");
+  requirePermissionOrCollaboratorCapability(user, "software", "reveal", "SOFTWARE_VAULT_VIEW");
   const { allowed } = await checkRateLimit(`software:reveal:${user.id}`, REVEAL_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many password reveals. Please wait a few minutes.");
 
-  const credential = await revealSoftwarePassword(params.id);
+  const credential = await revealSoftwarePassword(params.id, {
+    role: user.role,
+    collaboratorCanView: user.role === "COLLABORATOR",
+  });
   // Audit before returning the secret so an audit failure cannot silently turn
   // a credential read into an untracked read.
   await createAuditEntry({

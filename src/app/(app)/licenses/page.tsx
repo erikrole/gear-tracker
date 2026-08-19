@@ -103,6 +103,8 @@ export default function LicensesPage() {
   });
   const currentUserId = meData?.id ?? null;
   const isAdmin = meData?.role === "ADMIN" || meData?.role === "STAFF";
+  const isCollaborator = meData?.role === "COLLABORATOR";
+  const licenseSurfaceReady = meData !== null;
 
   const {
     data: codesData,
@@ -112,6 +114,7 @@ export default function LicensesPage() {
     reload: reloadCodes,
   } = useFetch<LicenseCode[]>({
     url: "/api/licenses",
+    enabled: licenseSurfaceReady && !isCollaborator,
     transform: (json) => (json as Record<string, unknown>).data as LicenseCode[],
   });
 
@@ -120,6 +123,7 @@ export default function LicensesPage() {
     reload: reloadMy,
   } = useFetch<MyLicense | null>({
     url: "/api/licenses/my",
+    enabled: licenseSurfaceReady && !isCollaborator,
     transform: (json) => ((json as Record<string, unknown>).data as MyLicense) ?? null,
   });
 
@@ -199,6 +203,8 @@ export default function LicensesPage() {
 
       <SoftwareVault isAdmin={isAdmin} />
 
+      {licenseSurfaceReady && !isCollaborator && (
+        <>
       {/* My active Photo Mechanic license banner (students + staff) */}
       {myLicense && (
         <MyLicensePanel license={myLicense} isStaff={isAdmin} onReleased={reloadAll} />
@@ -316,6 +322,8 @@ export default function LicensesPage() {
         codes={visibleCodes}
         onRenewed={reloadAll}
       />
+        </>
+      )}
 
     </FadeUp>
   );

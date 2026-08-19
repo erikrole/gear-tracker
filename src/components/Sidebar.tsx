@@ -65,6 +65,7 @@ const COLLABORATOR_NAV_CAPABILITY: Partial<Record<string, string>> = {
   "/items": "GEAR_CATALOG_VIEW",
   "/bookings": "MY_GEAR_VIEW",
   "/users": "PEOPLE_DIRECTORY_VIEW",
+  "/licenses": "SOFTWARE_VAULT_VIEW",
 };
 
 type NavGroup = {
@@ -166,7 +167,7 @@ export default function AppSidebar({
         .filter((item) => !item.requiredRole || item.requiredRole === user?.role)
         .filter((item) => {
           if (!isCollaborator) return true;
-          if (!["/", "/schedule", "/items", "/bookings", "/users", "/notifications"].includes(item.href)) return false;
+          if (!["/", "/schedule", "/items", "/bookings", "/users", "/notifications", "/licenses"].includes(item.href)) return false;
           const requiredCapability = COLLABORATOR_NAV_CAPABILITY[item.href];
           return !requiredCapability || collaboratorCapabilities.has(requiredCapability);
         })

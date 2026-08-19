@@ -74,7 +74,7 @@
 | `BadgeEventReceipt` | 6 | 3 |
 | `LicenseCode` | 15 | 4 |
 | `LicenseCodeClaim` | 10 | 3 |
-| `SoftwareCredential` | 9 | 2 |
+| `SoftwareCredential` | 10 | 2 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
 | `ShiftGroup` | 17 | 3 |
@@ -98,6 +98,12 @@
 ### `Role`
 
 - `ADMIN`
+- `STAFF`
+- `STUDENT`
+- `COLLABORATOR`
+
+### `SoftwareCredentialAudience`
+
 - `STAFF`
 - `STUDENT`
 - `COLLABORATOR`

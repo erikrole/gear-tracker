@@ -21,6 +21,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     action: body.archived === true ? "archive" : body.archived === false ? "restore" : "update",
     after: {
       name: credential.name,
+      visibleTo: credential.visibleTo,
       accountEmailChanged: body.accountEmail !== undefined,
       passwordChanged: body.password !== undefined,
       archived: credential.archivedAt !== null,

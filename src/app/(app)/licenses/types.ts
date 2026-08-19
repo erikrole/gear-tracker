@@ -34,6 +34,8 @@ export type MyLicense = {
   claimId: string;
 };
 
+export type SoftwareCredentialAudience = "STAFF" | "STUDENT" | "COLLABORATOR";
+
 export type SoftwareCredentialSummary = {
   id: string;
   name: string;
@@ -41,6 +43,7 @@ export type SoftwareCredentialSummary = {
   websiteUrl: string | null;
   accountEmail: string;
   hasPassword: boolean;
+  visibleTo: SoftwareCredentialAudience[];
   archivedAt: string | null;
   updatedAt: string;
 };

@@ -121,7 +121,7 @@
 | `src/components/BookingListPage.tsx` | 523 |
 | `src/components/ui/heatmap.tsx` | 434 |
 | `src/components/booking-details/BookingHeader.tsx` | 417 |
-| `src/components/Sidebar.tsx` | 410 |
+| `src/components/Sidebar.tsx` | 411 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 358 |
 | `src/components/booking-details/BookingInfoCard.tsx` | 342 |

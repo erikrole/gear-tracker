@@ -66,7 +66,7 @@
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
 | `src/lib/services/signatures.ts` | 1743 |
-| `src/lib/services/software.ts` | 119 |
+| `src/lib/services/software.ts` | 150 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -110,7 +110,7 @@
 | `src/lib/category-options.ts` | 34 |
 | `src/lib/checkout-escalation-policy.ts` | 117 |
 | `src/lib/checkout-notification-workflow.ts` | 24 |
-| `src/lib/collaborator-access.ts` | 162 |
+| `src/lib/collaborator-access.ts` | 164 |
 | `src/lib/collaborator-gear.ts` | 151 |
 | `src/lib/companion-projection-contract.ts` | 68 |
 | `src/lib/companion-store.ts` | 292 |
@@ -187,8 +187,9 @@
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 71 |
 | `src/lib/shift-notification-workflow.ts` | 18 |
+| `src/lib/software-vault-access.ts` | 20 |
 | `src/lib/software-vault-crypto.ts` | 61 |
-| `src/lib/software-vault-validation.ts` | 30 |
+| `src/lib/software-vault-validation.ts` | 37 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 49 |
 | `src/lib/status-styles.ts` | 46 |

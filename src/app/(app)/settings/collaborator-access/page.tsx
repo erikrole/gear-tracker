@@ -27,6 +27,7 @@ type Capability =
   | "RESERVATION_EXTEND_OWN"
   | "PUBLISHED_SCHEDULE_VIEW"
   | "PEOPLE_DIRECTORY_VIEW"
+  | "SOFTWARE_VAULT_VIEW"
   | "SCHEDULE_FOLLOW"
   | "KIOSK_ROSTER_ELIGIBLE";
 
@@ -63,6 +64,7 @@ const CAPABILITIES: Array<{ key: Capability; label: string; group: "Can see" | "
   { key: "MY_GEAR_VIEW", label: "My Gear", group: "Can see", description: "Only their reservations and checkouts." },
   { key: "PUBLISHED_SCHEDULE_VIEW", label: "Published Schedule", group: "Can see", description: "Published snapshots without internal notes." },
   { key: "PEOPLE_DIRECTORY_VIEW", label: "People directory", group: "Can see", description: "Active teammates with work-safe profile details." },
+  { key: "SOFTWARE_VAULT_VIEW", label: "Shared software", group: "Can see", description: "Software logins explicitly shared with collaborators." },
   { key: "RESERVATION_CREATE", label: "Create reservations", group: "Can do", description: "Reserve gear for themselves." },
   { key: "RESERVATION_EDIT_OWN", label: "Edit own reservations", group: "Can do", description: "Edit eligible owned reservations." },
   { key: "RESERVATION_CANCEL_OWN", label: "Cancel own reservations", group: "Can do", description: "Cancel eligible owned reservations." },
