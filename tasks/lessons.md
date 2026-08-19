@@ -68,6 +68,7 @@
 - **iOS Codable fields follow the source schema**: Nullable Prisma fields are optional in Swift. Required fields must exist and be non-null at the route boundary.
 - **Full-replace saves must preserve sibling fields**: A partial native model must not silently reset fields it does not carry.
 - **Secondary clients count**: Contract audits enumerate every type that owns a URL session, not only the primary API client.
+- **Authored content needs one spec, not two subsets**: When two clients render the same authored payload, parse it with the same spec engine on both. A hand-rolled subset drifts silently, because it is written against what the content *usually* looks like rather than what the authoring tool actually emits. The iOS guide reader hand-parsed Markdown line by line and only matched an image whose line was exactly `![alt](url)`; MDXEditor's own image dialog writes a title, so `![alt](url "title")` — plus inline, link-wrapped, reference-style, and root-relative images — silently dropped the photo, and GFM tables rendered as one monospaced block per row. Fixed by parsing with apple/swift-markdown, which wraps the same cmark-gfm engine `remark-gfm` does. Cross-client formats belong in a written contract (`docs/GUIDE_MARKDOWN.md`) with both halves tested against it.
 
 ## UI reliability
 
@@ -108,6 +109,7 @@
 - **HID scanner capture is phase-owned**: Mount and rearm hidden scanner fields only during an explicit scan phase. Visible text input must retain keyboard ownership.
 - **Kiosk Liquid Glass belongs to commands**: Keep custody rows, inputs, warnings, and timing surfaces opaque and easy to parse.
 - **Screenshot feedback is element-specific**: Identify the exact text, icon, fill, border, badge, or container before changing a shared token.
+- **Sibling destinations drift apart**: Surfaces built at different times in the same area accumulate different refresh semantics, filter affordances, empty states, and gesture support even when each one is individually defensible. Audit an area by diffing its destinations against each other, not only against the design system. The Resources trio had only Users honouring the tab-reset gesture, only Users tinting an active filter, and two of three dropping a pull-to-refresh that arrived during a load.
 
 ## Testing and verification
 

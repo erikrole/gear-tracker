@@ -81,6 +81,7 @@ ProfileNextUp.swift                    | profile                     | audit
 SettingsView.swift                     | profile                     | audit
 LicensesView.swift                     | licenses                    | audit
 GuidesView.swift                       | resources                   | audit
+GuideMarkdown.swift                    |                             | exempt-infra
 SidebarWebDestinationView.swift        |                             | exempt-tiny
 NotificationSettingsView.swift         | profile                     | audit
 AccountSecuritySettingsView.swift      | profile                     | audit

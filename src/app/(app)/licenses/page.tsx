@@ -22,6 +22,7 @@ import { AdminClaimSheet } from "./AdminClaimSheet";
 import { AddLicenseDialog } from "./AddLicenseDialog";
 import { BulkAddSheet } from "./BulkAddSheet";
 import { BulkRenewDialog } from "./BulkRenewDialog";
+import { SoftwareVault } from "./SoftwareVault";
 import type { LicenseCode, MyLicense } from "./types";
 
 const MAX_SLOTS = 2;
@@ -180,23 +181,25 @@ export default function LicensesPage() {
   return (
     <FadeUp>
       <PageHeader
-        title="Photo Mechanic Licenses"
-        description="Claim an open activation or manage the shared two-slot license pool."
+        title="Software"
+        description="Shared software access, department logins, and Photo Mechanic license management."
       >
         {isAdmin && (
           <>
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowBulk(true)}>
-              Bulk add
+              Bulk add codes
             </Button>
             <Button size="sm" className="h-10" onClick={() => setShowAdd(true)}>
               <Plus data-icon="inline-start" />
-              Add code
+              Add license code
             </Button>
           </>
         )}
       </PageHeader>
 
-      {/* My active license banner (students + staff) */}
+      <SoftwareVault isAdmin={isAdmin} />
+
+      {/* My active Photo Mechanic license banner (students + staff) */}
       {myLicense && (
         <MyLicensePanel license={myLicense} isStaff={isAdmin} onReleased={reloadAll} />
       )}

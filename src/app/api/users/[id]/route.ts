@@ -7,6 +7,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, validateBirthdayParts, wiscardCardNumberSchema, wiscardIssueCodeSchema, wiscardNumberSchema } from "@/lib/validation";
 import { canReadUserProfile } from "@/lib/user-visibility";
+import { getGameRecordForUser } from "@/lib/services/game-record";
 import { normalizeProfilePhone, nullableProfilePhoneSchema, phoneAuditValue } from "@/lib/profile-phone";
 import { requireCollaboratorCapability } from "@/lib/collaborator-access";
 import { revokeCompanionUser } from "@/lib/companion-store";
@@ -223,11 +224,14 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     });
   }
 
+  const gameRecord = await getGameRecordForUser(target.id);
+
   return ok({
     data: {
       id: target.id,
       name: target.name,
       email: target.email,
+      gameRecord,
       role: target.role,
       affiliation: target.affiliation,
       collaboratorProfile: target.collaboratorProfile,

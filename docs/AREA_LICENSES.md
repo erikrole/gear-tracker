@@ -10,6 +10,8 @@
 ## Direction
 Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how Photo Mechanic licenses actually work in the field — each license code activates on **two** machines, occupants drift over time, and licenses renew **annually**. Students self-serve a slot; admins manage account email, expiry, and unknown occupants.
 
+The `/licenses` route is presented as **Software** in the sidebar. The shared Software Vault is the first section on that route; this Photo Mechanic two-slot pool remains below it with its existing claim, masking, expiry, and administration rules unchanged.
+
 ## Core Rules
 1. **Two slots per license code.** Activations fill naturally; positions are not meaningful (no "slot 1 vs slot 2" semantics).
 2. **One slot per user across all codes.** A student cannot hold a slot on multiple licenses simultaneously.
@@ -126,6 +128,8 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-08-19: Added the shared Software Vault above the Photo Mechanic pool. The sidebar and route copy now say Software, while the existing two-slot license workflow remains compatible at `/licenses`. See `docs/AREA_SOFTWARE.md` for the encrypted credential contract and rollout gates.
+- 2026-08-18: Fixed native iOS license expiry rendering a day early. Expiry values are annual calendar dates encoded at UTC midnight (`src/lib/license-dates.ts`), but iOS formatted the encoded instant in the device timezone, so anywhere west of UTC a 31 Dec license read "Expires Dec 30", and both the "Expired" copy and the amber/red urgency tone flipped a full day before the license lapsed. `LicenseExpiry.calendarDay(from:)` / `.daysUntil(_:)` now read the UTC date parts and compare whole calendar days, mirroring `licenseExpiryAsLocalDate` and `licenseDaysUntilExpiry` on the web. Claim timestamps are real instants and still render in local time. Pinned by `ios/WisconsinTests/LicenseExpiryTests.swift`.
 - 2026-08-18: **Local calendar dates for annual expiry.** Date-only renewal values such as `2027-08-18` now display as August 18 in Central/local browser time instead of shifting to August 17 through UTC-midnight conversion. Expired, expiring-soon, renewal-scope, admin-sheet, and CSV filename calculations use the same local calendar-day contract; storage encoding, claim eligibility, and notification policy are unchanged.
 - 2026-07-29: **Staff assignment.** Staff and admins can assign an open Photo Mechanic slot to an active internal user from the license detail sheet. The audited management route rejects retired or full licenses and users who already hold an active slot. Unknown-occupant recording remains available as a separate fallback.
 - 2026-07-15: **Native iOS Licenses hierarchy and capacity polish.** The self-service page now opens with a shared-capacity summary, gives the holder's code a clearer active-license card, presents open capacity directly on each pool row, hides other student identities behind neutral occupancy copy, and aligns partial/full use to the established blue operational state. Claim, copy, return, masking, expiry, two-slot capacity, and web-owned administration are unchanged.

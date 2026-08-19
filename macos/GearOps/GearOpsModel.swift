@@ -28,6 +28,8 @@ final class GearOpsModel {
     private let defaults: UserDefaults
     private let bookingNotifications: any BookingNotificationDelivering
     private let credentialStore: any CompanionCredentialStoring
+    let notificationSettings: NotificationSettingsStore
+    let appPreferences: AppPreferencesStore
     private var companionToken: String?
     private var currentDeviceToken: String?
     private var registeredDeviceCredential: String?
@@ -51,18 +53,23 @@ final class GearOpsModel {
     var isRefreshing = false
     var statusMessage: String?
     var countDataIsPartial = false
+    var notificationAuthorization: BookingNotificationAuthorization = .unknown
 
     init(
         client: any GearOpsServing = GearOpsClient(),
         defaults: UserDefaults = .standard,
         bookingNotifications: any BookingNotificationDelivering = BookingNotificationCenter(),
         credentialStore: any CompanionCredentialStoring = CompanionCredentialStore(),
+        notificationSettings: NotificationSettingsStore? = nil,
+        appPreferences: AppPreferencesStore? = nil,
         autoStart: Bool = true
     ) {
         self.client = client
         self.defaults = defaults
         self.bookingNotifications = bookingNotifications
         self.credentialStore = credentialStore
+        self.notificationSettings = notificationSettings ?? NotificationSettingsStore(defaults: defaults)
+        self.appPreferences = appPreferences ?? AppPreferencesStore(defaults: defaults)
 
         if let data = defaults.data(forKey: Self.cacheKey),
            let cached = try? JSONDecoder().decode(GearOpsCachedState.self, from: data) {
@@ -105,10 +112,9 @@ final class GearOpsModel {
 
     var healthSeverity: GearOpsHealthSeverity {
         if user != nil, snapshot == nil, statusMessage != nil { return .critical }
-        if monitoredKioskDevices.contains(where: { $0.connectionState() == .offline }) { return .critical }
+        if monitoredKioskDevices.contains(where: { $0.connectionState().isFault }) { return .critical }
         if user != nil, kioskAccess == .restricted { return .attention }
         if countDataIsPartial || statusMessage != nil { return .attention }
-        if monitoredKioskDevices.contains(where: { $0.connectionState() == .stale }) { return .attention }
         return .healthy
     }
 
@@ -143,6 +149,13 @@ final class GearOpsModel {
 
     func pendingPickupBookings(at now: Date = .now) -> [BookingActivitySnapshot] {
         activeBookingActivity.filter { $0.isWaitingForPickup(at: now) }
+    }
+
+    /// Derived from the same rows the popover renders rather than from the
+    /// projection's generation-time `stats.overdue`, so the badge and the row
+    /// colours can never disagree as the clock passes a due time.
+    func overdueBookingCount(at now: Date = .now) -> Int {
+        openBookings.filter { $0.isOverdue(at: now) }.count
     }
 
     /// Restore reads the external companion projection after loading the local
@@ -324,6 +337,15 @@ final class GearOpsModel {
         open(path: "/settings/kiosk-devices")
     }
 
+    func refreshNotificationAuthorization() async {
+        notificationAuthorization = await bookingNotifications.authorization()
+    }
+
+    func openSystemNotificationSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") else { return }
+        open(url: url)
+    }
+
     func quit() {
         NSApplication.shared.terminate(nil)
     }
@@ -435,9 +457,9 @@ final class GearOpsModel {
                         to: current
                     )
                 }
-            for change in changes {
+            for change in changes where notificationSettings.allows(change.category) {
                 guard expectedGeneration == sessionGeneration else { return }
-                await bookingNotifications.deliver(change)
+                await bookingNotifications.deliver(change, playsSound: notificationSettings.playsSound)
             }
         }
     }
@@ -481,8 +503,8 @@ final class GearOpsModel {
     private static func monitoringPriority(for state: KioskConnectionState) -> Int {
         switch state {
         case .offline: 0
-        case .stale: 1
-        case .online: 2
+        case .online: 1
+        case .stale: 2
         case .inactive: 3
         }
     }

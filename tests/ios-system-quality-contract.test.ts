@@ -8,15 +8,23 @@ const source = (relativeFile: string) =>
 describe("iOS system quality contracts", () => {
   it("parses guide Markdown once per article and gives blocks stable source identities", () => {
     const guides = source("ios/Wisconsin/Views/GuidesView.swift");
+    const markdown = source("ios/Wisconsin/Views/GuideMarkdown.swift");
 
-    expect(guides).toContain("private let blocks: [MarkdownBlock]");
+    // Parsed once in the article initializer, never per block on every draw.
+    expect(guides).toContain("private let blocks: [GuideBlock]");
     expect(guides).toContain("init(markdown: String)");
-    expect(guides).toContain("struct ID: Hashable");
-    expect(guides).toContain("let sourcePosition: Int");
-    expect(guides).toContain("let kind: Kind");
-    expect(guides).toContain("return blocks.enumerated().map { sourcePosition, block in");
+    expect(guides).toContain("let parsed = GuideMarkdown.parse(markdown)");
+    expect(guides).not.toContain("private var blocks: [GuideBlock]");
+
+    // Source position is the block identity, so a document that repeats a block
+    // verbatim still gets distinct, stable ForEach ids across reparses.
+    expect(markdown).toContain("let id: Int");
+    expect(markdown).toContain("let kind: Kind");
+    expect(markdown).toContain(
+      "kinds.enumerated().map { GuideBlock(id: $0.offset, kind: $0.element) }",
+    );
     expect(guides).not.toContain("let id = UUID()");
-    expect(guides).not.toContain("private var blocks: [MarkdownBlock]");
+    expect(markdown).not.toContain("let id = UUID()");
   });
 
   it("keeps the scanner inspector interactive only in debug builds", () => {

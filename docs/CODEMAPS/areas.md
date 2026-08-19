@@ -137,7 +137,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/resources/[slug]/edit`, `/resources/[slug]`, `/resources/new`, `/resources`
 - APIs: `/api/resources/[id]`, `/api/resources`, `/api/resources/upload-image`
 - Services: _none matched_
-- Tests: `tests/resources-filters.test.ts`, `tests/resources-ui-ownership-contract.test.ts`, `tests/resources-ui-polish-source.test.ts`
+- Tests: `tests/ios-resources-area-consistency.test.ts`, `tests/resources-filters.test.ts`, `tests/resources-ui-ownership-contract.test.ts`, `tests/resources-ui-polish-source.test.ts`
 
 ## scan
 
@@ -169,7 +169,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/bulk-assignment/apply`, `/api/schedule/bulk-assignment/preview`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`
 - Services: `src/lib/services/bulk-schedule-assignment.ts`, `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`
-- Tests: `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/ios-schedule-edit-times-post-trade-redesign.test.ts`
+- Tests: `tests/badge-shift-breadth.test.ts`, `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`
 
 ## signatures
 
@@ -178,6 +178,14 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`
 - Services: `src/lib/services/signatures.ts`
 - Tests: _none matched_
+
+## software
+
+- Doc: `docs/AREA_SOFTWARE.md`
+- Pages: _none matched_
+- APIs: `/api/software/[id]`, `/api/software/[id]/secret`, `/api/software`
+- Services: `src/lib/services/software.ts`
+- Tests: `tests/software-vault.test.ts`
 
 ## users
 

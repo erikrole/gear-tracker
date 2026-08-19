@@ -18,6 +18,7 @@
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
 		089493883612791C05515FAE /* LicensesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3D4226E94BA750868A4D0B /* LicensesView.swift */; };
 		0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */; };
+		0E3E3B49635A5FE7B0C6DE71 /* GuideMarkdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDEEC500E8732A76AA01E90 /* GuideMarkdownTests.swift */; };
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
 		1055262B6F98F58C10AC34F1 /* Gotham-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 25CAFE07992F1EB02F507AE2 /* Gotham-Black.ttf */; };
 		11A01EC76DDAA014512A70E9 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5932CB2D580EFEB5EA22D828 /* AppEnvironment.swift */; };
@@ -32,6 +33,7 @@
 		1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97E29E06DBD7A4474F9E66A /* StatusPill.swift */; };
 		1EC76C21F12315FFEA89CD45 /* WisconsinLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 88F162C9B5233CB44C35E9E5 /* WisconsinLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		21806351E0E51FB5D0200F7F /* SemanticTones.swift in Sources */ = {isa = PBXBuildFile; fileRef = D670C3FF7EA66807225FD6FD /* SemanticTones.swift */; };
+		22682418CE8FC843F3E2B1F3 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = E1FC7879594025684FC876D1 /* Markdown */; };
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		27614B86498B5D98CC600630 /* CreateBookingFormRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089FAA6DDBB831B89ED4E5F5 /* CreateBookingFormRows.swift */; };
@@ -106,6 +108,7 @@
 		9939B52822812D9C7B8CF92B /* ScannerDebuggerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B542F56A00A8C2FEB2078C /* ScannerDebuggerView.swift */; };
 		9CF45F32E90F4C03DDE548AB /* KioskShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */; };
 		9D35DC6120309C27ADBC9FF3 /* BlastBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222E2FBE9DCF411B6C8A5FD9 /* BlastBanner.swift */; };
+		9EF17BF323C8CEDE6CEC8D66 /* GuideMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5159F2511DF2C09D8E495B8 /* GuideMarkdown.swift */; };
 		9F8F4FCCB5B170E4C08FEBA1 /* KioskIdleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649B6E0F68D9B5DB4D054656 /* KioskIdleView.swift */; };
 		A2F31705FBCCCE502A3B6C1A /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74EFD042F26EA7BE52FA67E3 /* SearchService.swift */; };
 		A4D4C64C1C5E6904BFF894E3 /* KioskSleepModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE625FDFD675BDE49443B571 /* KioskSleepModeView.swift */; };
@@ -127,6 +130,7 @@
 		BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */; };
 		BA37275B8E5633BD8007619A /* PerformanceInstrumentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9062A30C344C008E28EAAC29 /* PerformanceInstrumentation.swift */; };
 		BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */; };
+		C102925440D4EB154CF681D1 /* LicenseExpiryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68542663977099AEC90AAFE5 /* LicenseExpiryTests.swift */; };
 		C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3967BD5EC55792F3B9E94724 /* AssetModels.swift */; };
 		C4B395605B732BF0CA7623DD /* LaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C139D1C1F9A3D2C4AB5EEF42 /* LaunchView.swift */; };
 		C72EB6E27A3B853D2B074874 /* KioskNativeTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046675A42DFADB1133461EDD /* KioskNativeTextField.swift */; };
@@ -268,12 +272,14 @@
 		66242B4730F2C1AF5CF188FF /* ProfileNextUp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileNextUp.swift; sourceTree = "<group>"; };
 		663DC1D3F890A7577C4D89D5 /* AppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntents.swift; sourceTree = "<group>"; };
 		66DFAABBDCC4FC644E2F8E8B /* CreateBookingEquipmentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingEquipmentPicker.swift; sourceTree = "<group>"; };
+		68542663977099AEC90AAFE5 /* LicenseExpiryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseExpiryTests.swift; sourceTree = "<group>"; };
 		687337C19E47FE94FE56F9BF /* KioskReturnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskReturnView.swift; sourceTree = "<group>"; };
 		6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushPrePromptView.swift; sourceTree = "<group>"; };
 		6AFF5F65A92CEAED518EF6E6 /* CreateBookingPickers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingPickers.swift; sourceTree = "<group>"; };
 		6B64F325136AF7626ECECE8C /* UserDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDetailView.swift; sourceTree = "<group>"; };
 		6D6258D04F2CBF34C14EBB69 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		6ED3D57FAA3E94281C3FF27C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		6FDEEC500E8732A76AA01E90 /* GuideMarkdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideMarkdownTests.swift; sourceTree = "<group>"; };
 		71D4B19DF59FC05500A7F758 /* PasskeyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyModels.swift; sourceTree = "<group>"; };
 		73A192946D33F875B4A0A772 /* WisconsinKioskTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WisconsinKioskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
@@ -299,6 +305,7 @@
 		9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
 		A16A76819006E71CB2219DB9 /* Wisconsin.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Wisconsin.entitlements; sourceTree = "<group>"; };
 		A417355DFB5B21031685616A /* ProfileCompletionWelcomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionWelcomeComponents.swift; sourceTree = "<group>"; };
+		A5159F2511DF2C09D8E495B8 /* GuideMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideMarkdown.swift; sourceTree = "<group>"; };
 		A5827A13830B73BC3EB57808 /* BlastModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlastModels.swift; sourceTree = "<group>"; };
 		A6B542F56A00A8C2FEB2078C /* ScannerDebuggerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerDebuggerView.swift; sourceTree = "<group>"; };
 		A9374732F63AA4EA283094F0 /* AssignStudentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignStudentSheet.swift; sourceTree = "<group>"; };
@@ -360,6 +367,17 @@
 		FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanResultHeroCard.swift; sourceTree = "<group>"; };
 		FF98C537202359B822B1D752 /* BookingEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingEntity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4131A75354D9B9C47C13175A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				22682418CE8FC843F3E2B1F3 /* Markdown in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1414D7CCBD97C717AE465FD0 /* Wisconsin */ = {
@@ -641,6 +659,7 @@
 				F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */,
 				5FB4AEDFE7F83CC6E155C12D /* EventDetailSheet.swift */,
 				2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */,
+				A5159F2511DF2C09D8E495B8 /* GuideMarkdown.swift */,
 				14DA88A1DF6F8D23066A07BC /* GuidesView.swift */,
 				64F14676788E6FA7CDD08D48 /* HomeView.swift */,
 				80CA4880F08046F8E23F079B /* ItemDetailView.swift */,
@@ -690,7 +709,9 @@
 			isa = PBXGroup;
 			children = (
 				33E539B4DF2AE3F73D36C2BA /* BookingModelsTests.swift */,
+				6FDEEC500E8732A76AA01E90 /* GuideMarkdownTests.swift */,
 				F7E2243115099DA4F3973F11 /* LatestRequestGenerationTests.swift */,
+				68542663977099AEC90AAFE5 /* LicenseExpiryTests.swift */,
 				DDD21416289B346FEE851FB9 /* ProfileCompletionModelsTests.swift */,
 				841B755DD26E463F2B624373 /* ReportModelsTests.swift */,
 				4461DC62BDB05085191DB129 /* ReservationDraftStoreTests.swift */,
@@ -739,6 +760,7 @@
 			buildPhases = (
 				ABB8BC4733CB796A48A557D1 /* Sources */,
 				028CA1F838882E12487697F8 /* Resources */,
+				4131A75354D9B9C47C13175A /* Frameworks */,
 				E8E4190341EF62FD1DBC213B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -748,6 +770,7 @@
 			);
 			name = Wisconsin;
 			packageProductDependencies = (
+				E1FC7879594025684FC876D1 /* Markdown */,
 			);
 			productName = Wisconsin;
 			productReference = 294553EF02A8AC64D71ED849 /* Wisconsin.app */;
@@ -863,6 +886,9 @@
 			);
 			mainGroup = 649EB01281625219848D23B2;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F1C965331C1A50AE35E5CEA6 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FAC33595C52A409299C15513 /* Products */;
 			projectDirPath = "";
@@ -910,7 +936,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				ADB0FD771E094960BDFC5D6B /* BookingModelsTests.swift in Sources */,
+				0E3E3B49635A5FE7B0C6DE71 /* GuideMarkdownTests.swift in Sources */,
 				D90FDB80F8FFF8F2921E26A5 /* LatestRequestGenerationTests.swift in Sources */,
+				C102925440D4EB154CF681D1 /* LicenseExpiryTests.swift in Sources */,
 				4F357F478EDC77FFABCE13B7 /* ProfileCompletionModelsTests.swift in Sources */,
 				17D60243EEB5E89A81363B3B /* ReportModelsTests.swift in Sources */,
 				FBCE9485C52357F314061D25 /* ReservationDraftStoreTests.swift in Sources */,
@@ -1026,6 +1054,7 @@
 				470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */,
 				795277BA3B90A0AB27B5C672 /* GearStore.swift in Sources */,
 				AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */,
+				9EF17BF323C8CEDE6CEC8D66 /* GuideMarkdown.swift in Sources */,
 				27ECC333F667B220F460C700 /* GuidesView.swift in Sources */,
 				01166B5C08621BBC2D8218F6 /* HIDScannerField.swift in Sources */,
 				6B9E7D074E50DBAB24DAC522 /* Haptics.swift in Sources */,
@@ -1559,6 +1588,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F1C965331C1A50AE35E5CEA6 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-markdown";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E1FC7879594025684FC876D1 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F1C965331C1A50AE35E5CEA6 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 335BE05E032A4F56E50B98CC /* Project object */;
 }

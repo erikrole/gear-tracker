@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class GuidesViewModel {
     var error: String?
 
     private var lastLoadedAt: Date?
+    private var loadTask: Task<Void, Never>?
     private static let freshnessWindow: TimeInterval = 60
 
     func load(forceRefresh: Bool = false) async {
@@ -17,19 +19,50 @@ final class GuidesViewModel {
            !guides.isEmpty {
             return
         }
-        guard !isLoading else { return }
 
+        // A pull-to-refresh has to supersede an in-flight load. Bailing on
+        // `isLoading` instead snapped the refresh control back immediately and
+        // left the stale list in place, and two overlapping loads applied
+        // whichever response happened to land last.
+        if forceRefresh {
+            loadTask?.cancel()
+        } else if isLoading {
+            return
+        }
+
+        let task = Task { await performLoad(forceRefresh: forceRefresh) }
+        loadTask = task
+        await task.value
+    }
+
+    private func performLoad(forceRefresh: Bool) async {
         isLoading = true
         if forceRefresh { error = nil }
 
         do {
-            guides = try await APIClient.shared.guides()
+            let fetched = try await APIClient.shared.guides()
+            guard !Task.isCancelled else { return }
+            guides = fetched
             error = nil
             lastLoadedAt = Date()
+        } catch is CancellationError {
+            // Superseded by a newer load, which owns `isLoading` from here.
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
         }
 
+        isLoading = false
+    }
+
+    /// Clears the loaded library so the next `load` refetches. Used by the
+    /// tab-reset gesture, which returns the destination to a first-run state.
+    func resetDefaults() {
+        loadTask?.cancel()
+        guides = []
+        error = nil
+        lastLoadedAt = nil
         isLoading = false
     }
 }
@@ -38,10 +71,16 @@ struct GuidesView: View {
     var wrapsInNavigationStack = true
 
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
     @State private var vm = GuidesViewModel()
+    @State private var navigationPath = NavigationPath()
     @State private var searchText = ""
     @State private var focus: GuideFocus = .all
     @State private var sort: GuideSort = .recommended
+
+    private var hasFilter: Bool {
+        focus != .all || !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     private var filteredGuides: [GuideListItem] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -63,7 +102,7 @@ struct GuidesView: View {
 
     var body: some View {
         if wrapsInNavigationStack {
-            NavigationStack { configuredContent }
+            NavigationStack(path: $navigationPath) { configuredContent }
         } else {
             configuredContent
         }
@@ -80,6 +119,18 @@ struct GuidesView: View {
             )
             .refreshable { await vm.load(forceRefresh: true) }
             .task { await vm.load() }
+            .navigationDestination(for: GuideListItem.self) { guide in
+                GuideReaderView(guide: guide)
+            }
+            // Re-selecting the destination returns it to a first-run state, the
+            // same gesture Home, Bookings, Browse, Schedule, and Users honour.
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 6 else { return }
+                navigationPath = NavigationPath()
+                clearFilters()
+                vm.resetDefaults()
+                Task { await vm.load() }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
@@ -89,9 +140,15 @@ struct GuidesView: View {
                             }
                         }
                     } label: {
-                        Label("Focus", systemImage: "line.3.horizontal.decrease.circle")
+                        // Filled glyph plus the shared control tint is how every
+                        // other list in the app says "a filter is narrowing this".
+                        Label(
+                            "Focus",
+                            systemImage: "line.3.horizontal.decrease.circle\(focus == .all ? "" : ".fill")"
+                        )
                     }
-                    .accessibilityLabel("Guide focus")
+                    .listControlTint(isActive: focus != .all)
+                    .accessibilityLabel(focus == .all ? "Guide focus" : "Guide focus, \(focus.label)")
 
                     Menu {
                         Picker("Sort", selection: $sort) {
@@ -102,9 +159,16 @@ struct GuidesView: View {
                     } label: {
                         Label("Sort", systemImage: "arrow.up.arrow.down")
                     }
-                    .accessibilityLabel("Sort guides")
+                    .listControlTint(isActive: sort != .recommended)
+                    .accessibilityLabel(sort == .recommended ? "Sort guides" : "Sort guides, \(sort.label)")
                 }
             }
+    }
+
+    private func clearFilters() {
+        searchText = ""
+        focus = .all
+        sort = .recommended
     }
 
     @ViewBuilder
@@ -166,9 +230,7 @@ struct GuidesView: View {
 
             Section {
                 ForEach(filteredGuides) { guide in
-                    NavigationLink {
-                        GuideReaderView(guide: guide)
-                    } label: {
+                    NavigationLink(value: guide) {
                         GuideRow(guide: guide)
                     }
                 }
@@ -178,15 +240,36 @@ struct GuidesView: View {
 
             if filteredGuides.isEmpty {
                 Section {
-                    ContentUnavailableView(
-                        "No guides match",
-                        systemImage: "magnifyingglass",
-                        description: Text("Try a different search or focus.")
-                    )
+                    ContentUnavailableView {
+                        Label("No guides match", systemImage: "magnifyingglass")
+                    } description: {
+                        Text(filteredEmptyDescription)
+                    } actions: {
+                        // A dead end needs a way out — the web library offers the
+                        // same clear-filters recovery.
+                        Button("Clear filters") { clearFilters() }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    /// Names the filter that actually emptied the list, so the reader knows
+    /// which control to undo rather than guessing between search and focus.
+    private var filteredEmptyDescription: String {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (query.isEmpty, focus == .all) {
+        case (false, false):
+            return "Nothing matches \"\(query)\" in \(focus.label)."
+        case (false, true):
+            return "Nothing matches \"\(query)\"."
+        case (true, false):
+            return "No guides are filed under \(focus.label)."
+        case (true, true):
+            return "Try a different search or focus."
+        }
     }
 
     private var listHeader: String {
@@ -317,14 +400,21 @@ private struct GuideReaderView: View {
 
     private func load(forceRefresh: Bool = false) async {
         if !forceRefresh, loadedGuide != nil { return }
-        guard !isLoading else { return }
+        // A pull-to-refresh mid-load must not be silently dropped; the article
+        // list has the same rule.
+        if !forceRefresh, isLoading { return }
 
         isLoading = true
         if forceRefresh { error = nil }
         do {
-            loadedGuide = try await APIClient.shared.guide(slug: guide.slug)
+            let fetched = try await APIClient.shared.guide(slug: guide.slug)
+            guard !Task.isCancelled else { return }
+            loadedGuide = fetched
             error = nil
+        } catch is CancellationError {
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
         }
         isLoading = false
@@ -370,11 +460,17 @@ private struct GuideReaderHeader: View {
     }
 }
 
-private struct NativeMarkdownArticle: View {
-    private let blocks: [MarkdownBlock]
+// MARK: - Article rendering
+
+/// Renders the parsed guide document. Parsing lives in GuideMarkdown.swift; this
+/// type only decides how each block looks.
+struct NativeMarkdownArticle: View {
+    private let blocks: [GuideBlock]
 
     init(markdown: String) {
-        let parsed = MarkdownBlock.parse(markdown.trimmingCharacters(in: .whitespacesAndNewlines))
+        let parsed = GuideMarkdown.parse(markdown)
+        // A guide that opens with a rule (or with front-matter fences that
+        // reduce to one) shouldn't start with a stray divider under the header.
         blocks = Array(parsed.drop { block in
             if case .rule = block.kind { return true }
             return false
@@ -389,41 +485,57 @@ private struct NativeMarkdownArticle: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
-                    blockView(block, isFirst: index == 0)
+                    GuideBlockView(block: block, isFirst: index == 0)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    @ViewBuilder
-    private func blockView(_ block: MarkdownBlock, isFirst: Bool) -> some View {
+private struct GuideBlockView: View {
+    let block: GuideBlock
+    let isFirst: Bool
+
+    var body: some View {
         switch block.kind {
         case .heading(let level, let text):
-            Text(text)
-                .font(headingFont(level))
+            GuideInlineLabel(text, font: headingFont(level))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, isFirst ? 0 : (level <= 2 ? 22 : 10))
+                .accessibilityAddTraits(.isHeader)
+
         case .paragraph(let text):
-            inlineText(text)
-                .font(.body)
+            GuideInlineLabel(text, font: .body)
                 .lineSpacing(5)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
-        case .bullet(let text):
+
+        case .bullet(let depth, let checkbox, let text):
             HStack(alignment: .top, spacing: 12) {
-                Circle()
-                    .fill(Color.secondary.opacity(0.65))
-                    .frame(width: 6, height: 6)
-                    .padding(.top, 8)
-                inlineText(text)
-                    .font(.body)
+                if let checkbox {
+                    Image(systemName: checkbox ? "checkmark.square.fill" : "square")
+                        .font(.body)
+                        .foregroundStyle(checkbox ? Color.statusText(.green) : Color.secondary)
+                        .accessibilityHidden(true)
+                } else {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.65))
+                        .frame(width: 6, height: 6)
+                        .padding(.top, 8)
+                        .accessibilityHidden(true)
+                }
+                GuideInlineLabel(text, font: .body)
                     .lineSpacing(5)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.leading, indent(depth))
             .textSelection(.enabled)
-        case .numbered(let number, let text):
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(checkbox.map { "\($0 ? "Completed" : "Not completed"). \(text.plain)" } ?? text.plain)
+
+        case .numbered(let depth, let number, let text):
             HStack(alignment: .top, spacing: 12) {
                 Text("\(number)")
                     .font(.caption.weight(.semibold))
@@ -432,70 +544,37 @@ private struct NativeMarkdownArticle: View {
                     .frame(width: 28, height: 28)
                     .background(Color.cardSurfaceRaised, in: Circle())
                     .accessibilityHidden(true)
-                inlineText(text)
-                    .font(.body)
+                GuideInlineLabel(text, font: .body)
                     .lineSpacing(5)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.leading, indent(depth))
             .textSelection(.enabled)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Step \(number). \(text)")
-        case .quote(let text):
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "quote.opening")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.statusText(.blue))
-                inlineText(text)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .lineSpacing(5)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.statusBackground(.blue), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .textSelection(.enabled)
-        case .code(let text), .table(let text):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(text)
-                    .font(.system(.footnote, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(12)
-                    .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-        case .image(let alt, let url):
-            if let url = URL(string: url) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    case .failure:
-                        imageFallback(alt)
-                    case .empty:
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.cardSurfaceRaised)
-                            .frame(minHeight: 180)
-                            .overlay { ProgressView() }
-                    @unknown default:
-                        imageFallback(alt)
-                    }
-                }
-            } else {
-                imageFallback(alt)
-            }
+            .accessibilityLabel("Step \(number). \(text.plain)")
+
+        case .quote(let callout, let paragraphs):
+            GuideCalloutView(callout: callout, paragraphs: paragraphs)
+
+        case .code(_, let text):
+            GuideCodeBlock(code: text)
+
+        case .embed(let embed):
+            GuideEmbedCard(embed: embed)
+
+        case .table(let table):
+            GuideTableView(table: table)
+
+        case .image(let image):
+            GuideArticleImage(image: image)
+
         case .rule:
             Divider().padding(.vertical, 4)
         }
     }
 
-    private func inlineText(_ markdown: String) -> Text {
-        if let attributed = try? AttributedString(markdown: markdown, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return Text(attributed)
-        }
-        return Text(markdown)
+    private func indent(_ depth: Int) -> CGFloat {
+        CGFloat(depth) * 18
     }
 
     private func headingFont(_ level: Int) -> Font {
@@ -505,172 +584,426 @@ private struct NativeMarkdownArticle: View {
         default: .title3.weight(.semibold)
         }
     }
+}
 
-    private func imageFallback(_ alt: String) -> some View {
-        Label(alt.isEmpty ? "Image unavailable" : alt, systemImage: "photo")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, minHeight: 140)
-            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+// MARK: Inline runs
+
+/// Renders parsed inline runs as a single `Text`, so bold/italic/strikethrough,
+/// monospaced inline code, and tappable links all survive into the article.
+private struct GuideInlineLabel: View {
+    private let text: GuideInlineText
+    private let font: Font
+
+    init(_ text: GuideInlineText, font: Font) {
+        self.text = text
+        self.font = font
+    }
+
+    var body: some View {
+        Text(attributed)
+            .font(font)
+    }
+
+    private var attributed: AttributedString {
+        var output = AttributedString()
+        for span in text.spans {
+            var piece = AttributedString(span.text)
+            if span.isCode {
+                piece.font = .system(.callout, design: .monospaced)
+                piece.backgroundColor = Color.cardSurfaceRaised
+            } else {
+                piece.font = resolvedFont(bold: span.isBold, italic: span.isItalic)
+            }
+            if span.isStrikethrough {
+                piece.strikethroughStyle = .single
+            }
+            if let link = span.link {
+                piece.link = link
+                piece.underlineStyle = .single
+            }
+            output.append(piece)
+        }
+        return output
+    }
+
+    private func resolvedFont(bold: Bool, italic: Bool) -> Font {
+        var resolved = font
+        if bold { resolved = resolved.weight(.semibold) }
+        if italic { resolved = resolved.italic() }
+        return resolved
     }
 }
 
-private struct MarkdownBlock: Identifiable {
-    enum Kind: Hashable {
-        case heading(level: Int, text: String)
-        case paragraph(String)
-        case bullet(String)
-        case numbered(number: Int, text: String)
-        case quote(String)
-        case code(String)
-        case table(String)
-        case image(alt: String, url: String)
-        case rule
-    }
+// MARK: Callouts
 
-    struct ID: Hashable {
-        let sourcePosition: Int
-        let kind: Kind
-    }
+/// GitHub alert callouts, tone-matched to the web reader's `guide-alert-*`
+/// styles (note blue, tip green, important purple, warning orange, caution red).
+private struct GuideCalloutView: View {
+    let callout: GuideCallout?
+    let paragraphs: [GuideInlineText]
 
-    let id: ID
-    let kind: Kind
-
-    init(kind: Kind, sourcePosition: Int = 0) {
-        self.id = ID(sourcePosition: sourcePosition, kind: kind)
-        self.kind = kind
-    }
-
-    static func parse(_ markdown: String) -> [MarkdownBlock] {
-        guard !markdown.isEmpty else { return [] }
-        var blocks: [MarkdownBlock] = []
-        var paragraph: [String] = []
-        var codeLines: [String] = []
-        var inCodeFence = false
-        var nextOrderedNumber: Int?
-
-        func flushParagraph() {
-            let text = paragraph.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty {
-                blocks.append(MarkdownBlock(kind: .paragraph(text)))
-                nextOrderedNumber = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let callout {
+                Label(callout.label, systemImage: systemImage(callout))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.statusText(tone))
             }
-            paragraph.removeAll()
+
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                GuideInlineLabel(paragraph, font: .body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.statusText(tone).opacity(0.32))
+        }
+        .textSelection(.enabled)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
 
-        for rawLine in markdown.components(separatedBy: .newlines) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
+    private var tone: StatusTone {
+        switch callout {
+        case .note: return .blue
+        case .tip: return .green
+        case .important: return .purple
+        case .warning: return .orange
+        case .caution: return .red
+        case nil: return .blue
+        }
+    }
 
-            if line.hasPrefix("```") {
-                if inCodeFence {
-                    blocks.append(MarkdownBlock(kind: .code(codeLines.joined(separator: "\n"))))
-                    codeLines.removeAll()
-                    inCodeFence = false
-                    nextOrderedNumber = nil
-                } else {
-                    flushParagraph()
-                    inCodeFence = true
-                    nextOrderedNumber = nil
+    private func systemImage(_ callout: GuideCallout) -> String {
+        switch callout {
+        case .note: "info.circle.fill"
+        case .tip: "lightbulb.fill"
+        case .important: "exclamationmark.bubble.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .caution: "exclamationmark.octagon.fill"
+        }
+    }
+
+    private var accessibilityLabel: String {
+        let body = paragraphs.map(\.plain).joined(separator: " ")
+        guard let callout else { return body }
+        return "\(callout.label). \(body)"
+    }
+}
+
+// MARK: Tables
+
+/// A real grid. Contacts, building numbers, and SOP guides are almost entirely
+/// tables, and every guide template ships with several.
+private struct GuideTableView: View {
+    let table: GuideTable
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            Grid(alignment: .topLeading, horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    ForEach(Array(table.header.enumerated()), id: \.offset) { column, cell in
+                        cellView(cell, column: column, isHeader: true, isFirstRow: true)
+                    }
                 }
-                continue
+
+                ForEach(Array(table.rows.enumerated()), id: \.offset) { index, row in
+                    GridRow {
+                        ForEach(Array(row.enumerated()), id: \.offset) { column, cell in
+                            cellView(cell, column: column, isHeader: false, isFirstRow: false)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(rowLabel(row, position: index + 1))
+                }
             }
-
-            if inCodeFence {
-                codeLines.append(rawLine)
-                continue
+            // The frame hugs the grid rather than the scroll container: a
+            // two-column table shouldn't draw a full-width border around
+            // part-width cells.
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.22))
             }
-
-            if line.isEmpty {
-                flushParagraph()
-                continue
-            }
-
-            if line == "---" || line == "***" {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .rule))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            if let image = parseImage(line) {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .image(alt: image.alt, url: image.url)))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            if line.hasPrefix("|") && line.hasSuffix("|") {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .table(line)))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            if let heading = parseHeading(line) {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .heading(level: heading.level, text: heading.text)))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            if line.hasPrefix("- ") || line.hasPrefix("* ") {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .bullet(String(line.dropFirst(2)))))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            if let numbered = parseNumbered(line) {
-                flushParagraph()
-                let number = nextOrderedNumber ?? numbered.number
-                blocks.append(MarkdownBlock(kind: .numbered(number: number, text: numbered.text)))
-                nextOrderedNumber = number + 1
-                continue
-            }
-
-            if line.hasPrefix(">") {
-                flushParagraph()
-                blocks.append(MarkdownBlock(kind: .quote(String(line.dropFirst()).trimmingCharacters(in: .whitespaces))))
-                nextOrderedNumber = nil
-                continue
-            }
-
-            paragraph.append(line)
-        }
-
-        if inCodeFence {
-            blocks.append(MarkdownBlock(kind: .code(codeLines.joined(separator: "\n"))))
-        }
-        flushParagraph()
-        return blocks.enumerated().map { sourcePosition, block in
-            MarkdownBlock(kind: block.kind, sourcePosition: sourcePosition)
         }
     }
 
-    private static func parseHeading(_ line: String) -> (level: Int, text: String)? {
-        let markerCount = line.prefix(while: { $0 == "#" }).count
-        guard markerCount > 0, markerCount <= 6 else { return nil }
-        let text = line.dropFirst(markerCount).trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return nil }
-        return (markerCount, text)
+    private func cellView(
+        _ cell: GuideInlineText,
+        column: Int,
+        isHeader: Bool,
+        isFirstRow: Bool
+    ) -> some View {
+        GuideInlineLabel(cell, font: isHeader ? .footnote.weight(.semibold) : .footnote)
+            .foregroundStyle(isHeader ? .secondary : .primary)
+            .multilineTextAlignment(textAlignment(column))
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minWidth: 64, maxWidth: 260, alignment: frameAlignment(column))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .background(isHeader ? Color.cardSurfaceRaised : Color.cardSurface)
+            // Drawn as an overlay rather than a Grid row so a wrapped cell can
+            // grow without knocking the rule out of alignment.
+            .overlay(alignment: .top) {
+                if !isFirstRow {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.22))
+                        .frame(height: 0.5)
+                }
+            }
     }
 
-    private static func parseNumbered(_ line: String) -> (number: Int, text: String)? {
-        guard let dot = line.firstIndex(of: ".") else { return nil }
-        let prefix = line[..<dot]
-        guard !prefix.isEmpty, prefix.allSatisfy(\.isNumber) else { return nil }
-        guard let number = Int(prefix) else { return nil }
-        let text = line[line.index(after: dot)...].trimmingCharacters(in: .whitespaces)
-        return text.isEmpty ? nil : (number, text)
+    private func textAlignment(_ column: Int) -> TextAlignment {
+        switch table.alignment(at: column) {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
     }
 
-    private static func parseImage(_ line: String) -> (alt: String, url: String)? {
-        guard line.hasPrefix("!["), let closeAlt = line.firstIndex(of: "]") else { return nil }
-        let afterAlt = line[line.index(after: closeAlt)...]
-        guard afterAlt.hasPrefix("("), afterAlt.hasSuffix(")") else { return nil }
-        let alt = String(line[line.index(line.startIndex, offsetBy: 2)..<closeAlt])
-        let url = String(afterAlt.dropFirst().dropLast())
-        return url.isEmpty ? nil : (alt, url)
+    private func frameAlignment(_ column: Int) -> Alignment {
+        switch table.alignment(at: column) {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+    }
+
+    /// VoiceOver reads a data row as "header: value" pairs; a bare list of
+    /// cells loses which column each one came from.
+    private func rowLabel(_ row: [GuideInlineText], position: Int) -> String {
+        let pairs = row.enumerated().map { column, cell -> String in
+            let header = table.header.indices.contains(column) ? table.header[column].plain : ""
+            let value = cell.plain.isEmpty ? "empty" : cell.plain
+            return header.isEmpty ? value : "\(header): \(value)"
+        }
+        return "Row \(position). " + pairs.joined(separator: ", ")
+    }
+}
+
+// MARK: Code
+
+/// Guides lean on fenced blocks for paths, naming strings, and account
+/// references, so the block carries the same copy affordance the web reader has.
+private struct GuideCodeBlock: View {
+    let code: String
+
+    @State private var didCopy = false
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(code)
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .padding(.trailing, 34)
+            }
+
+            Button {
+                UIPasteboard.general.string = code
+                Haptics.success()
+                didCopy = true
+            } label: {
+                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    .font(.footnote.weight(.semibold))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(didCopy ? Color.statusText(.green) : Color.secondary)
+            .padding(6)
+            .accessibilityLabel(didCopy ? "Copied" : "Copy code")
+        }
+        .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+        .task(id: didCopy) {
+            guard didCopy else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            didCopy = false
+        }
+    }
+}
+
+// MARK: Embeds
+
+/// Native can't frame a provider player the way the web reader does, so the
+/// embed becomes a card that opens the video.
+private struct GuideEmbedCard: View {
+    let embed: GuideEmbed
+
+    var body: some View {
+        Link(destination: embed.url) {
+            HStack(spacing: 12) {
+                Image(systemName: "play.rectangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.statusText(.red))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(embed.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(embed.url.host() ?? embed.url.absoluteString)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.22))
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(embed.title). Opens in browser.")
+    }
+}
+
+// MARK: Images
+
+/// Article photo. Downsamples to the width it is actually drawn at and shares
+/// the app's image cache, so a 10 MB upload doesn't decode at full resolution
+/// in the middle of a scrolling article.
+private struct GuideArticleImage: View {
+    let image: GuideImage
+
+    @Environment(\.displayScale) private var displayScale
+    @State private var loaded: UIImage?
+    @State private var failed = false
+    @State private var width: CGFloat = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            content
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+
+            if !image.alt.isEmpty {
+                Text(image.alt)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let url = image.url {
+            wrappedInLink {
+                imageBody
+                    .task(id: TaskKey(url: url, width: width, scale: displayScale)) {
+                        await load(url: url)
+                    }
+            }
+        } else {
+            fallback
+        }
+    }
+
+    @ViewBuilder
+    private func wrappedInLink(@ViewBuilder _ body: () -> some View) -> some View {
+        if let link = image.link {
+            Link(destination: link) { body() }
+                .buttonStyle(.plain)
+                .accessibilityLabel(accessibilityLabel + ". Opens a link.")
+        } else {
+            body()
+        }
+    }
+
+    @ViewBuilder
+    private var imageBody: some View {
+        if let loaded {
+            Image(uiImage: loaded)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+                .accessibilityElement()
+                .accessibilityLabel(accessibilityLabel)
+        } else if failed {
+            fallback
+        } else {
+            RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                .fill(Color.cardSurfaceRaised)
+                .frame(minHeight: 180)
+                .overlay { ProgressView() }
+                .accessibilityLabel("Loading image")
+        }
+    }
+
+    private var fallback: some View {
+        Label(image.alt.isEmpty ? "Image unavailable" : image.alt, systemImage: "photo")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 140)
+            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
+            .accessibilityLabel(image.alt.isEmpty ? "Image unavailable" : "\(image.alt). Image unavailable.")
+    }
+
+    private var accessibilityLabel: String {
+        if !image.alt.isEmpty { return image.alt }
+        if let title = image.title, !title.isEmpty { return title }
+        return "Guide image"
+    }
+
+    /// Re-runs the load when the URL changes, and once the real draw width is
+    /// known, but not on every incidental layout pass.
+    private struct TaskKey: Hashable {
+        let url: URL
+        let width: CGFloat
+        let scale: CGFloat
+    }
+
+    private func load(url: URL) async {
+        guard width > 0 else { return }
+        // Cap the decode so a very wide iPad column can't ask for more pixels
+        // than the source usefully has.
+        let pixels = min(width * displayScale, 2048)
+        let key = "\(url.absoluteString)@article\(Int(pixels))"
+
+        if let cached = ThumbnailCache.shared.image(for: key) {
+            loaded = cached
+            failed = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.cachePolicy = .returnCacheDataElseLoad
+        guard let (data, response) = try? await RemoteImageLoading.session.data(for: request),
+              !Task.isCancelled else {
+            failed = loaded == nil
+            return
+        }
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            failed = loaded == nil
+            return
+        }
+        guard let decoded = await NativeImageProcessor.downsample(data: data, maxPixels: pixels, scale: displayScale),
+              !Task.isCancelled else {
+            failed = loaded == nil
+            return
+        }
+
+        ThumbnailCache.shared.store(decoded, for: key)
+        loaded = decoded
+        failed = false
     }
 }
 

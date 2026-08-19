@@ -38,7 +38,15 @@ final class HealthTests: XCTestCase {
         XCTAssertEqual(counts.stale, 2)
         XCTAssertEqual(counts.offline, 1)
         XCTAssertEqual(counts.inactive, 1)
-        XCTAssertEqual(counts.summary, "1 online · 2 stale · 1 offline · 1 inactive")
+        XCTAssertEqual(counts.summary, "1 online · 2 idle · 1 offline · 1 inactive")
+    }
+
+    func testIdleHeartbeatIsNotAFault() {
+        XCTAssertFalse(device(lastSeenAt: now.addingTimeInterval(-60 * 60)).connectionState(at: now).isFault)
+        XCTAssertFalse(device(lastSeenAt: now.addingTimeInterval(-60)).connectionState(at: now).isFault)
+        XCTAssertFalse(device(active: false, lastSeenAt: now).connectionState(at: now).isFault)
+        XCTAssertTrue(device(lastSeenAt: now.addingTimeInterval(-25 * 60 * 60)).connectionState(at: now).isFault)
+        XCTAssertEqual(KioskConnectionState.stale.label, "Idle")
     }
 
     func testEmptyFleetSummaryNamesConfigurationState() {

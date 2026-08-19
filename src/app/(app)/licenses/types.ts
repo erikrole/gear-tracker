@@ -33,3 +33,14 @@ export type MyLicense = {
   claimedAt: string;
   claimId: string;
 };
+
+export type SoftwareCredentialSummary = {
+  id: string;
+  name: string;
+  category: string | null;
+  websiteUrl: string | null;
+  accountEmail: string;
+  hasPassword: boolean;
+  archivedAt: string | null;
+  updatedAt: string;
+};

@@ -81,7 +81,7 @@ const navGroups: NavGroup[] = [
       { label: "Items", href: "/items", icon: LayersIcon },
       { label: "Bookings", href: "/bookings", icon: BookOpenIcon },
       { label: "Resources", href: "/resources", icon: ScrollTextIcon },
-      { label: "Licenses", href: "/licenses", icon: KeyIcon },
+      { label: "Software", href: "/licenses", icon: KeyIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },

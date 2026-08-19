@@ -127,6 +127,7 @@ export function MyGearColumn({
                     booking={r}
                     now={now}
                     accent="reservation"
+                    showPickupBadge
                     onSelectBooking={onSelectBooking}
                   />
                 ))}

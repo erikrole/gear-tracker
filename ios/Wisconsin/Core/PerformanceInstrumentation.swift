@@ -7,6 +7,15 @@ enum AppRuntimeMode {
         case launch
         case items
         case equipment
+        /// Renders the guide reader against fixture Markdown, so the Resources
+        /// article layout can be checked without a signed-in session.
+        case guide
+        /// The three Resources destinations, served canned API responses so the
+        /// real views, view models, and decode paths can be rendered and
+        /// screenshotted without a signed-in session.
+        case resourcesGuides
+        case resourcesUsers
+        case resourcesLicenses
     }
 
     static var performanceScenario: PerformanceScenario? {
@@ -22,6 +31,33 @@ enum AppRuntimeMode {
 
     static var isPerformanceTesting: Bool {
         performanceScenario != nil
+    }
+
+    /// Scenarios whose surfaces read from the API. Their requests are served by
+    /// `FixtureAPIProtocol` rather than the network.
+    static var usesFixtureAPI: Bool {
+#if DEBUG
+        switch performanceScenario {
+        case .resourcesGuides, .resourcesUsers, .resourcesLicenses:
+            return true
+        default:
+            return false
+        }
+#else
+        return false
+#endif
+    }
+
+    /// Optional artificial latency for fixture responses, so loading and
+    /// skeleton states can be held still long enough to inspect.
+    static var fixtureResponseDelayMilliseconds: Int {
+#if DEBUG
+        guard let raw = ProcessInfo.processInfo.environment["GT_FIXTURE_DELAY_MS"],
+              let milliseconds = Int(raw), milliseconds > 0 else { return 0 }
+        return milliseconds
+#else
+        return 0
+#endif
     }
 }
 

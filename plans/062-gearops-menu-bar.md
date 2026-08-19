@@ -28,13 +28,22 @@ Staff currently open the web control room to answer two frequent questions: how 
 - Overdue, due today, pending pickup, and booked reservations remain separate values.
 - Companion refresh success proves the external projection responded. It does not prove Neon is awake or every subsystem is healthy.
 - Projection failures must remain visible and must not overwrite the last trustworthy snapshot with fallback zeroes.
-- Kiosk health matches the web contract: online within five minutes, stale within 24 hours, offline after 24 hours or before the first heartbeat.
+- Kiosk heartbeat classification matches the web contract: online within five minutes, idle within 24 hours, offline after 24 hours or before the first heartbeat.
+- Only offline is a fault. An idle kiosk is a kiosk nobody is using, so it does not escalate aggregate health, does not render in a warning colour, and does not sort above a kiosk in active use.
 - Companion data shows elapsed projection freshness without treating quiet time as a health failure. Healthy kiosk rows show location-scoped pending-pickup and open-checkout workload; unhealthy rows retain last-heartbeat diagnostics.
 - A permission-denied kiosk read is `Restricted`, not a kiosk outage.
 - The app is read-only. All detailed work deep-links to the existing web control room.
 - The user-facing app name is Wisconsin Creative and its app identity reuses `ios/Wisconsin/AppIcons/AppIcon.icon`; GearOps remains the internal module, project, and bundle identifier.
+- In-app icon surfaces resolve the compiled `AppIcon` from the running bundle. `NSApplication.applicationIconImage` and `NSWorkspace.icon(forFile:)` are not used, because both return Apple's generic application placeholder rather than reporting failure. A missing icon falls back to the vector Block W from the shared icon source, never to a foreign placeholder.
 - The menu bar uses a compact package SF Symbol; the repository app icon appears in the popover and system-owned app surfaces. The `Sim iPad` development record is excluded from macOS health counts, severity, and rows without changing the server record.
 - Booking changes arrive through silent APNs invalidation and an Upstash-backed projection fetch. Local alerts are passive and silent, establish a no-alert baseline on enrollment, and deep-link to the affected booking.
+- Any window this app opens must activate the app first. As an `LSUIElement` accessory process it never activates itself, so a `Settings` scene opens its window behind every other window and reads as a dead menu item. `SettingsLink(preAction:)` does not exist in this SDK, so settings is an explicit `Window` scene: the menu calls `NSApplication.activate()` before `openWindow(id:)`, and the window also orders itself front on appear to cover ⌘, and background re-open.
+- Launch at login is user-controlled through `SMAppService.mainApp`. A registration held in `requiresApproval` is a normal macOS outcome, not a failure, and is surfaced with a route into System Settings rather than an error.
+- The menu bar count is optional. Hiding it leaves the status symbol alone; the count remains `CHECKOUT + OPEN` when shown.
+- Booking alerts stay silent by default. Sound is an explicit per-user opt-in carried to each delivery, so the passive-by-default contract holds unless the user changes it.
+- System health renders as one grouped panel. Rows that point at a real destination behave as controls with hover and button traits; rows that do not stay inert.
+- Every detected change carries a `BookingChangeCategory`. The user chooses which categories alert through a Settings scene with a master switch and per-category toggles. Preferences are applied at delivery, not at detection, so a muted category still advances the baseline and cannot replay when it is switched back on. Unrecognised stored categories are ignored rather than treated as denials.
+- Sign-in uses the shared Wisconsin Creative login design: crimson splash scene, brand lockup on the scene, a light card holding the form, identity-then-password steps, and a show/hide password control. The step split is local; the companion does not call the auth discovery route, so explicit enrollment remains the only Neon-backed request.
 - Local booking-change alerts use the booking title as the stackable title and show `Status • Requester • Timestamp` from the projection's server `updatedAt`, so the source event time remains visible when delivery is delayed.
 - Automatic launch, restore, refresh, and push handling must never call a Neon-backed route. Explicit password enrollment may wake Neon because the user initiated it.
 
@@ -60,7 +69,7 @@ Staff currently open the web control room to answer two frequent questions: how 
 - Checkout, reservation, kiosk, Schedule, database, or deployment mutations
 - A database-backed companion read route
 - Frequent database diagnostics polling
-- Background agents, launch-at-login, or auto-update infrastructure
+- Background agents or auto-update infrastructure
 - Passkey runtime support until the macOS bundle identifier is added to the production webcredentials association and signed-device proof is available
 - App distribution, notarization, production deployment, commit, or push
 
@@ -125,6 +134,18 @@ Staff currently open the web control room to answer two frequent questions: how 
 - macOS granted GearOps alert authorization at runtime. No real booking was mutated to manufacture a delivery event, so actual Notification Center presentation remains event-dependent rather than visually forced.
 - The no-wake slice passes the production-shaped Next.js build, 20 focused web contracts, all 20 macOS unit tests, generated codemap check, ESLint, and whitespace validation. The full repository suite passes 2,999 of 3,002 tests; three unrelated pre-existing assertions remain in App Store submission copy, the retired iOS forgot-password URL contract, and sport-config default count.
 - Unsigned macOS compilation and tests pass. A push-capable signed build is blocked because this Mac has no Apple developer account configured and no `com.erikrole.GearOps` Mac App Development profile. Production deployment and real APNs invalidation delivery were not attempted.
+
+## Follow-up execution: 2026-08-18 app identity and popover polish
+
+- Fixed the popover and sign-in icon by resolving `AppIcon` from the running bundle instead of `NSApplication.applicationIconImage`. Added `BlockWMark`, a vector Block W built from the shared icon source's polygon, as the fallback.
+- Added four `WisconsinCreativeIconTests`, including a host-bundle guard that fails when a build ships without compiled icon resources, and three source contracts covering icon resolution, popover width and footer controls, and overdue/hover affordances.
+- Popover polish: single 380-point width across all states, projection freshness in the header, an overdue badge derived from the rendered rows rather than generation-time `stats.overdue`, hover feedback on both row types, state-tinted kiosk glyphs, a hidden redundant menu disclosure indicator, and ⌘R, ⌘D, and ⌘Q shortcuts.
+- Verified with Xcode 26.6: build succeeds, 41 macOS unit tests pass, 16 source contracts pass. Offscreen `NSHostingView` renders confirmed the icon, header freshness, empty state, kiosk tints, footer, and the removed menu chevron. Booking rows do not appear in offscreen capture because `GlassEffectContainer` does not composite through `cacheDisplay`; the empty-state render confirms the surrounding section paints.
+- Added a General settings tab with launch-at-login (`SMAppService`, including the approval-pending state), an optional menu bar count, and an opt-in alert sound. Grouped system health into one panel whose health and kiosk rows open their Gear Tracker destinations. 56 macOS unit tests and 21 source contracts pass.
+- Settings previously used a `Settings` scene and never appeared: the window opened at layer 0 behind all other windows with the app inactive. Replaced with an activated `Window` scene and verified against the window server — window frontmost of nine normal windows with the app active.
+- Login-item registration itself is unproven: `SMAppService.mainApp` reports `notFound` from a DerivedData test host, so real `register()` behaviour needs a toggle on an installed copy.
+- Reclassified idle kiosk heartbeats as normal, added user-configurable booking alert categories behind a native Settings scene, and rebuilt sign-in on the shared login design. 52 macOS unit tests and 19 source contracts pass.
+- Remaining gap: the copy at `~/Applications/Wisconsin Creative.app` predates working icon resources and has no `Contents/Resources` at all. Notification and Dock identity need a reinstall of a current build; live Notification Center presentation remains event-dependent.
 
 ## STOP conditions
 

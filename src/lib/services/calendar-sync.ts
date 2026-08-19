@@ -1,14 +1,19 @@
 import { db } from "@/lib/db";
 import { createAuditEntriesTx } from "@/lib/audit";
-import type { CalendarEventStatus } from "@prisma/client";
+import type { CalendarEventResult, CalendarEventSite, CalendarEventStatus } from "@prisma/client";
 import {
   buildVenueSearchText,
+  classifySourceEvent,
   cleanSourceSummary,
-  normalizeOpponentName,
-  normalizeVenueText,
+  extractSportInfo,
+  isHomeLocationText,
 } from "@/lib/schedule-event-identity";
-import { SPORT_CODES } from "@/lib/sports";
 import { sortVenueMappings, venueMappingMatches } from "@/lib/venue-mapping-contract";
+
+// Sport/opponent classification lives with the other summary parsing in
+// `schedule-event-identity`. Re-exported here so existing sync-side importers
+// and contract tests keep one import path.
+export { extractSportInfo, isHomeLocationText };
 
 /** Max events per createMany / update batch */
 export const WRITE_CHUNK_SIZE = 500;
@@ -242,130 +247,6 @@ export function cleanSummary(raw: string): string {
   return cleanSourceSummary(raw);
 }
 
-// ── Sport code extraction from ICS summaries ──
-
-const SPORT_CODE_SET = new Set<string>(SPORT_CODES.map((s) => s.code));
-
-/** Build a map from lowercase sport label → code for label-based matching */
-const LABEL_TO_CODE = new Map<string, string>(
-  SPORT_CODES.map((s) => [s.label.toLowerCase(), s.code]),
-);
-
-/**
- * Try to match a sport label at the start of a summary string.
- * Returns the code and the remainder after the label, or null.
- */
-function matchSportLabel(summary: string): { code: string; rest: string } | null {
-  const lower = summary.toLowerCase();
-  // Sort labels longest-first so "Women's Swimming & Diving" matches before "Women's Swimming"
-  const sorted = [...LABEL_TO_CODE.entries()].sort((a, b) => b[0].length - a[0].length);
-  for (const [label, code] of sorted) {
-    if (lower.startsWith(label)) {
-      return { code, rest: summary.slice(label.length).trim() };
-    }
-  }
-  return null;
-}
-
-/**
- * Extracts sport code, opponent, and home/away from an event summary.
- * Patterns matched:
- *   "{SPORT_CODE} vs {opponent}"  → isHome = true
- *   "{SPORT_CODE} at {opponent}"  → isHome = false
- *   "{SPORT_CODE} vs {opponent} (Neutral)" → isHome = null
- *   "{SPORT_CODE} - {description}" → sport only, no opponent
- *   "{Sport Label} vs/at {opponent}" → matched by label (e.g. "Women's Tennis at Purdue")
- */
-export function extractSportInfo(summary: string): {
-  sportCode: string | null;
-  opponent: string | null;
-  isHome: boolean | null;
-} {
-  const trimmed = summary.trim();
-
-  // Try matching "{CODE} vs/at {opponent}" pattern
-  const codeMatch = trimmed.match(/^(\w+)\s+(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
-  if (codeMatch) {
-    const code = codeMatch[1]!.toUpperCase(); // capture groups present when match succeeds
-    if (SPORT_CODE_SET.has(code)) {
-      const prep = codeMatch[2]!.toLowerCase().replace(".", "");
-      const opponent = normalizeOpponentName(codeMatch[3]!.trim());
-      const isNeutral = /\(Neutral\)/i.test(trimmed);
-      return {
-        sportCode: code,
-        opponent,
-        isHome: isNeutral ? null : prep === "vs" ? true : false,
-      };
-    }
-  }
-
-  // Try matching sport code at start of summary with other separator
-  const dashMatch = trimmed.match(/^(\w+)\s*[-\u2013\u2014:]\s*(.+)$/);
-  if (dashMatch) {
-    const code = dashMatch[1]!.toUpperCase(); // capture group present when match succeeds
-    if (SPORT_CODE_SET.has(code)) {
-      return { sportCode: code, opponent: null, isHome: null };
-    }
-  }
-
-  // Try matching just a sport code as prefix (e.g., "MBB Practice")
-  const prefixMatch = trimmed.match(/^(\w+)\s/);
-  if (prefixMatch) {
-    const code = prefixMatch[1]!.toUpperCase(); // capture group present when match succeeds
-    if (SPORT_CODE_SET.has(code)) {
-      return { sportCode: code, opponent: null, isHome: null };
-    }
-  }
-
-  // Try matching by sport label (e.g., "Women's Tennis at Purdue")
-  const labelMatch = matchSportLabel(trimmed);
-  if (labelMatch) {
-    const rest = labelMatch.rest;
-    const vsAtMatch = rest.match(/^(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
-    if (vsAtMatch) {
-      const prep = vsAtMatch[1]!.toLowerCase().replace(".", ""); // capture groups present when match succeeds
-      const opponent = normalizeOpponentName(vsAtMatch[2]!.trim());
-      const isNeutral = /\(Neutral\)/i.test(rest);
-      return {
-        sportCode: labelMatch.code,
-        opponent,
-        isHome: isNeutral ? null : prep === "vs" ? true : false,
-      };
-    }
-    // Label matched but no vs/at — just a sport event
-    return { sportCode: labelMatch.code, opponent: null, isHome: null };
-  }
-
-  return { sportCode: null, opponent: null, isHome: null };
-}
-
-// ── Hardcoded home-location detection ──
-
-/** Known Wisconsin facility keywords (case-insensitive substring match). */
-const HOME_VENUE_KEYWORDS = [
-  "camp randall",
-  "kohl center",
-  "field house",
-  "labahn",
-  "goodman",
-  "mcClimon",
-  "soderholm",
-  "nielsen",
-  "university ridge",
-  "zimmer",
-  "porter boathouse",
-];
-
-/**
- * Returns true if the raw ICS location text indicates a home event.
- * Rule: "Madison, WI" in text OR any known Wisconsin facility keyword.
- */
-export function isHomeLocationText(locationText: string): boolean {
-  const lower = normalizeVenueText(locationText)?.toLowerCase() ?? "";
-  if (lower.includes("madison, wi")) return true;
-  return HOME_VENUE_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
-}
-
 // ── Validated event shape for DB writes ──
 
 type ValidatedEventData = {
@@ -383,6 +264,8 @@ type ValidatedEventData = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  site: CalendarEventSite | null;
+  result: CalendarEventResult | null;
 };
 
 export type ExistingEventRow = {
@@ -398,6 +281,8 @@ export type ExistingEventRow = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  site: CalendarEventSite | null;
+  result: CalendarEventResult | null;
   summaryLocked: boolean;
   isHomeLocked: boolean;
   locationLocked: boolean;
@@ -415,6 +300,8 @@ type CalendarEventAuditSource = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  site: CalendarEventSite | null;
+  result: CalendarEventResult | null;
 };
 
 function calendarEventAuditSnapshot(event: CalendarEventAuditSource) {
@@ -430,6 +317,8 @@ function calendarEventAuditSnapshot(event: CalendarEventAuditSource) {
     sportCode: event.sportCode,
     opponent: event.opponent,
     isHome: event.isHome,
+    site: event.site,
+    result: event.result,
   };
 }
 
@@ -486,21 +375,12 @@ export function splitEventsForSync(
         }
       }
 
-      const cleaned = cleanSummary(event.summary);
-      const { sportCode, opponent, isHome: extractedIsHome } = extractSportInfo(cleaned);
-      let isHome = extractedIsHome;
-
-      // Home detection: mapped home venue, "Madison, WI", or known Wisconsin facility.
-      const locationText = normalizeVenueText(event.location) || "";
-      if (locationText) {
-        const homeByLocation = mappedIsHomeVenue === true || isHomeLocationText(locationText);
-        if (isHome === null) {
-          isHome = homeByLocation;
-        } else if (isHome === true && !homeByLocation) {
-          // Summary says "vs" but venue is not in Madison/Wisconsin → neutral site
-          isHome = null;
-        }
-      }
+      // One shared derivation, so a repaired row and a freshly synced row agree.
+      const { summary: cleaned, sportCode, opponent, isHome, site, result } = classifySourceEvent({
+        rawSummary: event.summary,
+        rawLocationText: event.location,
+        mappedIsHomeVenue,
+      });
 
       const data: ValidatedEventData = {
         externalId: event.uid,
@@ -517,6 +397,8 @@ export function splitEventsForSync(
         sportCode,
         opponent,
         isHome,
+        site,
+        result,
       };
 
       const existing = existingMap.get(event.uid);
@@ -530,6 +412,11 @@ export function splitEventsForSync(
         }
         if (existing.locationLocked) data.locationId = existing.locationId;
 
+        // A feed that drops the marker — or re-publishes a game before it is
+        // played — must not erase an outcome we already captured. A present
+        // marker still wins, so a corrected result overwrites.
+        if (data.result === null) data.result = existing.result;
+
         const changed =
           existing.summary !== data.summary ||
           existing.description !== data.description ||
@@ -540,7 +427,9 @@ export function splitEventsForSync(
           existing.locationId !== data.locationId ||
           existing.sportCode !== data.sportCode ||
           existing.opponent !== data.opponent ||
-          existing.isHome !== data.isHome;
+          existing.isHome !== data.isHome ||
+          existing.site !== data.site ||
+          existing.result !== data.result;
 
         if (changed) {
           toUpdate.push({ id: existing.id, data });
@@ -679,7 +568,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     select: {
       id: true, externalId: true, summary: true, description: true,
       startsAt: true, endsAt: true, allDay: true, status: true, locationId: true,
-      sportCode: true, opponent: true, isHome: true,
+      sportCode: true, opponent: true, isHome: true, site: true, result: true,
       summaryLocked: true, isHomeLocked: true, locationLocked: true,
     }
   });
@@ -737,6 +626,8 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
             sportCode: true,
             opponent: true,
             isHome: true,
+            site: true,
+            result: true,
           },
         });
         await createAuditEntriesTx(tx, inserted.map((event) => ({

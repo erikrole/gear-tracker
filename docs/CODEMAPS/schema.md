@@ -1159,6 +1159,10 @@ Values: `CONFIRMED`, `TENTATIVE`, `CANCELLED`
 
 Values: `WIN`, `LOSS`
 
+## Enum `CalendarEventSite`
+
+Values: `HOME`, `AWAY`, `NEUTRAL`
+
 ## Model `CalendarSource`
 
 Fields: 11
@@ -1182,7 +1186,7 @@ Indexes and constraints:
 
 ## Model `CalendarEvent`
 
-Fields: 33
+Fields: 34
 
 - `id              String                @id @default(cuid())`
 - `sourceId        String?               @map("source_id")`
@@ -1197,6 +1201,7 @@ Fields: 33
 - `allDay          Boolean               @default(false) @map("all_day")`
 - `status          CalendarEventStatus   @default(CONFIRMED)`
 - `result          CalendarEventResult?`
+- `site            CalendarEventSite?`
 - `locationId      String?               @map("location_id")`
 - `sportCode       String?               @map("sport_code")`
 - `isHome          Boolean?              @map("is_home")`
@@ -1778,6 +1783,25 @@ Indexes and constraints:
 - `@@index([licenseCodeId])`
 - `@@map("license_code_claims")`
 
+## Model `SoftwareCredential`
+
+Fields: 9
+
+- `id                     String    @id @default(cuid())`
+- `name                   String    @unique`
+- `category               String?`
+- `websiteUrl             String?   @map("website_url")`
+- `accountEmailCiphertext String    @map("account_email_ciphertext")`
+- `passwordCiphertext     String    @map("password_ciphertext")`
+- `archivedAt             DateTime? @map("archived_at")`
+- `createdAt              DateTime  @default(now()) @map("created_at")`
+- `updatedAt              DateTime  @updatedAt @map("updated_at")`
+
+Indexes and constraints:
+
+- `@@index([archivedAt])`
+- `@@map("software_credentials")`
+
 ## Enum `ShiftArea`
 
 Values: `VIDEO`, `PHOTO`, `GRAPHICS`, `SOCIAL`, `COMMS`, `LIVE_PRODUCTION`
@@ -1861,20 +1885,20 @@ Indexes and constraints:
 
 Fields: 17
 
-- `id                    String                 @id @default(cuid())`
-- `eventId               String                 @unique @map("event_id")`
+- `id                    String                       @id @default(cuid())`
+- `eventId               String                       @unique @map("event_id")`
 - `notes                 String?`
-- `generatedAt           DateTime?              @map("generated_at")`
-- `manuallyEdited        Boolean                @default(false) @map("manually_edited")`
-- `publishedAt           DateTime?              @map("published_at")`
-- `publishedById         String?                @map("published_by_id")`
-- `lastPublishedSnapshot Json?                  @map("last_published_snapshot")`
-- `publishedVersion      Int                    @default(0) @map("published_version")`
-- `archivedAt            DateTime?              @map("archived_at")`
-- `createdAt             DateTime               @default(now()) @map("created_at")`
-- `updatedAt             DateTime               @updatedAt @map("updated_at")`
-- `event                 CalendarEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)`
-- `publishedBy           User?                  @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
+- `generatedAt           DateTime?                    @map("generated_at")`
+- `manuallyEdited        Boolean                      @default(false) @map("manually_edited")`
+- `publishedAt           DateTime?                    @map("published_at")`
+- `publishedById         String?                      @map("published_by_id")`
+- `lastPublishedSnapshot Json?                        @map("last_published_snapshot")`
+- `publishedVersion      Int                          @default(0) @map("published_version")`
+- `archivedAt            DateTime?                    @map("archived_at")`
+- `createdAt             DateTime                     @default(now()) @map("created_at")`
+- `updatedAt             DateTime                     @updatedAt @map("updated_at")`
+- `event                 CalendarEvent                @relation(fields: [eventId], references: [id], onDelete: Cascade)`
+- `publishedBy           User?                        @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
 - `shifts                Shift[]`
 - `workingCopy           ShiftGroupWorkingCopy?`
 - `bulkAssignmentItems   ScheduleBulkAssignmentItem[]`
@@ -1915,19 +1939,19 @@ Indexes and constraints:
 
 Fields: 13
 
-- `id                    String                         @id @default(cuid())`
-- `createdById           String                         @map("created_by_id")`
-- `sportCode             String?                        @map("sport_code")`
-- `rangeStartsAt         DateTime                       @map("range_starts_at")`
-- `rangeEndsAt           DateTime                       @map("range_ends_at")`
-- `area                  ShiftArea?`
-- `previewFingerprint    String                         @map("preview_fingerprint")`
-- `releaseAt             DateTime                       @map("release_at")`
-- `status                ScheduleBulkAssignmentStatus  @default(PENDING)`
-- `notificationSentAt    DateTime?                     @map("notification_sent_at")`
-- `createdAt             DateTime                       @default(now()) @map("created_at")`
-- `updatedAt             DateTime                       @updatedAt @map("updated_at")`
-- `items                 ScheduleBulkAssignmentItem[]`
+- `id                 String                       @id @default(cuid())`
+- `createdById        String                       @map("created_by_id")`
+- `sportCode          String?                      @map("sport_code")`
+- `rangeStartsAt      DateTime                     @map("range_starts_at")`
+- `rangeEndsAt        DateTime                     @map("range_ends_at")`
+- `area               ShiftArea?`
+- `previewFingerprint String                       @map("preview_fingerprint")`
+- `releaseAt          DateTime                     @map("release_at")`
+- `status             ScheduleBulkAssignmentStatus @default(PENDING)`
+- `notificationSentAt DateTime?                    @map("notification_sent_at")`
+- `createdAt          DateTime                     @default(now()) @map("created_at")`
+- `updatedAt          DateTime                     @updatedAt @map("updated_at")`
+- `items              ScheduleBulkAssignmentItem[]`
 
 Indexes and constraints:
 
@@ -1939,18 +1963,18 @@ Indexes and constraints:
 
 Fields: 12
 
-- `id                    String                              @id @default(cuid())`
-- `bulkAssignmentId      String                              @map("bulk_assignment_id")`
-- `shiftGroupId          String                              @map("shift_group_id")`
-- `expectedVersion       Int                                 @map("expected_version")`
-- `proposalPayload       Json                                @map("proposal_payload")`
-- `status                ScheduleBulkAssignmentItemStatus   @default(PENDING)`
-- `releasedVersion       Int?                                @map("released_version")`
-- `error                 String?`
-- `createdAt             DateTime                            @default(now()) @map("created_at")`
-- `updatedAt             DateTime                            @updatedAt @map("updated_at")`
-- `bulkAssignment        ScheduleBulkAssignment              @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)`
-- `shiftGroup            ShiftGroup                          @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
+- `id               String                           @id @default(cuid())`
+- `bulkAssignmentId String                           @map("bulk_assignment_id")`
+- `shiftGroupId     String                           @map("shift_group_id")`
+- `expectedVersion  Int                              @map("expected_version")`
+- `proposalPayload  Json                             @map("proposal_payload")`
+- `status           ScheduleBulkAssignmentItemStatus @default(PENDING)`
+- `releasedVersion  Int?                             @map("released_version")`
+- `error            String?`
+- `createdAt        DateTime                         @default(now()) @map("created_at")`
+- `updatedAt        DateTime                         @updatedAt @map("updated_at")`
+- `bulkAssignment   ScheduleBulkAssignment           @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)`
+- `shiftGroup       ShiftGroup                       @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)`
 
 Indexes and constraints:
 

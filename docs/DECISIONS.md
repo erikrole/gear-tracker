@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-17
+- Last Updated: 2026-08-19
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -58,6 +58,7 @@
 - D-049: Web releases use monthly CalVer tags and GitHub Releases
 - D-050: Signature capture uses external roster members and private deterministic artifacts
 - D-051: Email-first discovery for invite-gated onboarding
+- D-052: Shared software credentials use a dedicated encrypted vault boundary
 
 ---
 
@@ -1101,6 +1102,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   `docs/RELEASE_VERIFICATION.md`.
 
 ## Change Log
+- 2026-08-19: Added D-052 for the shared Software Vault: dedicated AES-256-GCM ciphertext, a required `SOFTWARE_VAULT_KEY`, internal-role access, explicit audited/rate-limited password reveal, and no secret values in list responses or audit records. Migration `0125` and authenticated runtime proof remain rollout gates.
 - 2026-08-17: Added D-051 for rate-limited email-first discovery across web and native iOS. The existing allowlist and registration transaction remain authoritative; discovery returns only onboarding/password flow state, and old registration links now redirect to the app login surface.
 - 2026-08-15: Added D-049 for monthly `YYYY.M.N` web release versioning,
   GitHub Release creation from pushed tags, and continued Vercel `main`
@@ -1219,3 +1221,26 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Registration must continue to re-check the allowlist, claim it transactionally, and handle races through the existing server constraints and generic rejection path.
   - Unknown future discovery values must fall back to password on native clients so compatible rollout cannot accidentally open onboarding.
 - Reference: `docs/BRIEF_ONBOARDING_V1.md`, `docs/AREA_USERS.md`, `docs/AREA_MOBILE.md`, `src/app/api/auth/discover/route.ts`, and `tasks/email-first-onboarding-plan-2026-08-17.md`.
+
+## D-052: Shared Software Credentials Use a Dedicated Encrypted Vault Boundary
+
+- Date: 2026-08-19
+- Status: Accepted; implemented locally, rollout proof pending
+- Context:
+  - The team needs one Software surface for shared department accounts such as Photo Mechanic, Envato Elements, APM Music, and Motion Array.
+  - The existing `LicenseCode` model is a two-slot Photo Mechanic custody pool and must not become a general plaintext credential store.
+- Decision:
+  - Store shared software accounts in a separate `SoftwareCredential` model with application-encrypted account email and password ciphertext. Use AES-256-GCM with a dedicated base64-encoded 32-byte `SOFTWARE_VAULT_KEY`; missing or malformed key configuration fails closed.
+  - Allow authenticated ADMIN, STAFF, and STUDENT users to discover active records and request password reveal/copy. Keep external `COLLABORATOR` users denied and hidden. Limit create, edit, restore, and archive to ADMIN and STAFF.
+  - Return account email in the authorized list response, but never return password or ciphertext there. Password access is a separate rate-limited authenticated request with `private, no-store` response headers.
+  - Audit create, update, archive/restore, and password reveal actions without writing secret values to before/after snapshots, errors, exports, or source fixtures. Archive is reversible; permanent deletion is not part of V1.
+  - Keep the vault above the existing Photo Mechanic pool on `/licenses`, while presenting the sidebar and page as Software for product clarity and route compatibility.
+- Consequences:
+  - Shared credentials have one discoverable internal home without changing Photo Mechanic claim/expiry semantics.
+  - Key replacement requires an operational re-encryption procedure before rotation; there is no self-service key-rotation UI in V1.
+  - Production rollout requires migration `0125_software_credentials`, environment-key configuration, admin-entered credentials, and authenticated browser proof before real account data is used.
+- Guardrails:
+  - Never seed, log, export, or test with real credentials.
+  - Never add the password to list payloads, audit JSON, error text, or client source.
+  - Keep reveal rate limits and audit events at the server boundary; client masking is defense in depth, not authorization.
+- Reference: `docs/AREA_SOFTWARE.md`, `src/lib/software-vault-crypto.ts`, `src/app/api/software/[id]/secret/route.ts`, and `prisma/migrations/0125_software_credentials/migration.sql`.

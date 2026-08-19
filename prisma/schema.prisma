@@ -3,9 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Prisma 6 requires a schema URL syntactically. prisma.config.ts supplies an
+  // inert value for schema loading and overrides it for real CLI connections.
+  url      = env("PRISMA_SCHEMA_URL")
 }
 
 enum Role {
@@ -1098,6 +1099,14 @@ enum CalendarEventResult {
   LOSS
 }
 
+/// Where a game was played. Distinct from `isHome`, which cannot separate a
+/// neutral site from an unknown one — both read as null there.
+enum CalendarEventSite {
+  HOME
+  AWAY
+  NEUTRAL
+}
+
 model CalendarSource {
   id             String          @id @default(cuid())
   name           String
@@ -1129,6 +1138,7 @@ model CalendarEvent {
   allDay          Boolean               @default(false) @map("all_day")
   status          CalendarEventStatus   @default(CONFIRMED)
   result          CalendarEventResult?
+  site            CalendarEventSite?
   locationId      String?               @map("location_id")
   sportCode       String?               @map("sport_code")
   isHome          Boolean?              @map("is_home")
@@ -1655,6 +1665,23 @@ model LicenseCodeClaim {
   @@map("license_code_claims")
 }
 
+// ── Shared software credentials ───────────────────────────
+
+model SoftwareCredential {
+  id                     String    @id @default(cuid())
+  name                   String    @unique
+  category               String?
+  websiteUrl             String?   @map("website_url")
+  accountEmailCiphertext String    @map("account_email_ciphertext")
+  passwordCiphertext     String    @map("password_ciphertext")
+  archivedAt             DateTime? @map("archived_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  @@index([archivedAt])
+  @@map("software_credentials")
+}
+
 // ── Shift Calendar & Scheduling ─────────────────────────
 
 enum ShiftArea {
@@ -1757,20 +1784,20 @@ model SportShiftConfig {
 }
 
 model ShiftGroup {
-  id                    String                 @id @default(cuid())
-  eventId               String                 @unique @map("event_id")
+  id                    String                       @id @default(cuid())
+  eventId               String                       @unique @map("event_id")
   notes                 String?
-  generatedAt           DateTime?              @map("generated_at")
-  manuallyEdited        Boolean                @default(false) @map("manually_edited")
-  publishedAt           DateTime?              @map("published_at")
-  publishedById         String?                @map("published_by_id")
-  lastPublishedSnapshot Json?                  @map("last_published_snapshot")
-  publishedVersion      Int                    @default(0) @map("published_version")
-  archivedAt            DateTime?              @map("archived_at")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  event                 CalendarEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  publishedBy           User?                  @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  generatedAt           DateTime?                    @map("generated_at")
+  manuallyEdited        Boolean                      @default(false) @map("manually_edited")
+  publishedAt           DateTime?                    @map("published_at")
+  publishedById         String?                      @map("published_by_id")
+  lastPublishedSnapshot Json?                        @map("last_published_snapshot")
+  publishedVersion      Int                          @default(0) @map("published_version")
+  archivedAt            DateTime?                    @map("archived_at")
+  createdAt             DateTime                     @default(now()) @map("created_at")
+  updatedAt             DateTime                     @updatedAt @map("updated_at")
+  event                 CalendarEvent                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  publishedBy           User?                        @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
   shifts                Shift[]
   workingCopy           ShiftGroupWorkingCopy?
   bulkAssignmentItems   ScheduleBulkAssignmentItem[]
@@ -1803,19 +1830,19 @@ model ShiftGroupWorkingCopy {
 }
 
 model ScheduleBulkAssignment {
-  id                    String                         @id @default(cuid())
-  createdById           String                         @map("created_by_id")
-  sportCode             String?                        @map("sport_code")
-  rangeStartsAt         DateTime                       @map("range_starts_at")
-  rangeEndsAt           DateTime                       @map("range_ends_at")
-  area                  ShiftArea?
-  previewFingerprint    String                         @map("preview_fingerprint")
-  releaseAt             DateTime                       @map("release_at")
-  status                ScheduleBulkAssignmentStatus  @default(PENDING)
-  notificationSentAt    DateTime?                     @map("notification_sent_at")
-  createdAt             DateTime                       @default(now()) @map("created_at")
-  updatedAt             DateTime                       @updatedAt @map("updated_at")
-  items                 ScheduleBulkAssignmentItem[]
+  id                 String                       @id @default(cuid())
+  createdById        String                       @map("created_by_id")
+  sportCode          String?                      @map("sport_code")
+  rangeStartsAt      DateTime                     @map("range_starts_at")
+  rangeEndsAt        DateTime                     @map("range_ends_at")
+  area               ShiftArea?
+  previewFingerprint String                       @map("preview_fingerprint")
+  releaseAt          DateTime                     @map("release_at")
+  status             ScheduleBulkAssignmentStatus @default(PENDING)
+  notificationSentAt DateTime?                    @map("notification_sent_at")
+  createdAt          DateTime                     @default(now()) @map("created_at")
+  updatedAt          DateTime                     @updatedAt @map("updated_at")
+  items              ScheduleBulkAssignmentItem[]
 
   @@index([createdById, createdAt])
   @@index([status, releaseAt])
@@ -1823,18 +1850,18 @@ model ScheduleBulkAssignment {
 }
 
 model ScheduleBulkAssignmentItem {
-  id                    String                              @id @default(cuid())
-  bulkAssignmentId      String                              @map("bulk_assignment_id")
-  shiftGroupId          String                              @map("shift_group_id")
-  expectedVersion       Int                                 @map("expected_version")
-  proposalPayload       Json                                @map("proposal_payload")
-  status                ScheduleBulkAssignmentItemStatus   @default(PENDING)
-  releasedVersion       Int?                                @map("released_version")
-  error                 String?
-  createdAt             DateTime                            @default(now()) @map("created_at")
-  updatedAt             DateTime                            @updatedAt @map("updated_at")
-  bulkAssignment        ScheduleBulkAssignment              @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)
-  shiftGroup            ShiftGroup                          @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)
+  id               String                           @id @default(cuid())
+  bulkAssignmentId String                           @map("bulk_assignment_id")
+  shiftGroupId     String                           @map("shift_group_id")
+  expectedVersion  Int                              @map("expected_version")
+  proposalPayload  Json                             @map("proposal_payload")
+  status           ScheduleBulkAssignmentItemStatus @default(PENDING)
+  releasedVersion  Int?                             @map("released_version")
+  error            String?
+  createdAt        DateTime                         @default(now()) @map("created_at")
+  updatedAt        DateTime                         @updatedAt @map("updated_at")
+  bulkAssignment   ScheduleBulkAssignment           @relation(fields: [bulkAssignmentId], references: [id], onDelete: Cascade)
+  shiftGroup       ShiftGroup                       @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)
 
   @@unique([bulkAssignmentId, shiftGroupId])
   @@index([shiftGroupId, status])

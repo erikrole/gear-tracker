@@ -7,6 +7,7 @@ struct BookingChange: Equatable, Sendable {
     let bookingKind: BookingKind
     let bookingTitle: String
     let statusLabel: String
+    let category: BookingChangeCategory
     let requesterName: String
     let timestamp: Date
 
@@ -55,6 +56,7 @@ enum BookingChangeDetector {
         to current: BookingActivitySnapshot
     ) -> BookingChange? {
         let statusLabel: String
+        let category: BookingChangeCategory
 
         if previous?.status != current.status {
             statusLabel = switch current.status {
@@ -65,10 +67,20 @@ enum BookingChangeDetector {
             case .completed: "Checked In"
             case .cancelled: "Cancelled"
             }
+            category = switch current.status {
+            case .draft: .other
+            case .booked: .reservation
+            case .pendingPickup: .pickupReady
+            case .open: .checkout
+            case .completed: .checkIn
+            case .cancelled: .cancellation
+            }
         } else if let previous, current.endsAt > previous.endsAt {
             statusLabel = "Extended"
+            category = .timeChange
         } else if let previous, current.endsAt != previous.endsAt {
             statusLabel = "Updated"
+            category = .timeChange
         } else if let previous,
                   previous.title == current.title,
                   previous.kind == current.kind,
@@ -78,6 +90,7 @@ enum BookingChangeDetector {
             return nil
         } else {
             statusLabel = "Updated"
+            category = .other
         }
 
         return BookingChange(
@@ -85,15 +98,39 @@ enum BookingChangeDetector {
             bookingKind: current.kind,
             bookingTitle: current.title,
             statusLabel: statusLabel,
+            category: category,
             requesterName: current.requester.name,
             timestamp: current.updatedAt
         )
     }
 }
 
+enum BookingNotificationAuthorization: Equatable, Sendable {
+    case notDetermined
+    case denied
+    case authorized
+    case provisional
+    case unknown
+
+    /// Only a hard denial needs a call to action; the rest either already work
+    /// or resolve themselves on the next authorization prompt.
+    var needsSystemSettings: Bool { self == .denied }
+
+    var label: String {
+        switch self {
+        case .notDetermined: "Not requested yet"
+        case .denied: "Turned off in System Settings"
+        case .authorized: "Allowed"
+        case .provisional: "Delivering quietly"
+        case .unknown: "Unavailable"
+        }
+    }
+}
+
 protocol BookingNotificationDelivering: Sendable {
     func requestAuthorization() async
-    func deliver(_ change: BookingChange) async
+    func authorization() async -> BookingNotificationAuthorization
+    func deliver(_ change: BookingChange, playsSound: Bool) async
 }
 
 private final class BookingNotificationPresenter: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
@@ -131,11 +168,21 @@ actor BookingNotificationCenter: BookingNotificationDelivering {
         _ = try? await center.requestAuthorization(options: [.alert])
     }
 
-    func deliver(_ change: BookingChange) async {
+    func authorization() async -> BookingNotificationAuthorization {
+        switch await center.notificationSettings().authorizationStatus {
+        case .notDetermined: .notDetermined
+        case .denied: .denied
+        case .authorized: .authorized
+        case .provisional: .provisional
+        @unknown default: .unknown
+        }
+    }
+
+    func deliver(_ change: BookingChange, playsSound: Bool) async {
         let content = UNMutableNotificationContent()
         content.title = change.bookingTitle
         content.body = change.summary
-        content.sound = nil
+        content.sound = playsSound ? .default : nil
         content.interruptionLevel = .active
         content.threadIdentifier = "booking-\(change.bookingID)"
         content.userInfo = [

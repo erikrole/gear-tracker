@@ -45,6 +45,14 @@ struct PerformanceTestRootView: View {
             PerformanceItemsView()
         case .equipment:
             PerformanceEquipmentView()
+        case .guide:
+            PerformanceGuideView()
+        case .resourcesGuides:
+            GuidesView()
+        case .resourcesUsers:
+            UsersView()
+        case .resourcesLicenses:
+            LicensesView()
         }
     }
 }
@@ -115,7 +123,213 @@ private struct PerformanceEquipmentView: View {
     }
 }
 
+@MainActor
+private struct PerformanceGuideView: View {
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                NativeMarkdownArticle(markdown: PerformanceFixtures.guideMarkdown)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+            }
+            .background(Color(.systemBackground))
+            .navigationTitle("Performance Guide")
+            .navigationBarTitleDisplayMode(.inline)
+            .accessibilityIdentifier("performance-guide-article")
+        }
+    }
+}
+
+// MARK: - Fixture API
+
+/// Serves canned API responses for the Resources harness scenarios.
+///
+/// Registered on `APIClient`'s session only when a fixture scenario is active,
+/// so the real views, view models, and `Codable` decode paths all run unchanged
+/// against representative payloads — no signed-in session and no network.
+final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool {
+        body(for: request) != nil
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url, let payload = Self.body(for: request) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
+            return
+        }
+
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"]
+        )!
+
+        let delay = AppRuntimeMode.fixtureResponseDelayMilliseconds
+        guard delay > 0 else {
+            deliver(response, payload)
+            return
+        }
+        // `HTTPURLResponse` and `Data` are Sendable; the protocol instance is
+        // reached weakly so a cancelled load simply drops the delivery.
+        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(delay)) { [weak self] in
+            self?.deliver(response, payload)
+        }
+    }
+
+    override func stopLoading() {}
+
+    private func deliver(_ response: HTTPURLResponse, _ payload: Data) {
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: payload)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private static func body(for request: URLRequest) -> Data? {
+        guard let path = request.url?.path else { return nil }
+        switch path {
+        case "/api/resources": return FixtureAPI.guides
+        case "/api/users": return FixtureAPI.users
+        case "/api/licenses": return FixtureAPI.licenses
+        case "/api/licenses/my": return FixtureAPI.myLicense
+        default: return nil
+        }
+    }
+}
+
+private enum FixtureAPI {
+    static let guides = json("""
+    { "data": [
+      { "id": "g1", "title": "Key contacts", "slug": "key-contacts", "type": "CONTACTS",
+        "category": "Contacts", "summary": "Escalation numbers, vendor contacts, and internal owners.",
+        "searchText": "contacts phone escalation", "markdown": "", "featured": true,
+        "personalizationReason": "Your area", "published": true, "updatedAt": "2026-08-14T15:04:00.000Z",
+        "author": { "id": "u1", "name": "Media Ops" } },
+      { "id": "g2", "title": "Camp Randall building numbers", "slug": "camp-randall", "type": "BUILDING_NUMBERS",
+        "category": "Building Numbers", "summary": "Gate codes, dock access, and elevator notes.",
+        "searchText": "building rooms dock", "markdown": "", "published": true,
+        "personalizationReason": "General", "updatedAt": "2026-08-09T18:20:00.000Z",
+        "author": { "id": "u2", "name": "Erik Role" } },
+      { "id": "g3", "title": "Media Drive overview", "slug": "media-drive", "type": "MEDIA_DRIVE",
+        "category": "Media Drive", "summary": "Where footage lands and how it is named.",
+        "searchText": "media drive paths naming", "markdown": "", "published": true,
+        "personalizationReason": "General", "updatedAt": "2026-08-02T12:00:00.000Z",
+        "author": { "id": "u1", "name": "Media Ops" } },
+      { "id": "g4", "title": "Card offload SOP", "slug": "card-offload-sop", "type": "SOP",
+        "category": "SOP", "summary": "The standard offload and verification pass after a shoot.",
+        "searchText": "offload sop cards verify", "markdown": "", "published": true,
+        "personalizationReason": "Your area", "updatedAt": "2026-07-28T09:45:00.000Z",
+        "author": { "id": "u3", "name": "Jordan Lee" } },
+      { "id": "g5", "title": "Wireless audio troubleshooting", "slug": "wireless-audio", "type": "TROUBLESHOOTING",
+        "category": "Troubleshooting", "summary": "Dropouts, interference, and battery symptoms.",
+        "searchText": "audio wireless dropouts", "markdown": "", "published": false,
+        "personalizationReason": "General", "updatedAt": "2026-07-21T22:10:00.000Z",
+        "author": { "id": "u2", "name": "Erik Role" } }
+    ] }
+    """)
+
+    static let users = json("""
+    { "total": 5, "limit": 50, "offset": 0, "data": [
+      { "id": "u1", "name": "Alex Rivera", "email": "alex.rivera@wisc.edu", "role": "STAFF",
+        "title": "Photo Lead", "primaryArea": "PHOTO", "active": true },
+      { "id": "u2", "name": "Erik Role", "email": "erik.role@wisc.edu", "role": "ADMIN",
+        "title": "Creative Director", "primaryArea": "VIDEO", "active": true },
+      { "id": "u3", "name": "Jordan Lee", "email": "jordan.lee@wisc.edu", "role": "STUDENT",
+        "gradYear": 2027, "primaryArea": "VIDEO", "active": true },
+      { "id": "u4", "name": "Sam Okonkwo", "email": "sam.okonkwo@wisc.edu", "role": "STUDENT",
+        "gradYear": 2026, "primaryArea": "PHOTO", "active": true },
+      { "id": "u5", "name": "Riley Chen", "email": "riley.chen@wisc.edu", "role": "STUDENT",
+        "gradYear": 2025, "primaryArea": "GRAPHICS", "active": false }
+    ] }
+    """)
+
+    static let licenses = json("""
+    { "data": [
+      { "id": "l1", "code": "PM-AAAA-1111", "label": "Photo Mechanic Seat 1", "status": "PARTIAL",
+        "expiresAt": "2026-12-31T00:00:00.000Z",
+        "claims": [ { "id": "c1", "userId": "u3", "claimedAt": "2026-08-16T14:00:00.000Z", "releasedAt": null,
+                      "user": { "id": "u3", "name": "Jordan Lee" } } ] },
+      { "id": "l2", "code": "PM-BBBB-2222", "label": "Photo Mechanic Seat 2", "status": "AVAILABLE",
+        "expiresAt": "2026-12-31T00:00:00.000Z", "claims": [] },
+      { "id": "l3", "code": "PM-CCCC-3333", "label": "Photo Mechanic Seat 3", "status": "RETIRED",
+        "expiresAt": "2026-01-31T00:00:00.000Z", "claims": [] }
+    ] }
+    """)
+
+    static let myLicense = json("""
+    { "data": { "id": "l1", "claimId": "c1", "code": "PM-AAAA-1111",
+                "label": "Photo Mechanic Seat 1", "expiresAt": "2026-12-31T00:00:00.000Z",
+                "claimedAt": "2026-08-16T14:00:00.000Z" } }
+    """)
+
+    private static func json(_ literal: String) -> Data {
+        Data(literal.utf8)
+    }
+}
+
 private enum PerformanceFixtures {
+    /// Exercises every block kind the guide reader can draw. Shaped after the
+    /// templates in src/app/(app)/resources/new/_components/NewGuideClient.tsx.
+    static let guideMarkdown = """
+    # Key contacts
+
+    Use this Guide for phone numbers, escalation contacts, and internal owners.
+    Reach the desk at [av-desk@wisc.edu](mailto:av-desk@wisc.edu) or
+    [555-555-5555](tel:+15555555555).
+
+    > [!WARNING]
+    > Do not unplug the media drive mid-transfer.
+
+    > [!TIP]
+    > Put the owner in the table so people know who fixes stale details.
+
+    ## Emergency
+
+    | Contact | Role | Phone | When to use |
+    | --- | :-: | ---: | --- |
+    | Building desk | Facilities | `555-555-5555` | Power, doors, or HVAC |
+    | Media Ops | On-call staff | `555-000-1111` | Anything that blocks a shoot |
+
+    ## Rig reference
+
+    ![Camera shelf, second bay from the left](https://example.invalid/rig.png)
+
+    ## Steps
+
+    1. Pull the kit and check the case tag.
+    2. Confirm the card is formatted.
+       - Use the in-camera format, not the desktop one.
+    3. Log the checkout at the kiosk.
+
+    - [x] Batteries charged
+    - [ ] Lens cloth packed
+
+    ## Copyable values
+
+    ```text
+    /Volumes/MediaDrive/2026/Projects
+    ```
+
+    ## Walkthrough
+
+    ```embed
+    https://youtu.be/dQw4w9WgXcQ
+    ```
+
+    Formatting check: **bold**, _italic_, ~~struck~~, and `inline code`.
+
+    ---
+
+    | Field | Value |
+    | --- | --- |
+    | Maintainer | Media Ops |
+    | Last verified | 2026-08-18 |
+    """
+
     static let location = AssetLocation(id: "performance-location", name: "Camp Randall")
     private static let categoryNames = ["Cameras", "Lenses", "Audio", "Lighting"]
 

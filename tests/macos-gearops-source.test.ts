@@ -11,7 +11,6 @@ describe("GearOps macOS menu bar contracts", () => {
     const project = source("macos/project.yml");
     const app = source("macos/GearOps/GearOpsApp.swift");
     const plist = source("macos/GearOps/Supporting/Info.plist");
-    const icon = source("macos/GearOps/WisconsinCreativeIcon.swift");
 
     expect(project).toContain('platform: macOS');
     expect(project).toContain('deploymentTarget: "15.0"');
@@ -23,8 +22,192 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(project).toContain("PRODUCT_NAME: Wisconsin Creative");
     expect(project).toContain("../ios/Wisconsin/AppIcons/AppIcon.icon");
     expect(project).toContain("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon");
-    expect(icon).toContain("NSApplication.shared.applicationIconImage");
     expect(plist).toMatch(/<key>LSUIElement<\/key>\s*<true\/>/);
+  });
+
+  it("resolves the shared app icon from the bundle instead of the generic placeholder", () => {
+    const icon = source("macos/GearOps/WisconsinCreativeIcon.swift");
+    const view = source("macos/GearOps/MenuBarContentView.swift");
+    const login = source("macos/GearOps/LoginView.swift");
+
+    // `applicationIconImage` and `icon(forFile:)` substitute Apple's generic
+    // application icon when resolution fails, so an LSUIElement bundle silently
+    // renders a foreign placeholder. Both bundle lookups below return nil.
+    expect(icon).not.toContain("NSApplication.shared.applicationIconImage");
+    expect(icon).not.toContain("NSWorkspace.shared.icon(forFile:");
+    expect(icon).toContain('bundle.image(forResource: "AppIcon")');
+    expect(icon).toContain('bundle.url(forResource: "AppIcon", withExtension: "icns")');
+
+    // Vector fallback keeps Wisconsin Creative branding even on a bundle whose
+    // icon resources failed to compile.
+    expect(icon).toContain("struct BlockWMark: Shape");
+    expect(icon).toContain("BlockW 2.svg");
+    expect(icon).toContain("viewBox = CGSize(width: 371.04, height: 305.88)");
+
+    expect(view).toContain("WisconsinCreativeIcon(size: 30)");
+    expect(source("macos/GearOps/BrandScene.swift")).toContain("WisconsinCreativeIcon(size: 56)");
+    expect(login).toContain("BrandSplashLockup(subtitle:");
+  });
+
+  it("treats an idle kiosk heartbeat as normal rather than a fault", () => {
+    const health = source("macos/GearOps/Health.swift");
+    const model = source("macos/GearOps/GearOpsModel.swift");
+    const view = source("macos/GearOps/MenuBarContentView.swift");
+
+    // A kiosk between five minutes and 24 hours since its last heartbeat is
+    // simply unused. Only the 24-hour boundary is a fault.
+    expect(health).toContain("var isFault: Bool { self == .offline }");
+    expect(health).toContain('case .stale: "Idle"');
+    expect(health).toContain('parts.append("\\(stale) idle")');
+    expect(health).not.toContain("Heartbeat stale");
+
+    expect(model).toContain("$0.connectionState().isFault");
+    expect(model).not.toContain("$0.connectionState() == .stale");
+    expect(view).toContain("$0.connectionState().isFault");
+    expect(view).not.toContain("$0.connectionState() == .stale");
+    expect(view).toContain("case .stale: .secondary");
+    expect(view).not.toContain("case .stale: .orange");
+
+    // Idle must not outrank a kiosk that is actually in use.
+    expect(model).toMatch(/case \.offline: 0\s*\n\s*case \.online: 1\s*\n\s*case \.stale: 2/);
+  });
+
+  it("lets the user choose which booking changes alert", () => {
+    const settings = source("macos/GearOps/NotificationSettings.swift");
+    const notifications = source("macos/GearOps/BookingNotifications.swift");
+    const model = source("macos/GearOps/GearOpsModel.swift");
+    const view = source("macos/GearOps/SettingsView.swift");
+    const app = source("macos/GearOps/GearOpsApp.swift");
+    const menu = source("macos/GearOps/MenuBarContentView.swift");
+
+    expect(settings).toContain("enum BookingChangeCategory");
+    expect(settings).toContain("func allows(_ category: BookingChangeCategory) -> Bool");
+
+    // Classification travels with the change so filtering never re-parses copy.
+    expect(notifications).toContain("let category: BookingChangeCategory");
+    expect(notifications).toContain("case .pendingPickup: .pickupReady");
+    expect(notifications).toContain("category = .timeChange");
+
+    // Filtering happens at delivery, after the baseline is installed, so a
+    // muted category cannot replay once it is switched back on.
+    expect(model).toContain("for change in changes where notificationSettings.allows(change.category)");
+    expect(model).toContain("knownBookingActivity = Dictionary(");
+    expect(model.indexOf("knownBookingActivity = Dictionary("))
+      .toBeLessThan(model.indexOf("for change in changes where"));
+
+    expect(app).toContain("GearOpsSettingsView(model: model)");
+
+    // An accessory (LSUIElement) app never activates itself, so a `Settings`
+    // scene opens its window behind everything and reads as a dead menu item.
+    // The SDK has no `SettingsLink(preAction:)` to fix that, so the window is
+    // explicit and the menu activates the app before ordering it in.
+    expect(app).toContain('Window("Wisconsin Creative Settings", id: GearOpsWindow.settings)');
+    expect(app).not.toContain("Settings {");
+    expect(menu).not.toContain("SettingsLink");
+    expect(menu).toContain('Button("Settings…") { openSettings() }');
+    expect(menu).toContain("NSApplication.shared.activate()");
+    expect(menu.indexOf("NSApplication.shared.activate()"))
+      .toBeLessThan(menu.indexOf("openWindow(id: GearOpsWindow.settings)"));
+
+    // The window also orders itself in, covering ⌘, and re-open while the app
+    // is in the background.
+    expect(view).toContain("struct SettingsWindowActivator: NSViewRepresentable");
+    expect(view).toContain("window.makeKeyAndOrderFront(nil)");
+    expect(view).toContain("formStyle(.grouped)");
+    expect(view).toContain("model.openSystemNotificationSettings()");
+  });
+
+  it("exposes startup, menu bar, and alert-sound preferences", () => {
+    const prefs = source("macos/GearOps/AppPreferences.swift");
+    const view = source("macos/GearOps/SettingsView.swift");
+    const app = source("macos/GearOps/GearOpsApp.swift");
+    const notifications = source("macos/GearOps/BookingNotifications.swift");
+    const settings = source("macos/GearOps/NotificationSettings.swift");
+
+    // Login items use the supported ServiceManagement API, and macOS holding a
+    // registration for user approval is a normal state rather than a failure.
+    expect(prefs).toContain("import ServiceManagement");
+    expect(prefs).toContain("try service.register()");
+    expect(prefs).toContain("try service.unregister()");
+    expect(prefs).toContain("case .requiresApproval: .requiresApproval");
+    expect(prefs).toContain("SMAppService.openSystemSettingsLoginItems()");
+
+    expect(view).toContain('Toggle("Open at login"');
+    expect(view).toContain('Toggle("Show open booking count"');
+    expect(app).toContain("model.appPreferences.showsMenuBarCount");
+
+    // Silence stays the default; sound is an explicit opt-in carried to delivery.
+    expect(settings).toContain("var playsSound: Bool");
+    expect(settings).toContain("playsSound = false");
+    expect(notifications).toContain("content.sound = playsSound ? .default : nil");
+    expect(view).toContain('Toggle("Play a sound"');
+  });
+
+  it("groups system health into one panel with actionable rows", () => {
+    const view = source("macos/GearOps/MenuBarContentView.swift");
+
+    // Health and kiosk rows point at real pages, so they behave as controls.
+    expect(view).toContain("action: model.kioskAccess == .available ? { model.openKioskDevices() } : nil");
+    expect(view).toContain("KioskRow(device: device, now: now) { model.openKioskDevices() }");
+    expect(view).toContain(".accessibilityAddTraits(.isButton)");
+    expect(view).toContain(".background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 10))");
+    expect(view).toContain("private var rowSeparator: some View");
+  });
+
+  it("gives sign-in the shared Wisconsin Creative login design", () => {
+    const scene = source("macos/GearOps/BrandScene.swift");
+    const login = source("macos/GearOps/LoginView.swift");
+
+    // Values are lifted from the web `.login-bg` and `.login-card` rules.
+    expect(scene).toContain("struct BrandSplashScene");
+    expect(scene).toContain("struct BrandSplashLockup");
+    expect(scene).toContain("struct BrandLoginCard");
+    expect(scene).toContain("static let crimson = Color(red: 0.769, green: 0.071, blue: 0.188)");
+    expect(scene).toContain("environment(\\.colorScheme, .light)");
+
+    // Identity first, then password, matching web and iOS.
+    expect(login).toContain("case identity");
+    expect(login).toContain("case password");
+    expect(login).toContain('Button("Change", action: changeEmail)');
+    expect(login).toContain('Text(primaryTitle)');
+    expect(login).toContain('showPassword ? "eye.slash" : "eye"');
+
+    // The two-step split is local. Enrollment stays the only Neon-backed call.
+    expect(login).not.toContain("discoverAuth");
+    expect(login).not.toContain("/api/");
+  });
+
+  it("keeps one popover width and unambiguous footer controls", () => {
+    const view = source("macos/GearOps/MenuBarContentView.swift");
+    const login = source("macos/GearOps/LoginView.swift");
+
+    expect(view).toContain("static let popoverWidth: CGFloat = 380");
+    expect(view).toContain(".frame(width: GearOpsLayout.popoverWidth)");
+    expect(login).toContain(".frame(width: GearOpsLayout.popoverWidth)");
+    expect(view).not.toContain(".frame(width: 360)");
+
+    // A borderless Menu renders its own disclosure chevron next to the
+    // ellipsis glyph, which reads as two separate controls.
+    expect(view).toContain(".menuIndicator(.hidden)");
+    expect(view).toContain('.keyboardShortcut("r", modifiers: .command)');
+    expect(view).toContain('.keyboardShortcut("q", modifiers: .command)');
+    expect(view).toContain('Button("Sign Out", role: .destructive)');
+  });
+
+  it("surfaces overdue custody and hover affordances in the popover", () => {
+    const view = source("macos/GearOps/MenuBarContentView.swift");
+    const model = source("macos/GearOps/GearOpsModel.swift");
+
+    expect(model).toContain("func overdueBookingCount(at now: Date = .now) -> Int");
+    expect(model).toContain("openBookings.filter { $0.isOverdue(at: now) }.count");
+    expect(view).toContain("overdueBadge(at: now)");
+    expect(view).toContain("model.overdueBookingCount(at: now)");
+
+    // Every interactive row carries hover feedback: two booking row types
+    // (glass and fallback branches), the health rows, and the kiosk rows.
+    expect(view.match(/\.onHover \{ isHovering = \$0 \}/g)).toHaveLength(6);
+    expect(view).toContain(".onHover { isHoveringRefresh = $0 }");
+    expect(view).toContain("snapshot.freshnessLabel(at: now)");
   });
 
   it("uses only the external companion projection after explicit enrollment", () => {
@@ -185,12 +368,17 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(view).toContain(".help(buildHelp)");
   });
 
-  it("delivers visible booking change notifications without sound", () => {
+  it("delivers visible booking change notifications, silent unless opted in", () => {
     const notifications = source("macos/GearOps/BookingNotifications.swift");
     const model = source("macos/GearOps/GearOpsModel.swift");
+    const settings = source("macos/GearOps/NotificationSettings.swift");
 
     expect(notifications).toContain("content.interruptionLevel = .active");
-    expect(notifications).toContain("content.sound = nil");
+    // Silence remains the default; sound is carried per delivery from an
+    // explicit user opt-in rather than being hardcoded either way.
+    expect(notifications).toContain("content.sound = playsSound ? .default : nil");
+    expect(settings).toContain("playsSound = false");
+    expect(model).toContain("playsSound: notificationSettings.playsSound");
     expect(notifications).toContain("let bookingTitle: String");
     expect(notifications).toContain("let statusLabel: String");
     expect(notifications).toContain("let requesterName: String");

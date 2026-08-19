@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
+import { resolvePrismaDirectUrl } from "./lib/prisma-direct-url.mjs";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 const blankSchemaEnginePattern = /Error:\s*Schema engine error:\s*$/m;
@@ -22,9 +23,15 @@ if (isMainModule()) {
 }
 
 async function main() {
+  const { connectionString, source } = resolvePrismaDirectUrl();
+  const migrationEnvironment = { ...process.env, DIRECT_URL: connectionString };
+  if (source === "DATABASE_URL_UNPOOLED") {
+    console.log("Using DATABASE_URL_UNPOOLED for Prisma migration deploy.");
+  }
+
   const deploy = spawnSync("npx", ["prisma", "migrate", "deploy"], {
     cwd: process.cwd(),
-    env: process.env,
+    env: migrationEnvironment,
     encoding: "utf8",
   });
 
@@ -46,12 +53,6 @@ async function main() {
   console.warn(
     "Prisma schema engine failed without details; falling back to Neon HTTP migration apply.",
   );
-
-  const connectionString = process.env.DIRECT_URL;
-  if (!connectionString) {
-    console.error("Missing DIRECT_URL for Neon HTTP migration fallback.");
-    process.exit(1);
-  }
 
   const sql = neon(connectionString);
 

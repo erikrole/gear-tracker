@@ -101,6 +101,14 @@ final class APIClient {
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
         config.multipathServiceType = .none
+#if DEBUG
+        // Harness scenarios serve canned payloads so list surfaces can be
+        // rendered without a signed-in session. Inert unless the app was
+        // launched with a fixture `GT_PERFORMANCE_SCENARIO`.
+        if AppRuntimeMode.usesFixtureAPI {
+            config.protocolClasses = [FixtureAPIProtocol.self] + (config.protocolClasses ?? [])
+        }
+#endif
         return URLSession(configuration: config)
     }()
 

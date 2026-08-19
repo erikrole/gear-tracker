@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
+import { resolvePrismaDirectUrl } from "./lib/prisma-direct-url.mjs";
 
 const CAMERA_BODY_CATEGORY_NAME = "Camera Bodies";
 const now = new Date();
@@ -141,12 +142,8 @@ const sonyTargets = new Map([
 
 const unresolvedSonyModels = new Map();
 
-if (!process.env.DIRECT_URL) {
-  console.error("Missing DIRECT_URL.");
-  process.exit(1);
-}
-
-const sql = neon(process.env.DIRECT_URL);
+const { connectionString } = resolvePrismaDirectUrl();
+const sql = neon(connectionString);
 
 main().catch((error) => {
   console.error(error);

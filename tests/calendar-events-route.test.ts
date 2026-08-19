@@ -120,6 +120,7 @@ beforeEach(() => {
     allDay: false,
     status: CalendarEventStatus.CONFIRMED,
     result: null,
+    site: null,
     locationId: null,
     sportCode: null,
     isHome: null,

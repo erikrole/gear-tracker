@@ -448,6 +448,56 @@ final class GearOpsModelTests: XCTestCase {
         XCTAssertEqual(model.menuBarSymbol, "exclamationmark.triangle.fill")
     }
 
+    func testIdleKioskDoesNotEscalateHealth() async {
+        let client = MockGearOpsClient()
+        await client.setKioskDevices([
+            makeKiosk(id: "idle", lastSeenAt: Date.now.addingTimeInterval(-60 * 60)),
+        ])
+        let model = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+
+        XCTAssertEqual(model.healthSeverity, .healthy)
+        XCTAssertEqual(model.healthLabel, "Healthy")
+    }
+
+    func testMutedCategoryIsNotDeliveredButStillAdvancesTheBaseline() async {
+        let client = MockGearOpsClient()
+        let notifications = RecordingBookingNotifier()
+        let defaults = isolatedDefaults()
+        let settings = NotificationSettingsStore(defaults: defaults)
+        settings.setCategory(.checkout, enabled: false)
+        await client.setBookingActivity(makeBookingActivity(status: .booked), changed: false)
+        let model = GearOpsModel(
+            client: client,
+            defaults: defaults,
+            bookingNotifications: notifications,
+            credentialStore: InMemoryCredentialStore(),
+            notificationSettings: settings,
+            autoStart: false
+        )
+
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+
+        await client.setBookingActivity(makeBookingActivity(status: .open), changed: true)
+        await model.refresh()
+        var delivered = await notifications.deliveredChanges()
+        XCTAssertEqual(delivered, [], "a muted category must not alert")
+
+        // The muted transition still became the baseline, so the next change is
+        // compared against OPEN rather than replaying the checkout.
+        await client.setBookingActivity(makeBookingActivity(status: .completed), changed: true)
+        await model.refresh()
+        delivered = await notifications.deliveredChanges()
+        XCTAssertEqual(delivered.map(\.category), [.checkIn])
+    }
+
     func testMonitoredKiosksPutFailuresFirst() async {
         let client = MockGearOpsClient()
         let now = Date.now
@@ -467,7 +517,7 @@ final class GearOpsModelTests: XCTestCase {
 
         await model.signIn(email: "admin@wisc.edu", password: "password")
 
-        XCTAssertEqual(model.monitoredKioskDevices.map(\.id), ["offline", "stale", "online", "inactive"])
+        XCTAssertEqual(model.monitoredKioskDevices.map(\.id), ["offline", "online", "stale", "inactive"])
     }
 
     private func isolatedDefaults() -> UserDefaults {
@@ -743,14 +793,16 @@ private actor SuspendedGearOpsClient: GearOpsServing {
 
 private actor NoopBookingNotifier: BookingNotificationDelivering {
     func requestAuthorization() async {}
-    func deliver(_ change: BookingChange) async {}
+    func authorization() async -> BookingNotificationAuthorization { .authorized }
+    func deliver(_ change: BookingChange, playsSound: Bool) async {}
 }
 
 private actor RecordingBookingNotifier: BookingNotificationDelivering {
     private var changes: [BookingChange] = []
 
     func requestAuthorization() async {}
-    func deliver(_ change: BookingChange) async { changes.append(change) }
+    func authorization() async -> BookingNotificationAuthorization { .authorized }
+    func deliver(_ change: BookingChange, playsSound: Bool) async { changes.append(change) }
     func deliveredChanges() -> [BookingChange] { changes }
 }
 
@@ -773,6 +825,8 @@ private actor SuspendedBookingNotifier: BookingNotificationDelivering {
         authorizationContinuation = nil
     }
 
+    func authorization() async -> BookingNotificationAuthorization { .authorized }
+
     func requestAuthorization() async {
         guard shouldSuspendAuthorization else { return }
         shouldSuspendAuthorization = false
@@ -781,7 +835,7 @@ private actor SuspendedBookingNotifier: BookingNotificationDelivering {
         }
     }
 
-    func deliver(_ change: BookingChange) async {}
+    func deliver(_ change: BookingChange, playsSound: Bool) async {}
 }
 
 private func makeOpenBooking() -> OpenBooking {

@@ -20,6 +20,10 @@ export const env = {
   get sessionCookieName() {
     return getRequired("SESSION_COOKIE_NAME");
   },
+  /** Dedicated AES-256-GCM key for the shared software vault. */
+  get softwareVaultKey() {
+    return getRequired("SOFTWARE_VAULT_KEY");
+  },
   get appTimezone() {
     return process.env.APP_TIMEZONE || "America/Chicago";
   },

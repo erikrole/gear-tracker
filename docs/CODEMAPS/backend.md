@@ -22,7 +22,7 @@
 | `src/lib/services/bulk-schedule-assignment.ts` | 743 |
 | `src/lib/services/bulk-unit-scans.ts` | 617 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 834 |
+| `src/lib/services/calendar-sync.ts` | 725 |
 | `src/lib/services/candidate-scoring.ts` | 436 |
 | `src/lib/services/category-mutations.ts` | 168 |
 | `src/lib/services/checkout-policies.ts` | 40 |
@@ -33,6 +33,7 @@
 | `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
+| `src/lib/services/game-record.ts` | 95 |
 | `src/lib/services/hidden-users-cleanup.ts` | 122 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 90 |
 | `src/lib/services/kiosk-location.ts` | 72 |
@@ -65,6 +66,7 @@
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
 | `src/lib/services/signatures.ts` | 1743 |
+| `src/lib/services/software.ts` | 119 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -118,7 +120,7 @@
 | `src/lib/db.ts` | 18 |
 | `src/lib/editor-snippets.ts` | 28 |
 | `src/lib/email.ts` | 125 |
-| `src/lib/env.ts` | 104 |
+| `src/lib/env.ts` | 108 |
 | `src/lib/equipment-guidance.ts` | 133 |
 | `src/lib/equipment-section-filters.ts` | 87 |
 | `src/lib/equipment-sections.ts` | 200 |
@@ -148,7 +150,7 @@
 | `src/lib/operational-health.ts` | 50 |
 | `src/lib/ops-checks.ts` | 176 |
 | `src/lib/passkey.ts` | 328 |
-| `src/lib/permissions.ts` | 199 |
+| `src/lib/permissions.ts` | 204 |
 | `src/lib/profile-completion-events.ts` | 6 |
 | `src/lib/profile-completion.ts` | 157 |
 | `src/lib/profile-phone.ts` | 44 |
@@ -168,7 +170,7 @@
 | `src/lib/schedule-change-history-types.ts` | 55 |
 | `src/lib/schedule-data-quality.ts` | 128 |
 | `src/lib/schedule-defaults.ts` | 33 |
-| `src/lib/schedule-event-identity.ts` | 82 |
+| `src/lib/schedule-event-identity.ts` | 272 |
 | `src/lib/schedule-event-where.ts` | 46 |
 | `src/lib/schedule-health-types.ts` | 83 |
 | `src/lib/schedule-publication-types.ts` | 46 |
@@ -185,6 +187,8 @@
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 71 |
 | `src/lib/shift-notification-workflow.ts` | 18 |
+| `src/lib/software-vault-crypto.ts` | 61 |
+| `src/lib/software-vault-validation.ts` | 30 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 49 |
 | `src/lib/status-styles.ts` | 46 |
@@ -631,6 +635,12 @@
 - `/api/signatures/collections`
 - `/api/signatures/import/apply`
 - `/api/signatures/import/preview`
+
+### `/api/software`
+
+- `/api/software/[id]`
+- `/api/software/[id]/secret`
+- `/api/software`
 
 ### `/api/sport-configs`
 

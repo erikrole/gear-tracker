@@ -9,11 +9,16 @@ enum KioskConnectionState: String, Equatable, Sendable {
     var label: String {
         switch self {
         case .online: "Online"
-        case .stale: "Heartbeat stale"
+        case .stale: "Idle"
         case .offline: "Offline"
         case .inactive: "Inactive"
         }
     }
+
+    /// A kiosk between five minutes and 24 hours since its last heartbeat is
+    /// simply not in use. Only a device past 24 hours, or one that has never
+    /// checked in, represents an actual fault.
+    var isFault: Bool { self == .offline }
 }
 
 extension KioskDevice {
@@ -88,7 +93,7 @@ struct KioskFleetCounts: Equatable, Sendable {
         guard total > 0 else { return "0 configured" }
 
         var parts = ["\(online) online"]
-        if stale > 0 { parts.append("\(stale) stale") }
+        if stale > 0 { parts.append("\(stale) idle") }
         if offline > 0 { parts.append("\(offline) offline") }
         if inactive > 0 { parts.append("\(inactive) inactive") }
         return parts.joined(separator: " · ")

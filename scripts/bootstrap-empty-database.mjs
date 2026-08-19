@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
+import { resolvePrismaDirectUrl } from "./lib/prisma-direct-url.mjs";
 import { splitSqlStatements } from "./prisma-migrate-deploy.mjs";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
@@ -52,8 +53,7 @@ async function main() {
     throw new Error("Refusing bootstrap: set EMPTY_DATABASE_BOOTSTRAP=confirm.");
   }
 
-  const connectionString = process.env.DIRECT_URL;
-  if (!connectionString) throw new Error("Missing DIRECT_URL.");
+  const { connectionString } = resolvePrismaDirectUrl();
 
   const expectedHost = process.env.EMPTY_DATABASE_EXPECTED_HOST?.trim();
   if (!expectedHost) throw new Error("Missing EMPTY_DATABASE_EXPECTED_HOST.");
@@ -71,7 +71,7 @@ async function main() {
   `;
   assertBootstrapSafe(existing.map((row) => row.tablename));
 
-  const generated = generateBaselineSql();
+  const generated = generateBaselineSql(connectionString);
   const bootstrapStatements = [
     ...splitSqlStatements(generated),
     ...splitSqlStatements(postgresOnlySql),
@@ -95,11 +95,18 @@ export function assertBootstrapSafe(tableNames) {
   }
 }
 
-export function generateBaselineSql() {
+export function generateBaselineSql(connectionString = null) {
+  const environment = connectionString
+    ? { ...process.env, DIRECT_URL: connectionString }
+    : process.env;
   const result = spawnSync(
     "npx",
     ["prisma", "migrate", "diff", "--from-empty", "--to-schema-datamodel", "prisma/schema.prisma", "--script"],
-    { cwd: process.cwd(), env: process.env, encoding: "utf8" },
+    {
+      cwd: process.cwd(),
+      env: environment,
+      encoding: "utf8",
+    },
   );
   if (result.status !== 0 || !result.stdout.trim()) {
     throw new Error(`Could not generate baseline SQL.\n${result.stderr || result.stdout}`);

@@ -34,6 +34,14 @@ describe("dashboard pending pickup links", () => {
     expect(row).toContain("showPickupBadge ? booking.startsAt : booking.endsAt");
   });
 
+  it("shows pickup time on team and personal reservation cards", () => {
+    const teamActivity = source("src/app/(app)/dashboard/team-activity-column.tsx");
+    const myGear = source("src/app/(app)/dashboard/my-gear-column.tsx");
+
+    expect(teamActivity).toContain('accent="reservation"\n                showPickupBadge');
+    expect(myGear).toContain('accent="reservation"\n                    showPickupBadge');
+  });
+
   it("retires the separate stale-reservation dashboard lane", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
     const route = source("src/app/api/dashboard/route.ts");

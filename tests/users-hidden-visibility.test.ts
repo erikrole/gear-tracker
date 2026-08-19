@@ -19,6 +19,9 @@ const dbMock = vi.hoisted(() => ({
   bulkSku: {
     findMany: vi.fn(),
   },
+  calendarEvent: {
+    groupBy: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -141,6 +144,7 @@ beforeEach(() => {
   vi.mocked(db.user.findFirst).mockResolvedValue(null);
   vi.mocked(db.user.findUnique).mockResolvedValue(null);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
+  vi.mocked(db.calendarEvent.groupBy).mockResolvedValue([]);
   vi.mocked(db.location.findMany).mockResolvedValue([]);
   vi.mocked(db.department.findMany).mockResolvedValue([]);
   vi.mocked(db.bulkSku.findMany).mockResolvedValue([]);

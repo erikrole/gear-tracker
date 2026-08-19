@@ -112,6 +112,13 @@ private let thumbnailSession: URLSession = {
     return URLSession(configuration: config)
 }()
 
+/// The app's remote-image session. Shared with the guide reader so article
+/// photos land in the same bounded disk cache as gear thumbnails and are
+/// cleared by the same `clearForSignOut()` sweep.
+enum RemoteImageLoading {
+    static var session: URLSession { thumbnailSession }
+}
+
 // Drop-in replacement for AsyncImage that downsamples to the actual display size.
 struct CachedThumbnail: View {
     let url: URL

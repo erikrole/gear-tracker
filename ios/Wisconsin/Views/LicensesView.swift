@@ -12,7 +12,10 @@ final class LicensesViewModel {
     var pendingActionId: String?
 
     private var lastLoadedAt: Date?
+    private var loadTask: Task<Void, Never>?
+    private var noticeTask: Task<Void, Never>?
     private static let freshnessWindow: TimeInterval = 60
+    private static let noticeLifetime: Duration = .seconds(5)
 
     func load(forceRefresh: Bool = false) async {
         if !forceRefresh,
@@ -21,21 +24,66 @@ final class LicensesViewModel {
            !codes.isEmpty || activeClaim != nil {
             return
         }
-        guard !isLoading else { return }
+
+        // A pull-to-refresh supersedes an in-flight load instead of being
+        // dropped, so the refresh control reflects a real fetch.
+        if forceRefresh {
+            loadTask?.cancel()
+        } else if isLoading {
+            return
+        }
+
+        let task = Task { await performLoad(forceRefresh: forceRefresh) }
+        loadTask = task
+        await task.value
+    }
+
+    private func performLoad(forceRefresh: Bool) async {
         isLoading = true
         if forceRefresh { error = nil }
 
         do {
-            let fetchedCodes = try await APIClient.shared.licenses()
-            let fetchedClaim = try await APIClient.shared.myLicense()
-            codes = fetchedCodes
-            activeClaim = fetchedClaim
+            // The pool and the current claim are independent reads; awaiting
+            // them in series doubled the time to first paint on a slow network.
+            async let fetchedCodes = APIClient.shared.licenses()
+            async let fetchedClaim = APIClient.shared.myLicense()
+            let (loadedCodes, loadedClaim) = try await (fetchedCodes, fetchedClaim)
+            guard !Task.isCancelled else { return }
+            codes = loadedCodes
+            activeClaim = loadedClaim
             error = nil
             lastLoadedAt = Date()
+        } catch is CancellationError {
+            // Superseded by a newer load, which owns `isLoading` from here.
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
         }
 
+        isLoading = false
+    }
+
+    /// Confirmations are transient. Leaving them pinned to the list meant a
+    /// "copied for 2 minutes" banner outlived the clipboard entry it described.
+    private func showNotice(_ message: String) {
+        notice = message
+        noticeTask?.cancel()
+        noticeTask = Task {
+            try? await Task.sleep(for: Self.noticeLifetime)
+            guard !Task.isCancelled else { return }
+            notice = nil
+        }
+    }
+
+    func resetDefaults() {
+        loadTask?.cancel()
+        noticeTask?.cancel()
+        codes = []
+        activeClaim = nil
+        notice = nil
+        error = nil
+        lastLoadedAt = nil
         isLoading = false
     }
 
@@ -47,7 +95,7 @@ final class LicensesViewModel {
         do {
             _ = try await APIClient.shared.claimLicense(id: code.id)
             await load(forceRefresh: true)
-            notice = "License claimed. Use Copy Code when you’re ready."
+            showNotice("License claimed. Use Copy Code when you’re ready.")
         } catch {
             self.error = error.localizedDescription
         }
@@ -62,7 +110,7 @@ final class LicensesViewModel {
         do {
             try await APIClient.shared.releaseLicense(id: activeClaim.id)
             await load(forceRefresh: true)
-            notice = "License returned."
+            showNotice("License returned.")
         } catch {
             self.error = error.localizedDescription
         }
@@ -76,7 +124,7 @@ final class LicensesViewModel {
             localOnly: false,
             expirationDate: Date().addingTimeInterval(120)
         )
-        notice = "Code copied for 2 minutes."
+        showNotice("Code copied for 2 minutes.")
     }
 }
 
@@ -84,6 +132,7 @@ struct LicensesView: View {
     var wrapsInNavigationStack = true
 
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
     @State private var vm = LicensesViewModel()
     @State private var claimCandidate: LicenseCode?
     @State private var showReturnConfirm = false
@@ -117,6 +166,15 @@ struct LicensesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { await vm.load(forceRefresh: true) }
             .task { await vm.load() }
+            // Re-selecting the destination returns it to a first-run state, the
+            // same gesture every other tab destination honours.
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 7 else { return }
+                claimCandidate = nil
+                showReturnConfirm = false
+                vm.resetDefaults()
+                Task { await vm.load() }
+            }
             .confirmationDialog(
                 "Claim Photo Mechanic license?",
                 isPresented: claimConfirmBinding,
@@ -162,7 +220,9 @@ struct LicensesView: View {
     @ViewBuilder
     private var content: some View {
         if vm.codes.isEmpty && vm.activeClaim == nil && vm.isLoading {
-            ProgressView()
+            // Labelled so VoiceOver announces a real status rather than an
+            // anonymous spinner, matching the Guides loading state.
+            ProgressView("Loading licenses")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = vm.error, vm.codes.isEmpty && vm.activeClaim == nil {
             ContentUnavailableView {
@@ -556,45 +616,68 @@ private func claimedSummary(_ raw: String?) -> String {
     return "Claimed \(date.formatted(date: .abbreviated, time: .omitted))"
 }
 
-@MainActor
+/// Expiry dates are calendar dates, not instants.
+///
+/// `src/lib/license-dates.ts` states the storage contract: an expiry is an
+/// annual calendar date encoded at UTC midnight, and readers must take its UTC
+/// date parts rather than treat the encoded instant as a local moment. iOS was
+/// formatting the raw instant in the device timezone, so anywhere west of UTC
+/// every expiry rendered a day early — a 31 Dec license read "Expires Dec 30"
+/// in Central — and both the "Expired" copy and the amber/red urgency tone
+/// tipped over a full day before the license actually lapsed.
+enum LicenseExpiry {
+    /// The encoded calendar day, rebuilt in the device's own calendar.
+    static func calendarDay(from raw: String?, calendar: Calendar = .current) -> Date? {
+        guard let encoded = parseLicenseDate(raw) else { return nil }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let parts = utc.dateComponents([.year, .month, .day], from: encoded)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
+    }
+
+    /// Whole days from today's local calendar day to the expiry day. Negative
+    /// once the licence has lapsed. Mirrors `licenseDaysUntilExpiry` on the web.
+    static func daysUntil(_ raw: String?, now: Date = Date(), calendar: Calendar = .current) -> Int? {
+        guard let expiry = calendarDay(from: raw, calendar: calendar) else { return nil }
+        let today = calendar.startOfDay(for: now)
+        return calendar.dateComponents([.day], from: today, to: expiry).day
+    }
+}
+
 private func expirySummary(_ raw: String?) -> String {
     guard let raw, !raw.isEmpty else { return "No expiry date" }
-    guard let date = parseLicenseDate(raw) else { return "Expiry on file" }
-    let formatted = date.formatted(date: .abbreviated, time: .omitted)
-    if date < Calendar.current.startOfDay(for: Date()) {
-        return "Expired \(formatted)"
-    }
-    return "Expires \(formatted)"
+    guard let day = LicenseExpiry.calendarDay(from: raw),
+          let daysLeft = LicenseExpiry.daysUntil(raw) else { return "Expiry on file" }
+    let formatted = day.formatted(date: .abbreviated, time: .omitted)
+    return daysLeft < 0 ? "Expired \(formatted)" : "Expires \(formatted)"
 }
 
 @MainActor
 private func expiryTone(_ raw: String?) -> Color {
-    guard let date = parseLicenseDate(raw) else { return .secondary }
-    if date < Calendar.current.startOfDay(for: Date()) {
-        return Color.statusText(.red)
-    }
-    let soon = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
-    if date <= soon {
-        return Color.statusText(.orange)
-    }
+    guard let daysLeft = LicenseExpiry.daysUntil(raw) else { return .secondary }
+    if daysLeft < 0 { return Color.statusText(.red) }
+    if daysLeft <= 30 { return Color.statusText(.orange) }
     return .secondary
 }
 
-@MainActor
 private func parseLicenseDate(_ raw: String?) -> Date? {
     guard let raw, !raw.isEmpty else { return nil }
     return LicenseDateFormatters.fractional.date(from: raw) ?? LicenseDateFormatters.standard.date(from: raw)
 }
 
-@MainActor
 private enum LicenseDateFormatters {
-    static let fractional: ISO8601DateFormatter = {
+    // Read-only after initialization (formatOptions set once, then only
+    // `.date(from:)` is called) — safe to share without actor isolation, and
+    // keeps the expiry helpers callable from tests off the main actor. Same
+    // treatment as GuideDateFormatters.
+    nonisolated(unsafe) static let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    static let standard: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let standard: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

@@ -48,7 +48,7 @@
 | `KitMembership` | 6 | 2 |
 | `KitBulkMembership` | 7 | 3 |
 | `CalendarSource` | 11 | 2 |
-| `CalendarEvent` | 33 | 6 |
+| `CalendarEvent` | 34 | 6 |
 | `ScheduleEventFollow` | 9 | 3 |
 | `BookingEvent` | 7 | 4 |
 | `LocationMapping` | 6 | 1 |
@@ -74,6 +74,7 @@
 | `BadgeEventReceipt` | 6 | 3 |
 | `LicenseCode` | 15 | 4 |
 | `LicenseCodeClaim` | 10 | 3 |
+| `SoftwareCredential` | 9 | 2 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
 | `ShiftGroup` | 17 | 3 |
@@ -292,6 +293,12 @@
 
 - `WIN`
 - `LOSS`
+
+### `CalendarEventSite`
+
+- `HOME`
+- `AWAY`
+- `NEUTRAL`
 
 ### `ScheduleFollowSource`
 

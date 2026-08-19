@@ -606,6 +606,8 @@ function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; ex
     sportCode: null,
     opponent: null,
     isHome: null,
+    site: null,
+    result: null,
     summaryLocked: false,
     isHomeLocked: false,
     locationLocked: false,
@@ -672,6 +674,105 @@ describe("splitEventsForSync", () => {
     expect(result.toUpdate).toHaveLength(1);
     expect(result.toUpdate[0]!.data.externalId).toBe("existing-changed");
     expect(result.unchanged).toHaveLength(1);
+  });
+
+  it("writes WIN/LOSS from the source marker on new events", () => {
+    const parsed = [
+      makeParsedEvent({ uid: "won", summary: "[W] Wisconsin Athletics MBB vs Purdue" }),
+      makeParsedEvent({ uid: "lost", summary: "[L] MBB at Purdue" }),
+      makeParsedEvent({ uid: "unplayed", summary: "MBB vs Purdue" }),
+    ];
+    const result = splitEventsForSync(parsed, [], []);
+    const byId = new Map(result.toCreate.map((e) => [e.externalId, e]));
+    expect(byId.get("won")!.result).toBe("WIN");
+    expect(byId.get("lost")!.result).toBe("LOSS");
+    expect(byId.get("unplayed")!.result).toBeNull();
+  });
+
+  it("keeps the marker out of the stored title while recording the result", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "[W] Wisconsin Athletics MBB vs Purdue" })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0]!.summary).toBe("MBB vs Purdue");
+    expect(result.toCreate[0]!.rawSummary).toBe("[W] Wisconsin Athletics MBB vs Purdue");
+    expect(result.toCreate[0]!.result).toBe("WIN");
+  });
+
+  it("moves an event to toUpdate when the source posts a result", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "[W] MBB vs Purdue" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", summary: "MBB vs Purdue", result: null })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.result).toBe("WIN");
+  });
+
+  it("preserves a known result when the feed drops the marker", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "MBB vs Purdue" })];
+    // Every derived field already matches, so result is the only variable.
+    const existing = [
+      makeExistingRow({
+        id: "db-1",
+        externalId: "evt-1",
+        summary: "MBB vs Purdue",
+        sportCode: "MBB",
+        opponent: "Purdue",
+        isHome: true,
+        site: "HOME",
+        result: "WIN",
+      }),
+    ];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(0);
+    expect(result.unchanged).toEqual(["evt-1"]);
+  });
+
+  it("overwrites a stored result when the source corrects the marker", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "[L] MBB vs Purdue" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", summary: "MBB vs Purdue", result: "WIN" })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.result).toBe("LOSS");
+  });
+
+  it("records a result even when the title is manually locked", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "[W] MBB vs Purdue" })];
+    const existing = [
+      makeExistingRow({ id: "db-1", externalId: "evt-1", summary: "Custom Title", summaryLocked: true, result: null }),
+    ];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.summary).toBe("Custom Title");
+    expect(result.toUpdate[0]!.data.result).toBe("WIN");
+  });
+
+  it("records where a game was played alongside home/away", () => {
+    const parsed = [
+      makeParsedEvent({ uid: "home", summary: "MBB vs Purdue", location: "Madison, WI, Kohl Center" }),
+      makeParsedEvent({ uid: "away", summary: "MBB at Purdue", location: "West Lafayette, IN" }),
+      makeParsedEvent({ uid: "neutral", summary: "MBB vs Purdue", location: "Kansas City, MO" }),
+    ];
+    const byId = new Map(splitEventsForSync(parsed, [], []).toCreate.map((e) => [e.externalId, e]));
+    expect(byId.get("home")).toMatchObject({ isHome: true, site: "HOME" });
+    expect(byId.get("away")).toMatchObject({ isHome: false, site: "AWAY" });
+    // isHome collapses this into null; site keeps it distinguishable.
+    expect(byId.get("neutral")).toMatchObject({ isHome: null, site: "NEUTRAL" });
+  });
+
+  it("leaves site unknown when nothing indicates where a game was played", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "Football Senior Day", location: "" })];
+    expect(splitEventsForSync(parsed, [], []).toCreate[0]!.site).toBeNull();
+  });
+
+  it("moves an event to toUpdate when only the site changes", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "MBB vs Purdue", location: "Madison, WI" })];
+    const existing = [
+      makeExistingRow({
+        id: "db-1", externalId: "evt-1", summary: "MBB vs Purdue",
+        sportCode: "MBB", opponent: "Purdue", isHome: true, site: null,
+      }),
+    ];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.site).toBe("HOME");
   });
 
   it("skips events with invalid dates and adds to skippedErrors", () => {

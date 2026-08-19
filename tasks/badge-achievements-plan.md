@@ -1,3 +1,143 @@
+# Badge Achievements Plan v7 (proposal)
+
+Revised: 2026-08-19
+Status: All fifteen are implemented locally across migrations 0117-0122, with
+thresholds calibrated against real history. Two badges have no possible holder
+yet for reasons calibration cannot fix. Migration application and rollout remain
+out of scope.
+
+## v7 Goal
+
+Add fifteen harder automatic badges -- ten visible challenges and five hidden
+easter eggs -- using only facts Gear Tracker already captures. The v6 catalog
+recognises volume (counts and ladders) and single-checkout composition. It does
+not yet recognise breadth across the Schedule half of the product, custody
+duration, or the return moment itself, and it has exactly one easter egg.
+
+## v7 Product Rules
+
+- Every badge is automatic. None appear as staff-awarded definitions.
+- Every rule derives from an existing trigger: `checkout:opened`,
+  `checkout:returned`, `trade:completed`, `shift:completed`, or `app:opened`.
+- Checkout rules read credited `BadgeEventReceipt` rows so ownership transfer
+  cannot move or duplicate credit, matching the v6 rule.
+- No new event source, no client claim, no client clock.
+- `CalendarEvent.result` is deliberately unused. The column exists but nothing
+  in `src` writes it, so a win/loss badge would never award.
+- `ShiftAssignment.attended` is deliberately unused. Descriptions say assigned
+  to a completed shift, never attended, per the v6 language correction.
+- Names stay rooted in gear and production work.
+
+## v7 Proposed Catalog
+
+Sort order continues the v6 fun block. Hidden keys must also be added to
+`HIDDEN_BADGE_KEYS` in `src/lib/badges/display.ts`.
+
+### Visible challenges
+
+| Key | Name | Requirement | Trigger | Rule key | Threshold | Icon / SF Symbol |
+|---|---|---|---|---|---|---|
+| `season_pass` | Season Pass | Assigned to completed shifts across 8 distinct sports | `shift:completed` | `shift_sports` | 8 | `Ticket` / `ticket.fill` |
+| `utility_crew` | Utility Crew | Assigned to completed shifts in 4 distinct shift areas | `shift:completed` | `shift_areas` | 4 | `Shuffle` / `shuffle` |
+| `doubleheader` | Doubleheader | 5 separate days holding 2 or more completed assignments | `shift:completed` | `shift_doubleheader_days` | 5 | `Repeat` / `repeat` |
+| `under_the_lights` | Under the Lights | 5 completed assignments whose shift ended at or after 10 p.m. local | `shift:completed` | `shift_after_22` | 5 | `Sunset` / `sunset.fill` |
+| `short_notice` | Short Notice | Completed 3 trades claimed less than 24 hours before the shift started | `trade:completed` | `trade_short_notice` | 3 | `AlarmClock` / `alarm.fill` |
+| `deep_inventory` | Deep Inventory | 25 distinct serialized items across credited checkouts | `checkout:opened` | `checkout_distinct_assets` | 25 | `Warehouse` / `building.2.fill` |
+| `regular_rotation` | Regular Rotation | Opened checkouts in 8 distinct local calendar weeks | `checkout:opened` | `checkout_weeks` | 8 | `CalendarRange` / `calendar.badge.clock` |
+| `kit_complete` | Kit Complete | Opened 10 checkouts built from a saved kit | `checkout:opened` | `checkout_from_kit` | 10 | `PackageOpen` / `shippingbox.fill` |
+| `long_haul` | Long Haul | Returned 3 checkouts held 7 days or longer with nothing damaged or missing | `checkout:returned` | `return_long_haul` | 3 | `Truck` / `truck.box.fill` |
+| `round_trip` | Round Trip | 20 checkouts opened and returned inside the same local day | `checkout:returned` | `return_same_day` | 20 | `ArrowLeftRight` / `arrow.left.arrow.right` |
+
+### Hidden easter eggs
+
+| Key | Name | Requirement | Trigger | Rule key | Threshold | Icon / SF Symbol |
+|---|---|---|---|---|---|---|
+| `buzzer_beater` | Buzzer Beater | 3 returns completed inside the final five minutes before due | `checkout:returned` | `return_buzzer_beater` | 3 | `Timer` / `timer` |
+| `old_faithful` | Old Faithful | Checked out one specific item 25 times | `checkout:opened` | `checkout_same_asset` | 25 | `Camera` / `camera.fill` |
+| `battery_run` | Battery Run | Opened 5 checkouts containing nothing but batteries | `checkout:opened` | `checkout_batteries_only` | 5 | `BatteryLow` / `battery.25` |
+| `take_thirteen` | Take Thirteen | Opened the app on a Friday the 13th | `app:opened` | `local_friday_13` | RULE | `Clapperboard` / `clapperboard.fill` |
+| `holiday_hours` | Holiday Hours | Opened the app on December 25 or January 1 in institution time | `app:opened` | `local_holiday` | RULE | `Gift` / `gift.fill` |
+
+## v7 Source Checks
+
+- `onCheckoutOpened` selects only category shape from credited bookings. Four
+  rules need more columns on that same query: `serializedItems.assetId`
+  (`deep_inventory`, `old_faithful`), `startsAt` (`regular_rotation`), `kitId`
+  (`kit_complete`), and the existing family set (`battery_run`).
+- `onShiftsWorked` selects `callStartsAt`, `startsAt`, and `event.isHome`. The
+  four shift rules additionally need `shift.endsAt`, `shift.area`,
+  `event.sportCode`, and the event's local date.
+- The return lane has no measured-rule path. `onCheckoutReturned` awards through
+  `awardThresholdBadges` with a fixed `ON_TIME` category, so `long_haul`,
+  `round_trip`, and `buzzer_beater` need either a `MILESTONE` measured-rule call
+  on `checkout:returned` or a category argument on the existing helper.
+- `onCheckoutReturned` returns early when `wasOnTime` is false. `round_trip` and
+  `long_haul` must be evaluated before that early return, next to the existing
+  damage-free lane.
+- `onAppOpened` returns early unless the local hour is 2. Date-based eggs need
+  the rule check restructured into a list of matchers, each claiming its own
+  receipt source key.
+- `ShiftTrade` stores `claimedAt` and reaches the shift through
+  `shiftAssignment.shift.startsAt`, so `short_notice` needs no new column.
+- `CalendarEventResult` is now written by calendar sync from the source
+  `[W]`/`[L]` marker, so an outcome-keyed rule can read `CalendarEvent.result`
+  instead of adding a column. Coverage is only as good as the feed's markers,
+  and pre-0106 rows without a captured marker stay unknown.
+
+## v7 Calibration Requirement
+
+The v6 thresholds were calibrated so each challenge had proof of attainability
+while only one to three current users qualified. The numbers above are design
+intent, not measured values, and must be checked against production history
+before any seed migration is written. Any rule where zero users qualify ships as
+an unreachable badge; any rule where most users already qualify is not a
+challenge.
+
+## v7 Slices
+
+- [x] Shift breadth slice: `season_pass`, `utility_crew`, `doubleheader`, and
+      `under_the_lights`. Extended the completed-assignment select in both the
+      evaluator and the profile progress query, added the four lanes to
+      `shiftAutomaticRuleCounts`, seeded migration `0117_badge_shift_breadth`
+      with a historical backfill, mirrored `prisma/seed.mjs`, added web icons
+      and iOS SF Symbols, and added `tests/badge-shift-breadth.test.ts`.
+- [x] Checkout slice: `deep_inventory`, `regular_rotation`, `kit_complete`, and
+      the hidden `old_faithful` and `battery_run`. Extended the credited-checkout
+      select in both call sites, passed the institution timezone into
+      `checkoutAutomaticRuleCounts`, seeded migration
+      `0118_badge_checkout_breadth` with a historical backfill, added the two
+      hidden keys, added the `BatteryLow` icon on web and iOS, and added
+      `tests/badge-checkout-breadth.test.ts`.
+- [x] Return slice: `long_haul`, `round_trip`, and hidden `buzzer_beater`.
+      Added `returnAutomaticRuleCounts`, widened the completed-checkout read and
+      moved it above the on-time early return, seeded
+      `0119_badge_return_moment` with a custodian-side backfill, and added
+      `tests/badge-return-moment.test.ts`.
+- [x] App-open slice: hidden `take_thirteen` and `holiday_hours`. Restructured
+      `onAppOpened` into `APP_OPEN_RULES`, preserved the `local-hour-2:` receipt
+      prefix, and seeded `0120_badge_app_open_eggs` with no backfill.
+- [x] Trade slice: `short_notice`. `onTradeCompleted` reads trade rows instead
+      of counting, and `0122_badge_short_notice` backfills claimer-side history.
+- [x] Hidden keys, web icons, iOS SF Symbols, and area-doc sync.
+- [x] Calibrate all thirteen counted thresholds. Measured per-user totals and
+      structural ceilings against the preview Neon branch (30 active users, 165
+      checkouts, 112 assignments, 10 staffed sports, 5 staffed crew areas, 23
+      weeks of checkout history, 78 distinct assets ever handled).
+- [x] Split the catalog between four day-one awards and nine long-run goals set
+      above the current leader, on the product call that larger numbers are
+      wanted. Calibration is what makes those goals reachable rather than
+      arbitrary: each sits under its ceiling and within one to two seasons of
+      the current leader, on five months of history.
+- [ ] Decide whether to launch `kit_complete` and `short_notice`. No checkout
+      has ever used a saved kit and the `shift_trades` table is empty, so both
+      sit at zero holders regardless of threshold. The same emptiness leaves the
+      pre-existing `first_trade`, `trade_5`, and `trade_10` unearned.
+- [ ] Re-run calibration against production before enablement if the preview
+      branch has drifted from it.
+- [ ] Sync D-034.
+
+---
+
 # Badge Achievements Plan v6
 
 Revised: 2026-08-10 (v6 ownership, completion, catalog, and easter eggs)

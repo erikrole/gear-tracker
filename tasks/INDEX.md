@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Start Here
 
@@ -55,6 +55,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - `internal-public-beta-release-cut-followup.md` - release cut work that requires a clean worktree and explicit shipping approval.
 - `repo-public-surface-plan-2026-08-15.md` - public README, GitHub About metadata, and conservative web-release posture.
 - `signature-capture-micro-app-plan.md` - Men’s Basketball pen-only signature capture, roster snapshots, deterministic private artifacts, and rollout proof.
+- `software-vault-plan-2026-08-19.md` - encrypted shared software access above the existing Photo Mechanic license pool, with migration, key, and authenticated runtime rollout gates.
 
 ## Archive Buckets
 

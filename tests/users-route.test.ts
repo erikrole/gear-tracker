@@ -13,6 +13,9 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    calendarEvent: {
+      groupBy: vi.fn(),
+    },
   },
 }));
 
@@ -142,6 +145,7 @@ beforeEach(() => {
   vi.mocked(db.user.findMany).mockResolvedValue([]);
   vi.mocked(db.user.count).mockResolvedValue(0);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
+  vi.mocked(db.calendarEvent.groupBy).mockResolvedValue([]);
   vi.mocked(db.user.update).mockResolvedValue(updatedUser(makeUser({ directReportId: managerId })));
   vi.mocked(revokeCompanionUser).mockResolvedValue(undefined);
 });

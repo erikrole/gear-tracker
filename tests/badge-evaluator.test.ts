@@ -23,6 +23,7 @@ const { mockTx } = vi.hoisted(() => ({
     },
     shiftTrade: {
       count: vi.fn(),
+      findMany: vi.fn(),
     },
     shiftAssignment: {
       count: vi.fn(),
@@ -55,16 +56,21 @@ beforeEach(() => {
   mockTx.booking.count.mockResolvedValue(0);
   mockTx.badgeDefinition.findMany.mockResolvedValue([]);
   mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+  mockTx.shiftTrade.findMany.mockResolvedValue([]);
 });
 
 describe("badge evaluator shift work", () => {
   it("awards shift badges from assignments to events that have ended", async () => {
     mockTx.shiftAssignment.findMany.mockResolvedValue(Array.from({ length: 10 }, () => ({
       callStartsAt: null,
+      callEndsAt: null,
       shift: {
         startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        endsAt: new Date("2026-08-10T19:00:00.000Z"),
         callStartsAt: null,
-        shiftGroup: { event: { isHome: true } },
+        callEndsAt: null,
+        area: "VIDEO",
+        shiftGroup: { event: { isHome: true, sportCode: "MBB" } },
       },
     })));
     mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => (
@@ -112,10 +118,14 @@ describe("badge evaluator shift work", () => {
     // shifts asks for exactly the same rows and changes nothing.
     mockTx.shiftAssignment.findMany.mockResolvedValue(Array.from({ length: 10 }, () => ({
       callStartsAt: null,
+      callEndsAt: null,
       shift: {
         startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        endsAt: new Date("2026-08-10T19:00:00.000Z"),
         callStartsAt: null,
-        shiftGroup: { event: { isHome: true } },
+        callEndsAt: null,
+        area: "VIDEO",
+        shiftGroup: { event: { isHome: true, sportCode: "MBB" } },
       },
     })));
     mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => (
@@ -137,26 +147,38 @@ describe("badge evaluator shift work", () => {
     mockTx.shiftAssignment.findMany.mockResolvedValue([
       {
         callStartsAt: new Date("2026-08-10T10:30:00.000Z"),
+        callEndsAt: null,
         shift: {
           startsAt: new Date("2026-08-10T13:00:00.000Z"),
+          endsAt: new Date("2026-08-10T17:00:00.000Z"),
           callStartsAt: null,
-          shiftGroup: { event: { isHome: false } },
+          callEndsAt: null,
+          area: "VIDEO",
+          shiftGroup: { event: { isHome: false, sportCode: "MBB" } },
         },
       },
       {
         callStartsAt: new Date("2026-08-11T11:15:00.000Z"),
+        callEndsAt: null,
         shift: {
           startsAt: new Date("2026-08-11T13:00:00.000Z"),
+          endsAt: new Date("2026-08-11T17:00:00.000Z"),
           callStartsAt: null,
-          shiftGroup: { event: { isHome: false } },
+          callEndsAt: null,
+          area: "VIDEO",
+          shiftGroup: { event: { isHome: false, sportCode: "MBB" } },
         },
       },
       {
         callStartsAt: new Date("2026-08-12T13:00:00.000Z"),
+        callEndsAt: null,
         shift: {
           startsAt: new Date("2026-08-12T14:00:00.000Z"),
+          endsAt: new Date("2026-08-12T17:00:00.000Z"),
           callStartsAt: null,
-          shiftGroup: { event: { isHome: false } },
+          callEndsAt: null,
+          area: "VIDEO",
+          shiftGroup: { event: { isHome: false, sportCode: "MBB" } },
         },
       },
     ]);
@@ -177,6 +199,60 @@ describe("badge evaluator shift work", () => {
       data: [
         { userId: "user-1", definitionId: "road-tested" },
         { userId: "user-1", definitionId: "before-sunrise" },
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("awards shift breadth badges from the same nightly pass", async () => {
+    process.env.APP_TIMEZONE = "America/Chicago";
+    mockTx.shiftAssignment.findMany.mockResolvedValue([
+      {
+        callStartsAt: null,
+        callEndsAt: null,
+        shift: {
+          startsAt: new Date("2026-08-10T23:00:00.000Z"),
+          endsAt: new Date("2026-08-11T03:30:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "VIDEO",
+          shiftGroup: { event: { isHome: true, sportCode: "MBB" } },
+        },
+      },
+      {
+        callStartsAt: null,
+        callEndsAt: null,
+        shift: {
+          startsAt: new Date("2026-08-11T02:00:00.000Z"),
+          endsAt: new Date("2026-08-11T04:00:00.000Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+          area: "PHOTO",
+          shiftGroup: { event: { isHome: true, sportCode: "WVB" } },
+        },
+      },
+    ]);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => {
+      if (where.category === "MILESTONE") {
+        return [
+          { id: "season-pass", ruleKey: "shift_sports", threshold: 8 },
+          { id: "utility-crew", ruleKey: "shift_areas", threshold: 2 },
+          { id: "doubleheader", ruleKey: "shift_doubleheader_days", threshold: 1 },
+          { id: "under-the-lights", ruleKey: "shift_after_22", threshold: 1 },
+        ];
+      }
+      return [];
+    });
+
+    await onShiftsWorked({ userId: "user-1" });
+
+    // Season Pass stays locked at two sports; the other three are met, and the
+    // two shifts land on one local evening despite spanning two UTC days.
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: "user-1", definitionId: "utility-crew" },
+        { userId: "user-1", definitionId: "doubleheader" },
+        { userId: "user-1", definitionId: "under-the-lights" },
       ],
       skipDuplicates: true,
     });
@@ -230,7 +306,10 @@ describe("badge evaluator checkout events", () => {
   it("counts serialized and bulk inventory toward category breadth", async () => {
     mockTx.booking.findMany.mockResolvedValue([
       {
+        startsAt: new Date("2026-08-10T18:00:00.000Z"),
+        kitId: null,
         serializedItems: [{
+          assetId: "asset-1",
           asset: { category: { id: "camera", name: "Cameras", parent: null } },
         }],
         bulkItems: [{
@@ -252,8 +331,11 @@ describe("badge evaluator checkout events", () => {
 
     expect(mockTx.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
       select: {
+        startsAt: true,
+        kitId: true,
         serializedItems: {
           select: {
+            assetId: true,
             asset: {
               select: {
                 category: { select: { id: true, name: true, parent: { select: { name: true } } } },
@@ -293,10 +375,12 @@ describe("badge evaluator checkout events", () => {
         ...(bookingIndex < 2 ? [{ id: `light-${bookingIndex}`, name: "Lighting" }] : []),
       ];
       const serializedItems = categories.map((category) => ({
+        assetId: `asset-${category.id}`,
         asset: { category: { ...category, parent: null } },
       }));
       if (bookingIndex === 0) {
         serializedItems.push(...Array.from({ length: 10 }, (_, itemIndex) => ({
+          assetId: `asset-battery-extra-${itemIndex}`,
           asset: {
             category: {
               id: `battery-extra-${itemIndex}`,
@@ -306,7 +390,12 @@ describe("badge evaluator checkout events", () => {
           },
         })));
       }
-      return { serializedItems, bulkItems: [] };
+      return {
+        startsAt: new Date(Date.UTC(2026, 7, 10 + bookingIndex, 18)),
+        kitId: null,
+        serializedItems,
+        bulkItems: [],
+      };
     }));
     mockTx.badgeDefinition.findMany
       .mockResolvedValueOnce([])
@@ -346,11 +435,19 @@ describe("badge evaluator checkout events", () => {
   it("awards on-time count and streak badges once per source key", async () => {
     const now = new Date("2026-05-09T18:00:00.000Z");
     mockTx.booking.findMany.mockResolvedValue([
-      { endsAt: new Date("2026-05-09T17:50:00.000Z"), updatedAt: now, completedAt: now },
       {
+        startsAt: new Date("2026-05-09T15:00:00.000Z"),
+        endsAt: new Date("2026-05-09T17:50:00.000Z"),
+        updatedAt: now,
+        completedAt: now,
+        checkinReports: [],
+      },
+      {
+        startsAt: new Date("2026-05-08T15:00:00.000Z"),
         endsAt: new Date("2026-05-08T18:00:00.000Z"),
         updatedAt: new Date("2026-05-08T18:20:00.000Z"),
         completedAt: new Date("2026-05-08T18:20:00.000Z"),
+        checkinReports: [],
       },
     ]);
     // Keyed off the query rather than call order: `onCheckoutReturned` now runs
@@ -405,9 +502,11 @@ describe("badge evaluator checkout events", () => {
     mockTx.badgeEventReceipt.createMany.mockResolvedValue({ count: 0 });
     mockTx.booking.findMany.mockResolvedValue([
       {
+        startsAt: new Date("2026-05-09T15:00:00.000Z"),
         endsAt: new Date("2026-05-09T18:00:00.000Z"),
         updatedAt: new Date("2026-05-09T18:01:00.000Z"),
         completedAt: new Date("2026-05-09T18:01:00.000Z"),
+        checkinReports: [],
       },
     ]);
     mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => (
@@ -471,14 +570,18 @@ describe("badge evaluator checkout events", () => {
   it("counts on-time returns from completedAt even when later edits move updatedAt", async () => {
     mockTx.booking.findMany.mockResolvedValue([
       {
+        startsAt: new Date("2026-05-09T15:00:00.000Z"),
         endsAt: new Date("2026-05-09T18:00:00.000Z"),
         completedAt: new Date("2026-05-09T18:05:00.000Z"),
         updatedAt: new Date("2026-05-10T12:00:00.000Z"),
+        checkinReports: [],
       },
       {
+        startsAt: new Date("2026-05-08T15:00:00.000Z"),
         endsAt: new Date("2026-05-08T18:00:00.000Z"),
         completedAt: null,
         updatedAt: new Date("2026-05-08T18:05:00.000Z"),
+        checkinReports: [],
       },
     ]);
     mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => {
@@ -504,7 +607,13 @@ describe("badge evaluator checkout events", () => {
         kind: "CHECKOUT",
         status: "COMPLETED",
       },
-      select: { endsAt: true, updatedAt: true, completedAt: true },
+      select: {
+        startsAt: true,
+        endsAt: true,
+        updatedAt: true,
+        completedAt: true,
+        checkinReports: { select: { id: true }, take: 1 },
+      },
     });
     expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "on-time-2" }],
@@ -566,8 +675,16 @@ describe("badge evaluator checkout events", () => {
   });
 
   it("awards trade threshold badges from completed trade count", async () => {
-    mockTx.shiftTrade.count.mockResolvedValue(10);
-    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "trade-10" }]);
+    // The ladder reads the row count. Short-notice cover needs the rows
+    // themselves, so the evaluator fetches once instead of counting.
+    mockTx.shiftTrade.findMany.mockResolvedValue(Array.from({ length: 10 }, () => ({
+      claimedByUserId: "user-2",
+      claimedAt: new Date("2026-08-01T12:00:00.000Z"),
+      shiftAssignment: { shift: { startsAt: new Date("2026-08-10T18:00:00.000Z") } },
+    })));
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => (
+      where.category === "TRADE" ? [{ id: "trade-10" }] : []
+    ));
 
     await onTradeCompleted({
       userId: "user-1",
@@ -575,7 +692,7 @@ describe("badge evaluator checkout events", () => {
       sourceKey: "trade-1",
     });
 
-    expect(mockTx.shiftTrade.count).toHaveBeenCalledWith({
+    expect(mockTx.shiftTrade.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         status: "COMPLETED",
         OR: [
@@ -583,9 +700,45 @@ describe("badge evaluator checkout events", () => {
           { claimedByUserId: "user-1" },
         ],
       },
-    });
+    }));
     expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "trade-10" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("awards short-notice cover to the person who claimed the trade", async () => {
+    mockTx.shiftTrade.findMany.mockResolvedValue([
+      {
+        claimedByUserId: "user-1",
+        claimedAt: new Date("2026-08-10T12:00:00.000Z"),
+        shiftAssignment: { shift: { startsAt: new Date("2026-08-10T18:00:00.000Z") } },
+      },
+      {
+        claimedByUserId: "user-1",
+        claimedAt: new Date("2026-08-11T12:00:00.000Z"),
+        shiftAssignment: { shift: { startsAt: new Date("2026-08-11T18:00:00.000Z") } },
+      },
+      {
+        claimedByUserId: "user-1",
+        claimedAt: new Date("2026-08-12T12:00:00.000Z"),
+        shiftAssignment: { shift: { startsAt: new Date("2026-08-12T18:00:00.000Z") } },
+      },
+    ]);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => (
+      where.category === "MILESTONE"
+        ? [{ id: "short-notice", ruleKey: "trade_short_notice", threshold: 3 }]
+        : []
+    ));
+
+    await onTradeCompleted({
+      userId: "user-1",
+      tradeId: "trade-1",
+      sourceKey: "trade-1",
+    });
+
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "short-notice" }],
       skipDuplicates: true,
     });
   });

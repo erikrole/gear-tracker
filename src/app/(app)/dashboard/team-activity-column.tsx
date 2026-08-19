@@ -150,6 +150,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                 booking={r}
                 now={now}
                 accent="reservation"
+                showPickupBadge
                 onSelectBooking={onSelectBooking}
               />
             ))}

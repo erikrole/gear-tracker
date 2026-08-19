@@ -174,15 +174,16 @@ describe("iOS user directory polish", () => {
 describe("iOS guides reader polish", () => {
   it("preserves native markdown numbered-list values and compact row labels", () => {
     const guidesView = source("ios/Wisconsin/Views/GuidesView.swift");
+    const markdown = source("ios/Wisconsin/Views/GuideMarkdown.swift");
 
-    expect(guidesView).toContain("case numbered(number: Int, text: String)");
+    // Numbering follows the list's own start index and increments from there,
+    // so "5." renders as 5 rather than being renumbered from 1.
+    expect(markdown).toContain("case numbered(depth: Int, number: Int, text: GuideInlineText)");
+    expect(markdown).toContain("var number = Int(list.startIndex)");
+    expect(markdown).toContain("number += 1");
+
     expect(guidesView).toContain("Text(\"\\(number)\")");
-    expect(guidesView).toContain('.accessibilityLabel("Step \\(number). \\(text)")');
-    expect(guidesView).toContain("var nextOrderedNumber: Int?");
-    expect(guidesView).toContain("let number = nextOrderedNumber ?? numbered.number");
-    expect(guidesView).toContain("blocks.append(MarkdownBlock(kind: .numbered(number: number, text: numbered.text)))");
-    expect(guidesView).toContain("nextOrderedNumber = number + 1");
-    expect(guidesView).toContain("guard let number = Int(prefix)");
+    expect(guidesView).toContain('.accessibilityLabel("Step \\(number). \\(text.plain)")');
     expect(guidesView).toContain(".accessibilityLabel(accessibilityLabel)");
     expect(guidesView).toContain("parts.append(guide.updatedSummary)");
     expect(guidesView).not.toContain(".safeAreaInset(edge: .bottom)");

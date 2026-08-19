@@ -20,6 +20,14 @@ settings:
     LOCALIZATION_PREFERS_STRING_CATALOGS: "YES"
     DEAD_CODE_STRIPPING: "YES"
 
+packages:
+  # CommonMark + GFM parsing for the Resources reader. Wraps the same cmark-gfm
+  # engine the web reader reaches through remark-gfm, so both clients agree on
+  # the document. Contract: docs/GUIDE_MARKDOWN.md.
+  swift-markdown:
+    url: https://github.com/apple/swift-markdown
+    from: 0.8.0
+
 targets:
   Wisconsin:
     type: application
@@ -69,6 +77,8 @@ targets:
           - webcredentials:wisconsincreative.com
     dependencies:
       - target: WisconsinLiveActivities
+      - package: swift-markdown
+        product: Markdown
     settings:
       base:
         PRODUCT_NAME: Wisconsin Creative

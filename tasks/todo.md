@@ -2799,6 +2799,11 @@ Archived to `tasks/archive/completed-2026-06/search-and-bhphoto-cleanup-2026-06-
 
 ## Recently Shipped
 
+### iOS Resources Area (2026-08-18)
+- [x] **Guide reader Markdown parity** — Replaced the hand-rolled line parser with apple/swift-markdown (CommonMark + GFM, same cmark-gfm engine as `remark-gfm`). Fixes guide photos not loading, tables rendering one monospaced block per row, and `[!WARNING]` printing its literal marker. Contract in `docs/GUIDE_MARKDOWN.md`; 30 tests in `ios/WisconsinTests/GuideMarkdownTests.swift`
+- [x] **Reader affordances** — Image captions + VoiceOver labels, downsampled cached image loading, `mailto:`/`tel:` links, task lists, copyable code blocks, video embed cards
+- [x] **Area consistency (Guides / Users / Licenses)** — Tab-reset gesture on all three (only Users had it), forced refresh supersedes an in-flight load instead of being dropped, Clear-filters recovery in filtered-empty states, shared active-filter tint on Guides controls, concurrent license reads, expiring license confirmations, varied skeleton widths. Pinned by `tests/ios-resources-area-consistency.test.ts`
+
 ### Design System Cleanup (2026-04-14)
 - [x] **Badge variants** — Removed 4 unused variants (ghost, link, mixed, yellow); consolidated from 13 → 9
 - [x] **Typography** — 15 settings page headings migrated from hardcoded `text-[22px]` → `text-2xl` token

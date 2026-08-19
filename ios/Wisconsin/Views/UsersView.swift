@@ -172,8 +172,8 @@ struct UsersView: View {
             }
         } else if vm.users.isEmpty && vm.isLoading {
             List {
-                ForEach(0..<10, id: \.self) { _ in
-                    UserRowSkeleton()
+                ForEach(0..<10, id: \.self) { index in
+                    UserRowSkeleton(seed: index)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
@@ -185,13 +185,18 @@ struct UsersView: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
         } else if vm.users.isEmpty {
-            ContentUnavailableView(
-                "No users",
-                systemImage: "person.2",
-                description: Text(vm.searchText.isEmpty
-                    ? (hasFilter ? "No users match these filters." : "No users yet.")
-                    : "No results for \"\(vm.searchText)\".")
-            )
+            ContentUnavailableView {
+                Label(isCollaboratorDirectory ? "No people" : "No users", systemImage: "person.2")
+            } description: {
+                Text(emptyDescription)
+            } actions: {
+                // Narrowing yourself into an empty list needs a way out; without
+                // this the only recovery was undoing each control by hand.
+                if isNarrowed {
+                    Button("Clear filters") { clearFilters() }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
         } else {
             List {
                 ForEach(vm.users) { user in
@@ -240,6 +245,33 @@ struct UsersView: View {
 
     private var hasFilter: Bool {
         vm.selectedRole != nil || vm.includeInactive
+    }
+
+    /// Search counts here but not in `hasFilter` — the search field shows its
+    /// own state, so tinting the filter control for it would double-report.
+    private var isNarrowed: Bool {
+        hasFilter || !vm.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var emptyDescription: String {
+        let query = vm.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let noun = isCollaboratorDirectory ? "people" : "users"
+        switch (query.isEmpty, hasFilter) {
+        case (false, true):
+            return "Nothing matches \"\(query)\" with these filters."
+        case (false, false):
+            return "No results for \"\(query)\"."
+        case (true, true):
+            return "No \(noun) match these filters."
+        case (true, false):
+            return "No \(noun) yet."
+        }
+    }
+
+    private func clearFilters() {
+        vm.searchText = ""
+        vm.selectedRole = nil
+        vm.includeInactive = false
     }
 
     private var filterMenu: some View {
@@ -362,6 +394,16 @@ private struct UserListRow: View {
 }
 
 private struct UserRowSkeleton: View {
+    var seed: Int = 0
+
+    // Identical rows read as a test pattern rather than content arriving. These
+    // widths are the rough shape of real names and detail lines.
+    private static let nameWidths: [CGFloat] = [132, 168, 108, 152, 190]
+    private static let detailWidths: [CGFloat] = [186, 148, 212, 164, 128]
+
+    private var nameWidth: CGFloat { Self.nameWidths[seed % Self.nameWidths.count] }
+    private var detailWidth: CGFloat { Self.detailWidths[seed % Self.detailWidths.count] }
+
     var body: some View {
         HStack(spacing: 12) {
             StatusRail(tone: .gray)
@@ -371,10 +413,10 @@ private struct UserRowSkeleton: View {
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.secondary.opacity(0.15))
-                    .frame(width: 140, height: 12)
+                    .frame(width: nameWidth, height: 12)
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.secondary.opacity(0.10))
-                    .frame(width: 200, height: 9)
+                    .frame(width: detailWidth, height: 9)
             }
             Spacer()
             RoundedRectangle(cornerRadius: 8)

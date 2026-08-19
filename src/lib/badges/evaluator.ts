@@ -11,7 +11,9 @@ import { env } from "@/lib/env";
 import { isSerializationConflict } from "@/lib/serialization";
 import {
   checkoutAutomaticRuleCounts,
+  returnAutomaticRuleCounts,
   shiftAutomaticRuleCounts,
+  tradeAutomaticRuleCounts,
 } from "./automatic-rules";
 import {
   ON_TIME_GRACE_MS,
@@ -268,8 +270,11 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
         status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
       },
       select: {
+        startsAt: true,
+        kitId: true,
         serializedItems: {
           select: {
+            assetId: true,
             asset: {
               select: {
                 category: { select: { id: true, name: true, parent: { select: { name: true } } } },
@@ -293,7 +298,7 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
     await awardMeasuredRuleBadges(tx, {
       userId: event.userId,
       trigger: "checkout:opened",
-      counts: checkoutAutomaticRuleCounts(creditedCheckouts),
+      counts: checkoutAutomaticRuleCounts(creditedCheckouts, env.appTimezone),
     });
   });
 }
@@ -326,6 +331,30 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
       ruleKey: "damage_free_return",
     });
 
+    // Read once, above the on-time early return. A long custody and a same-day
+    // turnaround are facts about the return whether or not it was on time, so
+    // gating them behind `wasOnTime` would silently drop half their evidence.
+    const completedCheckouts = await tx.booking.findMany({
+      where: {
+        requesterUserId: event.userId,
+        kind: BookingKind.CHECKOUT,
+        status: BookingStatus.COMPLETED,
+      },
+      select: {
+        startsAt: true,
+        endsAt: true,
+        updatedAt: true,
+        completedAt: true,
+        checkinReports: { select: { id: true }, take: 1 },
+      },
+    });
+
+    await awardMeasuredRuleBadges(tx, {
+      userId: event.userId,
+      trigger: "checkout:returned",
+      counts: returnAutomaticRuleCounts(completedCheckouts, env.appTimezone),
+    });
+
     if (!event.wasOnTime) {
       await resetStreak(tx, {
         userId: event.userId,
@@ -336,14 +365,6 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
       return;
     }
 
-    const completedCheckouts = await tx.booking.findMany({
-      where: {
-        requesterUserId: event.userId,
-        kind: BookingKind.CHECKOUT,
-        status: BookingStatus.COMPLETED,
-      },
-      select: { endsAt: true, updatedAt: true, completedAt: true },
-    });
     const onTimeCount = completedCheckouts.filter(
       (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
     ).length;
@@ -375,7 +396,17 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
   });
 }
 
-function appDateAndHour(occurredAt: Date) {
+type AppOpenMoment = {
+  /** YYYY-MM-DD in the institution timezone. */
+  date: string;
+  hour: number;
+  month: number;
+  day: number;
+  /** 0 = Sunday, matching `Date.prototype.getUTCDay`. */
+  weekday: number;
+};
+
+function appOpenMoment(occurredAt: Date): AppOpenMoment {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: env.appTimezone,
     year: "numeric",
@@ -387,34 +418,82 @@ function appDateAndHour(occurredAt: Date) {
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? "";
 
+  const year = Number(value("year"));
+  const month = Number(value("month"));
+  const day = Number(value("day"));
+
   return {
     date: `${value("year")}-${value("month")}-${value("day")}`,
     hour: Number(value("hour")),
+    month,
+    day,
+    // Read back from the local calendar date, so the weekday is the one the
+    // user is living in rather than the UTC instant's.
+    weekday: new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay(),
   };
 }
+
+/**
+ * The app-open easter eggs, each owning the receipt key that makes it award at
+ * most once per local day.
+ *
+ * `local_hour_2` keeps its original `local-hour-2:` prefix. Renaming it to
+ * match the rule key would orphan every receipt already written and let a
+ * previously claimed day be claimed again.
+ */
+const APP_OPEN_RULES: Array<{
+  ruleKey: string;
+  receiptPrefix: string;
+  matches: (moment: AppOpenMoment) => boolean;
+}> = [
+  {
+    ruleKey: "local_hour_2",
+    receiptPrefix: "local-hour-2",
+    matches: (moment) => moment.hour === 2,
+  },
+  {
+    ruleKey: "local_friday_13",
+    receiptPrefix: "local-friday-13",
+    matches: (moment) => moment.day === 13 && moment.weekday === 5,
+  },
+  {
+    ruleKey: "local_holiday",
+    receiptPrefix: "local-holiday",
+    matches: (moment) => (
+      (moment.month === 12 && moment.day === 25)
+      || (moment.month === 1 && moment.day === 1)
+    ),
+  },
+];
 
 /**
  * Server-authoritative app-open easter eggs. The client only reports that the
  * signed-in app became active; the server's institution timezone decides
  * whether a rule matches, so changing a device clock cannot mint an award.
+ *
+ * More than one rule can match a single open -- 2 a.m. on Friday the 13th is
+ * both -- so every match is evaluated rather than the first.
  */
 export async function onAppOpened(event: AppOpenedBadgeEvent): Promise<void> {
-  const local = appDateAndHour(event.occurredAt);
-  if (local.hour !== 2) return;
+  const moment = appOpenMoment(event.occurredAt);
+  const matched = APP_OPEN_RULES.filter((rule) => rule.matches(moment));
+  if (matched.length === 0) return;
 
   await runBadgeTransaction(async (tx) => {
-    const isNewEvent = await claimEventReceipt(tx, {
-      userId: event.userId,
-      eventType: "app_opened",
-      sourceKey: `local-hour-2:${local.date}`,
-    });
-    if (!isNewEvent) return;
+    for (const rule of matched) {
+      const isNewEvent = await claimEventReceipt(tx, {
+        userId: event.userId,
+        eventType: "app_opened",
+        sourceKey: `${rule.receiptPrefix}:${moment.date}`,
+      });
+      if (!isNewEvent) continue;
 
-    await awardRuleBadges(tx, {
-      userId: event.userId,
-      trigger: "app:opened",
-      ruleKey: "local_hour_2",
-    });
+      await awardRuleBadges(tx, {
+        userId: event.userId,
+        trigger: "app:opened",
+        ruleKey: rule.ruleKey,
+      });
+    }
   });
 }
 
@@ -454,12 +533,16 @@ export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<voi
       },
       select: {
         callStartsAt: true,
+        callEndsAt: true,
         shift: {
           select: {
             startsAt: true,
+            endsAt: true,
             callStartsAt: true,
+            callEndsAt: true,
+            area: true,
             shiftGroup: {
-              select: { event: { select: { isHome: true } } },
+              select: { event: { select: { isHome: true, sportCode: true } } },
             },
           },
         },
@@ -489,7 +572,9 @@ export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise
     });
     if (!isNewEvent) return;
 
-    const tradeCount = await tx.shiftTrade.count({
+    // Read the rows rather than counting them. The ladder still only needs the
+    // total, but short-notice cover needs to know when each one was claimed.
+    const completedTrades = await tx.shiftTrade.findMany({
       where: {
         status: "COMPLETED",
         OR: [
@@ -497,13 +582,24 @@ export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise
           { claimedByUserId: event.userId },
         ],
       },
+      select: {
+        claimedByUserId: true,
+        claimedAt: true,
+        shiftAssignment: { select: { shift: { select: { startsAt: true } } } },
+      },
     });
 
     await awardThresholdBadges(tx, {
       userId: event.userId,
       category: BadgeCategory.TRADE,
       trigger: "trade:completed",
-      count: tradeCount,
+      count: completedTrades.length,
+    });
+
+    await awardMeasuredRuleBadges(tx, {
+      userId: event.userId,
+      trigger: "trade:completed",
+      counts: tradeAutomaticRuleCounts(completedTrades, event.userId),
     });
   });
 }

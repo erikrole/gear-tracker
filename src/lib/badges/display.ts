@@ -27,6 +27,11 @@ const HIDDEN_BADGE_KEYS = new Set([
   "event_hero",
   "clean_loop",
   "go_to_bed",
+  "old_faithful",
+  "battery_run",
+  "buzzer_beater",
+  "take_thirteen",
+  "holiday_hours",
 ]);
 
 const LEGENDARY_BADGE_KEYS = new Set([

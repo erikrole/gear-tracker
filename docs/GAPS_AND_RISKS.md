@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-18
+- Last Updated: 2026-08-19
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -29,6 +29,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-66 | Email-first invited onboarding rollout proof | AREA_USERS / AREA_MOBILE | Active | `/api/auth/discover`, the shared web login flow, native iOS discovery/registration wiring, the legacy `/register` redirect, responsive web profile completion, mobile re-entry, collaborator copy, operator CSV intake, and transient retry recovery are implemented locally. Authenticated web smoke must still prove an unclaimed allowlist email creates the account and reaches Welcome without a registration-link handoff; the iPhone 16 Pro simulator build/source gates and a real installed app acceptance remain before production claims. Source: `tasks/email-first-onboarding-plan-2026-08-17.md`. |
 | GAP-67 | Broader roster CSV and profile preload contract | AREA_USERS / AREA_SETTINGS | Active | The operator upload currently accepts the existing `email, role` shape. `AllowedEmail` can persist student name, primary/secondary areas, and sport codes, but the shared dialog does not expose those fields; location and student-year preload are not represented by the current invitation model. Reconcile the CSV columns, registration-time materialization, validation, and migration needs before expanding the upload contract. Source: `docs/BRIEF_ONBOARDING_V1.md` and D-037. |
 | GAP-68 | Persisted failed-invitation lifecycle status | AREA_USERS / AREA_SETTINGS | Active | The current invite service returns created/skipped outcomes and does not write failed rows. The web dialog now preserves unconfirmed HTTP, response-parse, and network attempts as a transient retryable state, but durable per-row failure reason, status-page visibility, and retry audit semantics still need an explicit service contract. Source: `tasks/email-first-onboarding-plan-2026-08-17.md`. |
+| GAP-69 | Software Vault rollout and key lifecycle proof | AREA_SOFTWARE / AREA_LICENSES | Active | The encrypted Software Vault is implemented locally with migration `0125_software_credentials`, but environment-key configuration, migration readback, admin credential entry, authenticated browser proof, and a coordinated key-rotation procedure remain open before real department credentials are used. Source: `docs/AREA_SOFTWARE.md` and `tasks/software-vault-plan-2026-08-19.md`. |
 
 ## Deferred Product Scope
 
@@ -64,9 +65,11 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Overdue workflow rollout skew | Migration, Workflow code, or responder configuration reaches production without the compatible peers | Deploy migration and server together, configure at least one responder per active checkout location, then verify exact timing and repair dedupe before relying on Workflow delivery | Engineering |
 | Signature input or artifact lifecycle drift | A tile turns green from local draft state, a public URL leaks, the public media store is reused, or one artifact is missing after a retry | Keep completion server-derived, require dedicated private-store auth, use private authenticated delivery, persist save-operation state, and run physical-input plus failure-injection acceptance before rollout | Engineering |
 | UWBadgers roster source drift | Duplicate cards/tables or changed profile links create duplicate or misclassified members | Keep the adapter structurally scoped, dedupe by profile identity, persist exact snapshots, surface review suggestions, and require explicit versioned apply | Engineering |
+| Software vault rollout skew | The schema, vault key, app code, or authenticated UI reaches an environment out of order, or a key is rotated without re-encrypting stored ciphertext | Apply migration `0125` before use, configure one stable 32-byte key per environment, enter credentials only after readback, audit reveal actions, and rehearse coordinated re-encryption before rotation | Engineering |
 
 ## Change Log
 
+- 2026-08-19: Added GAP-69 for the locally implemented encrypted Software Vault. Migration application/readback, `SOFTWARE_VAULT_KEY` configuration, admin-entered credentials, authenticated browser proof, and key lifecycle procedure remain rollout gates.
 - 2026-08-18: Reconciled the onboarding audit with a responsive profile-completion wizard, mobile reminder visibility, photo-only collaborator copy, email/role CSV upload, and transient failed-row retry recovery. GAP-66 remains active for authenticated web/native rollout proof; GAP-67 and GAP-68 track the deferred broader roster contract and persisted failed-invitation lifecycle.
 - 2026-08-18: Added local format-selectable Signature collection ZIPs for current committed PNG/SVG revisions and conservative cleanup for isolated tiny marks in newly generated stroke artifacts. Existing imported Football revisions still require cleaned source files and a reviewed reimport for corner-mark correction; GAP-65 remains active for authenticated delivery and physical iPad acceptance.
 - 2026-08-17: Added GAP-66 for email-first invited onboarding rollout proof. Local source, API, web, native wiring, and focused tests pass; authenticated browser proof, iPhone 16 Pro simulator/device acceptance, and production deployment remain open.

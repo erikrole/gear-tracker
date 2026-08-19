@@ -5,9 +5,41 @@ Last updated: 2026-07-03
 ## Connection Rules
 
 - `DATABASE_URL` is the pooled Neon runtime URL used by the app and `@prisma/adapter-neon`.
-- `DIRECT_URL` is the direct Neon URL used for Prisma CLI work, migration deploys, and migration health inspection.
-- Do not run DDL through the pooled runtime URL. The migration fallback refuses to run without `DIRECT_URL`.
-- `prisma.config.ts` points Prisma CLI commands at `DIRECT_URL`; runtime code should keep using `DATABASE_URL`.
+- `DIRECT_URL` is the repository's explicit direct Neon URL for Prisma CLI work,
+  migration deploys, and migration health inspection.
+- `DATABASE_URL_UNPOOLED` is the equivalent direct connection supplied by the
+  Neon Vercel integration. Repository migration scripts resolve
+  `DIRECT_URL` first, then `DATABASE_URL_UNPOOLED`.
+- Do not run DDL through the pooled runtime URL. Migration writers refuse to
+  run without `DIRECT_URL` or `DATABASE_URL_UNPOOLED`.
+- `DATABASE_URL` remains the pooled runtime URL and is never a migration
+  fallback. A key named `DIRECT_URL` that points at a Neon `-pooler` host is
+  rejected as well.
+- `prisma.config.ts` owns the Prisma CLI datasource and uses the same resolver
+  when a direct URL is present. Prisma 6 still requires a schema URL
+  syntactically, so the config supplies an internal `PRISMA_SCHEMA_URL`
+  placeholder rather than requiring runtime or direct credentials. The config's
+  datasource override remains authoritative for real CLI connections.
+  Application runtime database access remains configured explicitly by the
+  Neon Prisma adapter in `src/lib/db.ts`.
+  Schema-only commands may use an inert localhost placeholder; deploy, health,
+  bootstrap, and maintenance writers always require an executable direct URL.
+
+## Vercel sensitive variables
+
+Vercel Production and Preview variables marked Sensitive are intentionally
+non-readable after creation. Local `vercel env pull`/`vercel env run` output may
+therefore contain `[SENSITIVE]` instead of a connection string. The migration
+resolver detects that marker before Prisma or the Neon driver runs and explains
+the supported paths:
+
+1. run the migration inside the target Vercel build, where sensitive values are
+   injected at runtime;
+2. provide a direct Neon URL explicitly in the local shell for the one command;
+3. use the authenticated Neon operator path for that project and branch.
+
+Do not copy a production database credential into a committed env file, and do
+not downgrade it from Sensitive merely to make CLI download work.
 
 ## Supported Commands
 
@@ -21,7 +53,11 @@ npm run build
 
 - `db:migrate:check` verifies local migration folder shape, required `migration.sql` files, and prefix uniqueness.
 - `db:migrate:status` and `db:migrate:health` run the repo's Neon-backed health checker. They compare local migration folders with live `_prisma_migrations`, fail on pending local migrations, fail on unresolved failed rows, fail on applied DB rows missing locally, and verify the newest local migration is applied.
-- `db:migrate:deploy` runs `prisma migrate deploy` first. If Prisma exits with the known blank schema-engine error against Neon, the wrapper applies pending migration SQL through Neon HTTP and records `_prisma_migrations`.
+- `db:migrate:deploy` resolves `DIRECT_URL` or `DATABASE_URL_UNPOOLED`, exports
+  the result to Prisma as `DIRECT_URL`, and runs `prisma migrate deploy` first.
+  If Prisma exits with the known blank schema-engine error against Neon, the
+  wrapper applies pending migration SQL through Neon HTTP and records
+  `_prisma_migrations`.
 - `build` runs the deploy wrapper before `next build`, so Vercel builds fail early if migration state is not deployable. Use `npm run build:app` for local app compile proof when you are not intentionally validating migration deploy behavior.
 
 Raw `prisma migrate status` is not the source of truth in this repo because the local Prisma schema engine can fail blank against Neon. Use `npm run db:migrate:status` or `npm run db:migrate:health`.

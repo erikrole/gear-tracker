@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
+import { resolvePrismaDirectUrl } from "./lib/prisma-direct-url.mjs";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 
@@ -15,10 +16,9 @@ if (isMainModule()) {
 }
 
 async function main() {
-  const connectionString = process.env.DIRECT_URL;
-  if (!connectionString) {
-    console.error("Missing DIRECT_URL for Prisma migration health inspection.");
-    process.exit(1);
+  const { connectionString, source } = resolvePrismaDirectUrl();
+  if (source === "DATABASE_URL_UNPOOLED") {
+    console.log("Using DATABASE_URL_UNPOOLED for Prisma migration health.");
   }
 
   if (!existsSync(migrationsDir)) {

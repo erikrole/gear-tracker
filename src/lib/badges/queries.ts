@@ -9,8 +9,12 @@ import { getBadgeRarity } from "./display";
 import {
   automaticCheckoutRuleKeys,
   automaticMeasuredRuleKeys,
+  automaticReturnRuleKeys,
+  automaticTradeRuleKeys,
   checkoutAutomaticRuleCounts,
+  returnAutomaticRuleCounts,
   shiftAutomaticRuleCounts,
+  tradeAutomaticRuleCounts,
 } from "./automatic-rules";
 
 type CustomBadgeDefinitionInput = {
@@ -227,7 +231,17 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     ))
   ));
   const needsDamageFree = thresholdDefinitions.some((definition) => definition.ruleKey === "damage_free_return");
+  const needsReturnRuleEvidence = thresholdDefinitions.some((definition) => (
+    definition.ruleKey !== null && automaticReturnRuleKeys.includes(
+      definition.ruleKey as typeof automaticReturnRuleKeys[number],
+    )
+  ));
   const needsShifts = thresholdDefinitions.some((definition) => definition.trigger === "shift:completed");
+  const needsTradeRuleEvidence = thresholdDefinitions.some((definition) => (
+    definition.ruleKey !== null && automaticTradeRuleKeys.includes(
+      definition.ruleKey as typeof automaticTradeRuleKeys[number],
+    )
+  ));
   const streakTypes = new Set<BadgeStreakType>();
 
   for (const definition of thresholdDefinitions) {
@@ -237,7 +251,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
   const [
     checkoutOpenedReceipts,
     completedCheckouts,
-    tradeCount,
+    completedTrades,
     streaks,
     damageFreeCount,
     workedAssignments,
@@ -251,18 +265,24 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           select: { sourceKey: true },
         })
       : Promise.resolve([]),
-    needsOnTimeReturns
+    needsOnTimeReturns || needsReturnRuleEvidence
       ? db.booking.findMany({
           where: {
             requesterUserId: userId,
             kind: BookingKind.CHECKOUT,
             status: BookingStatus.COMPLETED,
           },
-          select: { endsAt: true, updatedAt: true, completedAt: true },
+          select: {
+            startsAt: true,
+            endsAt: true,
+            updatedAt: true,
+            completedAt: true,
+            checkinReports: { select: { id: true }, take: 1 },
+          },
         })
       : Promise.resolve([]),
-    needsTrades
-      ? db.shiftTrade.count({
+    needsTrades || needsTradeRuleEvidence
+      ? db.shiftTrade.findMany({
           where: {
             status: "COMPLETED",
             OR: [
@@ -270,8 +290,13 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
               { claimedByUserId: userId },
             ],
           },
+          select: {
+            claimedByUserId: true,
+            claimedAt: true,
+            shiftAssignment: { select: { shift: { select: { startsAt: true } } } },
+          },
         })
-      : Promise.resolve(0),
+      : Promise.resolve([]),
     streakTypes.size > 0
       ? db.badgeStreak.findMany({
           where: {
@@ -300,11 +325,15 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           },
           select: {
             callStartsAt: true,
+            callEndsAt: true,
             shift: {
               select: {
                 startsAt: true,
+                endsAt: true,
                 callStartsAt: true,
-                shiftGroup: { select: { event: { select: { isHome: true } } } },
+                callEndsAt: true,
+                area: true,
+                shiftGroup: { select: { event: { select: { isHome: true, sportCode: true } } } },
               },
             },
           },
@@ -322,8 +351,11 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
         },
         select: {
+          startsAt: true,
+          kitId: true,
           serializedItems: {
             select: {
+              assetId: true,
               asset: {
                 select: {
                   category: { select: { id: true, name: true, parent: { select: { name: true } } } },
@@ -345,8 +377,10 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
       })
     : [];
   const measuredRuleCounts = new Map([
-    ...checkoutAutomaticRuleCounts(creditedCheckoutRows),
+    ...checkoutAutomaticRuleCounts(creditedCheckoutRows, env.appTimezone),
+    ...returnAutomaticRuleCounts(completedCheckouts, env.appTimezone),
     ...shiftAutomaticRuleCounts(workedAssignments, env.appTimezone),
+    ...tradeAutomaticRuleCounts(completedTrades, userId),
   ]);
 
   const onTimeReturnCount = completedCheckouts.filter(
@@ -371,7 +405,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     else if (definition.trigger === "shift:completed") current = workedAssignments.length;
     else if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
     else if (definition.ruleKey === "on_time_return_streak") current = streakMap.get(BadgeStreakType.ON_TIME_RETURN)?.current ?? 0;
-    else if (definition.trigger === "trade:completed") current = tradeCount;
+    else if (definition.trigger === "trade:completed") current = completedTrades.length;
 
     if (current !== null) {
       progressByKey.set(definition.key, {
