@@ -1,7 +1,7 @@
 # Prisma direct URL hardening
 
 Date: 2026-08-19
-Status: Shipped; migrations 0117-0125 applied to production
+Status: Shipped; migrations 0117-0126 applied to production
 
 ## Goal
 
@@ -23,6 +23,9 @@ continuing to reject pooled runtime connections for DDL.
 - [x] Rehearse migrations `0117`-`0124` atomically on Neon branch
       `br-dry-bonus-ai1uukrj`, then apply the identical guarded transaction to
       production branch `br-gentle-sky-aisuwcsf`.
+- [x] Rehearse migration `0126_software_credential_visibility` on the same
+      isolated branch, then apply/read back the identical guarded production
+      transaction after `0125` was confirmed newest.
 
 ## Production evidence
 
@@ -38,5 +41,10 @@ continuing to reject pooled runtime connections for DDL.
   `b8debcbf66333da3b82f1eebac391c53b64df1d18e34a95f515864621d112f82`.
 - Commit `2548f4ce` deployed as `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS` with the
   Vercel build reporting no pending migrations.
+- Migration `0126_software_credential_visibility` was rehearsed and applied
+  with checksum `9a53d2962330acade5d053f7942ca9da49a71337dfd620a616d67e1792862a0d`.
+  Production now has 131 distinct completed migration names, `0126` newest,
+  and no unresolved rows. Commit `0b6c7931` deployed as
+  `dpl_C76nqguhMWnUAq8hRSPW2Kudj3Wh`.
 - `https://wisconsincreative.com/login` returned HTTP 200 after the migrations,
   and the public deployment smoke suite passed.

@@ -5,7 +5,7 @@
 - Area: Shared software access
 - Owner: Wisconsin Athletics Creative Product
 - Last Updated: 2026-08-19
-- Status: Active in production — audience-gated follow-up remains local
+- Status: Active in production — role-scoped and secret-lifecycle acceptance remains
 - Route: `/licenses` (presented as **Software**)
 
 ## Direction
@@ -60,12 +60,13 @@ All mutations use the existing authenticated audit path. Secret endpoints return
 ## Rollout Gates and Known Gaps
 
 - Configure one stable, independently generated 32-byte base64 `SOFTWARE_VAULT_KEY` per environment. Production has a Sensitive key configured; preview and development must receive separate keys before vault use there.
-- Migration `0125_software_credentials` is applied and read back in production with checksum `b8debcbf66333da3b82f1eebac391c53b64df1d18e34a95f515864621d112f82`; the initial table contains zero credential rows. Migration `0126_software_credential_visibility` remains a local follow-up and must be applied/read back before audience-gated use.
-- Authenticated desktop and narrow-width production proof passed for navigation, empty-state rendering, list redaction, responsive layout, and a clean console. Role-scoped audience filtering and hidden-copy/reveal/archive acceptance remain pending until the follow-up is deployed and an administrator enters the first real department credential; no test credential will be fabricated.
-- Key rotation is an operational re-encryption procedure, not a self-service UI. Password history remains deferred; per-record sharing is now part of the local follow-up contract.
+- Migrations `0125_software_credentials` and `0126_software_credential_visibility` are applied and read back in production. `0126` has checksum `9a53d2962330acade5d053f7942ca9da49a71337dfd620a616d67e1792862a0d`, preserves the existing credential row, and leaves no unresolved migrations.
+- Authenticated production proof passed for the admin surface at desktop and 390×844: the real credential remained masked, showed its Staff + Students default audience, and produced no horizontal overflow. Student/collaborator role filtering and reveal/copy/archive/restore remain pending; no secret was read, copied, or fabricated during release verification.
+- Key rotation is an operational re-encryption procedure, not a self-service UI. Password history remains deferred; per-record audience sharing is live.
 
 ## Change Log
 
+- 2026-08-19: Shipped audience-gated Software logins in commit `0b6c7931` and production deployment `dpl_C76nqguhMWnUAq8hRSPW2Kudj3Wh`; rehearsed/applied/read back migration `0126_software_credential_visibility`, preserved the real credential with the Staff + Students default, and passed authenticated desktop/narrow masking, audience-label, and responsive-layout proof without exposing the secret.
 - 2026-08-19: Shipped the encrypted Software Vault to production in commit `2548f4ce` and deployment `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS`; configured a production-only Sensitive key, applied/read back migration `0125_software_credentials`, and passed authenticated desktop/narrow empty-state and clean-console proof. First real-credential reveal/copy/archive/restore acceptance remains open.
 - 2026-08-19: Added the local audience-gated login follow-up: per-login Staff/Student/Collaborator audiences, default-deny collaborator capability access, server-side filtering before email decryption, and hidden-copy confirmation. Migration `0126_software_credential_visibility` and role-scoped runtime proof remain rollout gates.
 - 2026-08-19: Added the local encrypted Software Vault slice, preserved `/licenses` compatibility, and tracked migration, environment-key, and authenticated browser proof as rollout gates.

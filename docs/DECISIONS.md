@@ -1102,7 +1102,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   `docs/RELEASE_VERIFICATION.md`.
 
 ## Change Log
-- 2026-08-19: Added D-052 for the shared Software Vault: dedicated AES-256-GCM ciphertext, a required `SOFTWARE_VAULT_KEY`, audience-gated internal/collaborator access, explicit audited/rate-limited password reveal, and no secret values in list responses or audit records. Migrations `0125`/`0126` and authenticated runtime proof remain rollout gates.
+- 2026-08-19: Added D-052 for the shared Software Vault: dedicated AES-256-GCM ciphertext, a required `SOFTWARE_VAULT_KEY`, audience-gated internal/collaborator access, explicit audited/rate-limited password reveal, and no secret values in list responses or audit records. Migrations `0125`/`0126` and the admin runtime surface are live; student/collaborator and secret-lifecycle acceptance remain.
 - 2026-08-17: Added D-051 for rate-limited email-first discovery across web and native iOS. The existing allowlist and registration transaction remain authoritative; discovery returns only onboarding/password flow state, and old registration links now redirect to the app login surface.
 - 2026-08-15: Added D-049 for monthly `YYYY.M.N` web release versioning,
   GitHub Release creation from pushed tags, and continued Vercel `main`

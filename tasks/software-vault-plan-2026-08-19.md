@@ -24,7 +24,7 @@
 
 ## Product and Security Contract
 
-- Internal ADMIN, STAFF, and STUDENT users may discover active software records; external COLLABORATOR users remain denied by the API and hidden from the sidebar.
+- The initial production slice allowed ADMIN, STAFF, and STUDENT users to discover active software records; this audience-gated follow-up adds explicit collaborator access without weakening the default-deny policy.
 - ADMIN and STAFF may create, edit, and archive records.
 - List responses include non-secret metadata and the decrypted account email for the authorized internal viewer, but never include the password or encrypted ciphertext.
 - Password reveal/copy is a separate authenticated, rate-limited request that returns `private, no-store` data and writes an audit event without the secret.
@@ -56,7 +56,7 @@
 - [x] `npm run build:app`
 - [x] `npm run codemap` and `npm run verify:docs` when shared route/schema/docs maps change
 - [x] `git diff --check`
-- [ ] Authenticated browser smoke passed at desktop and narrow width for navigation, empty-state/list redaction, responsive layout, and a clean console. Reveal/copy remains pending until the first real credential exists; do not fabricate one for acceptance.
+- [ ] Authenticated browser smoke passed at desktop and narrow width for navigation, empty-state/list redaction, responsive layout, and a clean console. The live credential is now masked with its audience label; reveal/copy/archive/restore remains pending and must not expose the secret during evidence capture.
 - [x] Migration/deploy approval was granted; the guarded production migration and deploy-shaped Vercel build passed.
 
 ## Review
@@ -94,15 +94,23 @@
 
 ### Slices
 
-- [ ] Slice 1: Add the audience enum/array migration, validation, summary metadata, and pure access policy.
-- [ ] Slice 2: Enforce audience filtering on list/secret APIs and add the collaborator capability/nav gate with audit-safe updates.
-- [ ] Slice 3: Add checkbox-based audience controls and copied-state animation to the add/edit and card UI.
-- [ ] Slice 4: Run focused tests, TypeScript, lint/build, migration/docs checks, and record authenticated browser availability.
+- [x] Slice 1: Add the audience enum/array migration, validation, summary metadata, and pure access policy.
+- [x] Slice 2: Enforce audience filtering on list/secret APIs and add the collaborator capability/nav gate with audit-safe updates.
+- [x] Slice 3: Add checkbox-based audience controls and copied-state animation to the add/edit and card UI.
+- [x] Slice 4: Run focused tests, TypeScript, lint/build, migration/docs checks, and record authenticated browser availability.
 
 ### Verification
 
-- [ ] Audience policy, API boundary, schema, and UI source-contract tests.
-- [ ] `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, focused ESLint, and `npm run build:app`.
-- [ ] `npm run codemap`, `npm run verify:docs`, and `git diff --check` when shared maps/docs change.
-- [ ] Authenticated browser smoke of staff, student, and collaborator audience states if an approved migrated local session is available.
-- [ ] Do not apply the migration, seed real credentials, or make production changes without explicit approval.
+- [x] Audience policy, API boundary, schema, and UI source-contract tests.
+- [x] `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, focused ESLint, and `npm run build:app`.
+- [x] `npm run codemap`, `npm run verify:docs`, and `git diff --check` when shared maps/docs change.
+- [ ] Authenticated admin browser smoke passed on production at desktop and 390×844 with the real credential masked, the Staff + Students audience label present, and no horizontal overflow. Student and collaborator audience states remain pending because matching authenticated sessions were unavailable.
+- [x] Do not apply the migration, seed real credentials, or make production changes without explicit approval.
+
+### Review
+
+- Shipped: per-login Staff/Student/Collaborator audience controls, server-side filtering before email decryption, the default-deny collaborator capability/nav/API gate, hidden-copy confirmation, collaborator-safe suppression of the Photo Mechanic pool, and migration `0126_software_credential_visibility`.
+- Verified: 3,385 tests, Prisma validate/format, migration-prefix check, TypeScript, lint, `npm run build:app`, codemap/docs verification, `git diff --check`, isolated-branch rehearsal, guarded production migration/readback, production deployment, public smoke, and authenticated admin desktop/narrow masking and audience-label proof.
+- Deferred: Student/collaborator authenticated audience proof, first real-credential reveal/copy/archive/restore acceptance, and coordinated key rotation.
+- Blocked: Matching student and capability-enabled collaborator sessions were unavailable. The release did not read, copy, archive, or otherwise expose the real credential secret.
+- Proof artifacts: commit `0b6c7931`, deployment `dpl_C76nqguhMWnUAq8hRSPW2Kudj3Wh`, and migration checksum `9a53d2962330acade5d053f7942ca9da49a71337dfd620a616d67e1792862a0d`.
