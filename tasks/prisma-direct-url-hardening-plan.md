@@ -1,7 +1,7 @@
 # Prisma direct URL hardening
 
 Date: 2026-08-19
-Status: Implemented; migrations 0117-0124 applied to production
+Status: Shipped; migrations 0117-0125 applied to production
 
 ## Goal
 
@@ -30,8 +30,13 @@ continuing to reject pooled runtime connections for DDL.
   migrations and no unresolved rows.
 - Migrations `0117`-`0124` were applied in one transaction after the rehearsal
   branch passed ledger and semantic readback.
-- Production now has exactly eight completed target rows, no unresolved rows,
-  and `0124_calendar_event_site` as the newest applied migration.
-- All eight production checksums match the corresponding local migration SQL.
-- Migration `0125_software_credentials` remains intentionally unapplied.
-- `https://wisconsincreative.com/login` returned HTTP 200 after the migration.
+- Production then received guarded migration `0125_software_credentials` after
+  the same rehearsal branch passed structural and ledger readback. Production
+  now has 130 applied migrations, no unresolved rows, and `0125` as the newest.
+- All nine production checksums for `0117`-`0125` match their local migration
+  SQL; `0125` has checksum
+  `b8debcbf66333da3b82f1eebac391c53b64df1d18e34a95f515864621d112f82`.
+- Commit `2548f4ce` deployed as `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS` with the
+  Vercel build reporting no pending migrations.
+- `https://wisconsincreative.com/login` returned HTTP 200 after the migrations,
+  and the public deployment smoke suite passed.

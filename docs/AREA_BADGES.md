@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
 - Last Updated: 2026-08-19
-- Status: Active, reward celebrations and shift breadth badges implemented locally; migration and runtime rollout pending
+- Status: Active in production; native device visual acceptance remains
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
@@ -131,6 +131,7 @@ The badge profile payload exposes `ON_TIME_RETURN` as `streaks[]`, and native Ho
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-08-19 | Shipped badge migrations `0117`-`0122` and their evaluators in commit `2548f4ce` / deployment `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS`. Authenticated production profile proof showed the feature enabled, 24 earned awards, the backfilled v7 awards, 43% automatic-goal completion, and a clean console. Required iPhone 16 Pro simulator/device visual acceptance remains open. |
 | 2026-08-19 | Reset the v7 thresholds as a deliberate mix after calibration. Four award immediately so the shelf is not dead at launch (`season_pass` 4, `doubleheader` 1, `deep_inventory` 25, `regular_rotation` 6); the other nine sit above the current leader as long-run goals (`utility_crew` 5, `under_the_lights` 8, `kit_complete` 5, `old_faithful` 25, `battery_run` 5, `long_haul` 5, `round_trip` 25, `buzzer_beater` 3, `short_notice` 3). Every goal stays under its structural ceiling, measured from 10 staffed sports, 5 staffed crew areas, 23 weeks of checkout history, and 78 distinct assets ever handled. |
 | 2026-08-19 | Calibrated the v7 thresholds against real history rather than design intent. Eight of the thirteen counted rules would have shipped unreachable. `season_pass` 8 to 4, `utility_crew` 4 to 3, `doubleheader` 5 to 1, `under_the_lights` 5 to 3, `regular_rotation` 8 to 6, `kit_complete` 10 to 3, `old_faithful` 25 to 10, `battery_run` 5 to 3, `round_trip` 20 to 12, `buzzer_beater` 3 to 1, and `short_notice` 3 to 2; `deep_inventory` and `long_haul` were already correct. Each calibrated rule now puts 1 to 3 of 30 active users at or above its threshold. `kit_complete` and `short_notice` remain at zero for lack of kit checkouts and trades, not for lack of calibration. |
 | 2026-08-19 | Completed the v7 badge set. `0119_badge_return_moment` added `long_haul`, `round_trip`, and hidden `buzzer_beater`, moving the completed-checkout read above the on-time early return. `0120_badge_app_open_eggs` added hidden `take_thirteen` and `holiday_hours` and restructured `onAppOpened` from a single 2 a.m. guard into a matcher list where every match claims its own receipt. `0122_badge_short_notice` added `short_notice`, and `onTradeCompleted` now reads trade rows instead of counting them. Thresholds remain uncalibrated against production history. |

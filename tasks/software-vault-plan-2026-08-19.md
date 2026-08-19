@@ -44,7 +44,7 @@
 - [x] Slice 1: Add the encrypted `SoftwareCredential` schema/migration, dedicated permission entries, and server crypto/service/API boundaries.
 - [x] Slice 2: Add the Software vault cards, safe reveal/copy behavior, and staff/admin management dialog above the existing Photo Mechanic license pool; relabel the sidebar.
 - [x] Slice 3: Add focused privacy/security/source-contract coverage and durable area/decision documentation.
-- [ ] Slice 4: Run focused tests, TypeScript, lint/build, migration/docs checks, and authenticated browser smoke if an approved local session is available.
+- [x] Slice 4: Run focused tests, TypeScript, lint/build, migration/docs checks, and authenticated browser smoke if an approved local session is available.
 
 ## Verification
 
@@ -56,14 +56,53 @@
 - [x] `npm run build:app`
 - [x] `npm run codemap` and `npm run verify:docs` when shared route/schema/docs maps change
 - [x] `git diff --check`
-- [ ] Authenticated browser smoke of `/licenses` at desktop and narrow width, including password list redaction, reveal/copy request, and no console errors; record the blocker if unavailable
-- [ ] Do not run full `npm run build` or apply migrations without explicit migration/deploy approval
+- [ ] Authenticated browser smoke passed at desktop and narrow width for navigation, empty-state/list redaction, responsive layout, and a clean console. Reveal/copy remains pending until the first real credential exists; do not fabricate one for acceptance.
+- [x] Migration/deploy approval was granted; the guarded production migration and deploy-shaped Vercel build passed.
 
 ## Review
 
-- Shipped: Local Software Vault UI, encrypted schema/service/API boundary, dedicated permissions, sidebar/search copy, focused regression tests, and area/decision/gap documentation. The existing Photo Mechanic pool remains below the vault at `/licenses`.
-- Verified: `npx prisma generate`, `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, focused ESLint, `npm run build:app`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and the focused suite (24 tests across four files, including 7 vault tests).
-- Deferred: Key rotation remains an operational re-encryption procedure; per-record entitlements, sharing, password history, and real credential seeding are out of scope.
-- Blocked: Authenticated browser proof and production-shaped migration/key readback remain pending; do not use real department credentials until those gates pass.
-- Proof artifacts: `tests/software-vault.test.ts`, `docs/AREA_SOFTWARE.md`, `docs/DECISIONS.md` D-052, and GAP-69.
-- Next slice or stop: Run the broader focused suite, build, codemap/docs checks, and safe local browser smoke if an approved authenticated session and migrated local database are available.
+- Shipped: Production Software Vault UI, encrypted schema/service/API boundary, dedicated permissions, sidebar/search copy, production-only Sensitive key, migration `0125_software_credentials`, regression tests, and area/decision/gap documentation. The existing Photo Mechanic pool remains below the vault at `/licenses`.
+- Verified: all 3,383 tests, `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, lint, `npm run build:app`, deploy-shaped Vercel build, `npm run codemap`, `npm run verify:docs`, `git diff --check`, production migration readback, and authenticated desktop/narrow browser proof with a clean console.
+- Deferred: First real-credential create/reveal/copy/archive/restore acceptance and the coordinated key-rotation procedure remain operational follow-up. Per-record entitlements, sharing, and password history are out of scope for this shipped slice.
+- Blocked: None for current production availability. Secret lifecycle acceptance waits for an administrator to enter an actual department credential; no credential was invented or seeded.
+- Proof artifacts: commit `2548f4ce`, production deployment `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS`, migration checksum `b8debcbf66333da3b82f1eebac391c53b64df1d18e34a95f515864621d112f82`, `tests/software-vault.test.ts`, `docs/AREA_SOFTWARE.md`, `docs/DECISIONS.md` D-052, and GAP-69.
+- Next slice or stop: Stop this production slice. Execute the audience-gated next slice only with explicit new approval, and use the first real administrator-entered credential for secret lifecycle acceptance.
+
+## Next Slice — Audience-Gated Software Logins (2026-08-19)
+
+### Goal
+
+- Let admins and staff add/edit shared software logins with a site link, account email, and password that stays hidden until explicitly revealed.
+- Let an authorized user copy a hidden password directly to the clipboard without changing the reveal state, with a brief visible copied confirmation.
+- Let the login owner choose whether each record is shared with staff, students, and/or collaborators.
+
+### Source Checks
+
+- The existing `/licenses` Software Vault already owns the card, dialog, reveal, copy, archive, and restore flow.
+- `Role` includes `ADMIN`, `STAFF`, `STUDENT`, and `COLLABORATOR`; collaborator access is capability-based and default-deny.
+- Existing targeted-resource controls use shadcn `Checkbox` rows and are the interaction pattern for audience selection.
+- The existing `SOFTWARE_VAULT_KEY`, audit boundary, and separate secret endpoint remain unchanged.
+
+### Security Contract
+
+- New records default to Staff + Students; Staff includes administrators for management and is not a separate ADMIN checkbox.
+- ADMIN and STAFF can manage and see all records, including records shared only with students or collaborators.
+- STUDENT sees only records shared with Students.
+- COLLABORATOR must have the `SOFTWARE_VAULT_VIEW` capability and sees only records shared with Collaborators; without the capability the sidebar and API remain unavailable.
+- Unauthorized records are filtered server-side and secret requests return a not-found response without decrypting or returning the password.
+- Hidden copy requests the secret only for the clipboard write and never adds the password to the reveal state.
+
+### Slices
+
+- [ ] Slice 1: Add the audience enum/array migration, validation, summary metadata, and pure access policy.
+- [ ] Slice 2: Enforce audience filtering on list/secret APIs and add the collaborator capability/nav gate with audit-safe updates.
+- [ ] Slice 3: Add checkbox-based audience controls and copied-state animation to the add/edit and card UI.
+- [ ] Slice 4: Run focused tests, TypeScript, lint/build, migration/docs checks, and record authenticated browser availability.
+
+### Verification
+
+- [ ] Audience policy, API boundary, schema, and UI source-contract tests.
+- [ ] `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, focused ESLint, and `npm run build:app`.
+- [ ] `npm run codemap`, `npm run verify:docs`, and `git diff --check` when shared maps/docs change.
+- [ ] Authenticated browser smoke of staff, student, and collaborator audience states if an approved migrated local session is available.
+- [ ] Do not apply the migration, seed real credentials, or make production changes without explicit approval.

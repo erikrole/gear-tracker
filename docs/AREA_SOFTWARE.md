@@ -5,7 +5,7 @@
 - Area: Shared software access
 - Owner: Wisconsin Athletics Creative Product
 - Last Updated: 2026-08-19
-- Status: Active locally — rollout proof pending
+- Status: Active in production — first real-credential acceptance remains
 - Route: `/licenses` (presented as **Software**)
 
 ## Direction
@@ -56,11 +56,12 @@ All mutations use the existing authenticated audit path. Secret endpoints return
 
 ## Rollout Gates and Known Gaps
 
-- Configure the same generated 32-byte base64 key as `SOFTWARE_VAULT_KEY` in every environment before enabling the route.
-- Apply and read back migration `0125_software_credentials` before authenticated runtime use; this implementation does not apply migrations or seed real credentials.
-- Complete authenticated browser proof at desktop and narrow widths, including list redaction, reveal/copy behavior, archive/restore, and clean console/network behavior.
+- Configure one stable, independently generated 32-byte base64 `SOFTWARE_VAULT_KEY` per environment. Production has a Sensitive key configured; preview and development must receive separate keys before vault use there.
+- Migration `0125_software_credentials` is applied and read back in production with checksum `b8debcbf66333da3b82f1eebac391c53b64df1d18e34a95f515864621d112f82`; the initial table contains zero credential rows.
+- Authenticated desktop and narrow-width production proof passed for navigation, empty-state rendering, list redaction, responsive layout, and a clean console. Reveal/copy and archive/restore remain pending until an administrator enters the first real department credential; no test credential will be fabricated.
 - Key rotation is an operational re-encryption procedure, not a self-service UI. Per-record entitlements, sharing, and password history are deliberately out of scope for this first internal vault.
 
 ## Change Log
 
+- 2026-08-19: Shipped the encrypted Software Vault to production in commit `2548f4ce` and deployment `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS`; configured a production-only Sensitive key, applied/read back migration `0125_software_credentials`, and passed authenticated desktop/narrow empty-state and clean-console proof. First real-credential reveal/copy/archive/restore acceptance remains open.
 - 2026-08-19: Added the local encrypted Software Vault slice, preserved `/licenses` compatibility, and tracked migration, environment-key, and authenticated browser proof as rollout gates.
