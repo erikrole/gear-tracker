@@ -53,6 +53,8 @@ struct PerformanceTestRootView: View {
             UsersView()
         case .resourcesLicenses:
             LicensesView()
+        case .schedule:
+            ScheduleHarnessView()
         }
     }
 }
@@ -196,6 +198,8 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
         case "/api/users": return FixtureAPI.users
         case "/api/licenses": return FixtureAPI.licenses
         case "/api/licenses/my": return FixtureAPI.myLicense
+        case "/api/calendar-events": return ScheduleFixtureAPI.calendarEvents
+        case "/api/my-shifts": return ScheduleFixtureAPI.myShifts
         default: return nil
         }
     }
@@ -369,6 +373,144 @@ private enum PerformanceFixtures {
             currentQuantity: 20,
             availableQuantity: 15
         )
+    }
+}
+// MARK: - Schedule harness
+
+/// Renders the real `ScheduleView` against canned events and shifts. The
+/// fixture session is seeded as STAFF so the crew-coverage chips and the
+/// past-events filter — both role-gated — are actually exercised.
+struct ScheduleHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        ScheduleView()
+            .onAppear {
+                session.currentUser = ScheduleFixtures.staffUser
+                NSLog("HARNESS-DEBUG seeded role=\(session.currentUser?.role ?? "nil")")
+            }
+    }
+}
+
+private enum ScheduleFixtures {
+    static let staffUser = CurrentUser(
+        id: "fixture-staff",
+        name: "Jordan Lee",
+        email: "jordan.lee@wisc.edu",
+        role: "STAFF",
+        affiliation: nil,
+        collaboratorProfile: nil,
+        capabilities: [],
+        collaboratorPolicy: nil,
+        staffingType: "ST",
+        avatarUrl: nil,
+        forcePasswordChange: false
+    )
+}
+
+/// Builds the schedule payloads relative to the current day, so the "Today"
+/// and "Tomorrow" headers and the relative-time affordances render the way a
+/// real session would rather than freezing at an authored date.
+enum ScheduleFixtureAPI {
+    private static func isoString(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: date)
+    }
+
+    private static func at(_ dayOffset: Int, _ hour: Int, _ minute: Int = 0) -> String {
+        let calendar = Calendar.current
+        let day = calendar.date(byAdding: .day, value: dayOffset, to: Date.now) ?? .now
+        let date = calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: calendar.startOfDay(for: day)
+        ) ?? day
+        return isoString(date)
+    }
+
+    /// All-day events encode a bare calendar date at UTC midnight.
+    private static func allDay(_ dayOffset: Int) -> String {
+        let calendar = Calendar.current
+        let day = calendar.date(byAdding: .day, value: dayOffset, to: Date.now) ?? .now
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let parts = calendar.dateComponents([.year, .month, .day], from: day)
+        let date = utc.date(from: DateComponents(
+            year: parts.year, month: parts.month, day: parts.day, hour: 0, minute: 0, second: 0
+        )) ?? day
+        return isoString(date)
+    }
+
+    static var calendarEvents: Data {
+        let events = """
+        [
+          { "id": "e1", "summary": "Volleyball vs Nebraska", "startsAt": "\(at(0, 11))",
+            "endsAt": "\(at(0, 14))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "VB", "opponent": "Nebraska", "isHome": true,
+            "location": { "id": "loc-fh", "name": "UW Field House" },
+            "coverage": { "total": 6, "filled": 4, "percentage": 67 } },
+          { "id": "e2", "summary": "Men's Hockey at Minnesota", "startsAt": "\(at(0, 16))",
+            "endsAt": "\(at(0, 19))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "MIH", "opponent": "Minnesota", "isHome": false,
+            "location": null, "rawLocationText": "3M Arena at Mariucci",
+            "coverage": { "total": 3, "filled": 3, "percentage": 100 } },
+          { "id": "e3", "summary": "Women's Basketball vs Iowa", "startsAt": "\(at(0, 19, 30))",
+            "endsAt": "\(at(0, 22))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "WBB", "opponent": "Iowa", "isHome": true,
+            "location": { "id": "loc-kc", "name": "Kohl Center" },
+            "coverage": { "total": 5, "filled": 2, "percentage": 40 } },
+          { "id": "e4", "summary": "Football vs Ohio State", "startsAt": "\(at(1, 12))",
+            "endsAt": "\(at(1, 15, 30))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "FB", "opponent": "Ohio State", "isHome": true,
+            "location": { "id": "loc-cr", "name": "Camp Randall Stadium" },
+            "coverage": { "total": 12, "filled": 8, "percentage": 67 } },
+          { "id": "e5", "summary": "Men's Soccer vs Indiana", "startsAt": "\(at(1, 18))",
+            "endsAt": "\(at(1, 20))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "MSOC", "opponent": "Indiana", "isHome": true,
+            "location": { "id": "loc-mc", "name": "McClimon Complex" },
+            "coverage": { "total": 4, "filled": 1, "percentage": 25 } },
+          { "id": "e6", "summary": "Big Ten Swimming Championships", "startsAt": "\(allDay(2))",
+            "endsAt": "\(allDay(4))", "allDay": true, "status": "CONFIRMED",
+            "sportCode": "WSWIM", "opponent": null, "isHome": null,
+            "location": { "id": "loc-sc", "name": "Soderholm Family Aquatic Center" },
+            "coverage": { "total": 9, "filled": 5, "percentage": 56 } },
+          { "id": "e7", "summary": "Softball at Michigan", "startsAt": "\(at(3, 9))",
+            "endsAt": "\(at(3, 11))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "SB", "opponent": "Michigan", "isHome": false,
+            "location": null, "rawLocationText": "Alumni Field",
+            "coverage": { "total": 2, "filled": 0, "percentage": 0 } },
+          { "id": "e8", "summary": "Equipment inventory audit", "startsAt": "\(at(4, 13))",
+            "endsAt": "\(at(4, 16))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": null, "opponent": null, "isHome": null,
+            "location": { "id": "loc-cage", "name": "Media Ops Cage" },
+            "coverage": { "total": 3, "filled": 3, "percentage": 100 } }
+        ]
+        """
+        return Data("{ \"data\": \(events), \"total\": 8 }".utf8)
+    }
+
+    static var myShifts: Data {
+        let shifts = """
+        [
+          { "id": "s1", "area": "CAMERA", "workerType": "ST", "startsAt": "\(at(0, 9, 30))",
+            "endsAt": "\(at(0, 14, 30))", "status": "ACTIVE",
+            "event": { "id": "e1", "summary": "Volleyball vs Nebraska", "startsAt": "\(at(0, 11))",
+                       "endsAt": "\(at(0, 14))", "sportCode": "VB", "isHome": true,
+                       "opponent": "Nebraska", "locationId": "loc-fh", "locationName": "UW Field House" },
+            "gear": { "status": "checked_out",
+                      "bookings": [ { "id": "b1", "status": "CHECKED_OUT", "kind": "SERIALIZED", "itemCount": 4 } ] } },
+          { "id": "s2", "area": "REPLAY", "workerType": "FT", "startsAt": "\(at(1, 12))",
+            "endsAt": "\(at(1, 15, 30))", "status": "ACTIVE",
+            "event": { "id": "e4", "summary": "Football vs Ohio State", "startsAt": "\(at(1, 12))",
+                       "endsAt": "\(at(1, 15, 30))", "sportCode": "FB", "isHome": true,
+                       "opponent": "Ohio State", "locationId": "loc-cr", "locationName": "Camp Randall Stadium" },
+            "gear": { "status": "pickup_ready",
+                      "bookings": [ { "id": "b2", "status": "RESERVED", "kind": "SERIALIZED", "itemCount": 7 } ] } }
+        ]
+        """
+        return Data("{ \"data\": \(shifts) }".utf8)
     }
 }
 #endif

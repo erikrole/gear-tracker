@@ -23,8 +23,8 @@ const FETCH_TIMEOUT_MS = 10_000;
 export function buildUWBadgersRosterUrl(sportCode: string, season: string): string {
   const parsed = signatureRosterImportSchema.parse({ sportCode, season });
   const source = getSignatureRosterSourceConfig(parsed.sportCode);
-  const sourceSeason = source.usesStartYearPath ? parsed.season.slice(0, 4) : parsed.season;
-  return `${UW_BADGERS_ORIGIN}${source.rosterPath}/${sourceSeason}`;
+  const sourceSuffix = source.fixedPathSuffix ?? `/${source.usesStartYearPath ? parsed.season.slice(0, 4) : parsed.season}`;
+  return `${UW_BADGERS_ORIGIN}${source.rosterPath}${sourceSuffix}`;
 }
 
 export function isAllowedUWBadgersUrl(value: string): boolean {
@@ -50,14 +50,23 @@ function stripTags(value: string): string {
     .trim();
 }
 
-function canonicalProfileUrl(href: string, rosterPath: string): string | null {
+function canonicalProfileUrl(href: string, source: ReturnType<typeof getSignatureRosterSourceConfig>): string | null {
   try {
     const url = new URL(href, UW_BADGERS_ORIGIN);
     if (!isAllowedUWBadgersUrl(url.toString())) return null;
-    if (!url.pathname.includes(`${rosterPath}/`)) return null;
+    if (source.profilePathPrefix) {
+      if (!url.pathname.startsWith(source.profilePathPrefix)) return null;
+      const profileSegments = url.pathname.slice(source.profilePathPrefix.length).split("/").filter(Boolean);
+      const profileId = profileSegments.at(-1);
+      if (profileSegments.length !== 2 || !profileId || !/^\d+$/.test(profileId) || Number(profileId) <= 1) return null;
+    } else if (!url.pathname.includes(`${source.rosterPath}/`)) {
+      return null;
+    }
     const segments = url.pathname.split("/").filter(Boolean);
     const rosterIndex = segments.indexOf("roster");
-    const profileSegments = rosterIndex >= 0 ? segments.slice(rosterIndex + 1) : [];
+    const profileSegments = source.profilePathPrefix
+      ? segments.slice(source.profilePathPrefix.split("/").filter(Boolean).length)
+      : rosterIndex >= 0 ? segments.slice(rosterIndex + 1) : [];
     if (profileSegments.length === 0 || /^\d{4}-\d{2}$/.test(profileSegments.at(-1) ?? "")) return null;
     url.search = "";
     url.hash = "";
@@ -80,7 +89,8 @@ function headingGroup(text: string): SignatureMemberGroup {
   return "PLAYER";
 }
 
-function profileRoleGroup(profileUrl: string): SignatureMemberGroup | null {
+function profileRoleGroup(profileUrl: string, source: ReturnType<typeof getSignatureRosterSourceConfig>): SignatureMemberGroup | null {
+  if (source.defaultRoleGroup) return source.defaultRoleGroup;
   const segments = new URL(profileUrl).pathname.split("/").filter(Boolean);
   const rosterIndex = segments.indexOf("roster");
   const section = segments[rosterIndex + 1]?.toLocaleLowerCase("en-US");
@@ -214,14 +224,14 @@ export function parseUWBadgersRosterHtml(
     const href = match[2];
     const anchorText = match[3];
     if (!href || !anchorText) continue;
-    const profileUrl = canonicalProfileUrl(href, source.rosterPath);
+    const profileUrl = canonicalProfileUrl(href, source);
     if (!profileUrl) continue;
     const name = stripTags(anchorText);
     if (/^(?:jersey\s+number|full\s+bio|expand\s+for|\d+)\b/i.test(name)) continue;
     if (!name || name.length > 160) continue;
     const index = match.index ?? 0;
     const context = html.slice(Math.max(0, index - 500), Math.min(html.length, index + match[0].length + 1_200));
-    const roleGroup = profileRoleGroup(profileUrl) ?? structuralGroupBefore(html, index) ?? headingGroup(headingBefore(html, index));
+    const roleGroup = profileRoleGroup(profileUrl, source) ?? structuralGroupBefore(html, index) ?? headingGroup(headingBefore(html, index));
     const entry = signatureRosterEntrySchema.parse({
       sourceExternalId: externalIdFromProfileUrl(profileUrl),
       sourceProfileUrl: profileUrl,

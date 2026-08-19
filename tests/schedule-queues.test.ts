@@ -18,6 +18,7 @@ function entry(overrides: Partial<CalendarEntry>): CalendarEntry {
     sportCode: null,
     opponent: null,
     isHome: null,
+    site: null,
     subtitle: null,
     location: null,
     source: null,

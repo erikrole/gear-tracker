@@ -6,6 +6,7 @@ import {
   classifySourceEvent,
   normalizeVenueText,
   parseEventResult,
+  scheduleVenueDisplayName,
 } from "@/lib/schedule-event-identity";
 
 describe("schedule event identity normalization", () => {
@@ -28,6 +29,14 @@ describe("schedule event identity normalization", () => {
     expect(buildVenueSearchText("Madison, Wis., Mcclimon Track / Soccer Complex")).toBe(
       "madison, wi, mcclimon track/soccer complex",
     );
+  });
+
+  it("shows imported schedule locations as their venue component", () => {
+    expect(scheduleVenueDisplayName("Madison, Wis., UW Field House")).toBe("UW Field House");
+    expect(scheduleVenueDisplayName("Madison, WI, McClimon Track/Soccer Complex")).toBe("McClimon Track/Soccer Complex");
+    expect(scheduleVenueDisplayName("Camp Randall Stadium, Madison, WI")).toBe("Camp Randall Stadium");
+    expect(scheduleVenueDisplayName("Iowa City, IA")).toBe("Iowa City, IA");
+    expect(scheduleVenueDisplayName("   ")).toBeNull();
   });
 });
 

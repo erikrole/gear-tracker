@@ -40,7 +40,9 @@ import { isCurrentDeviceIpad } from "@/lib/signatures/capture";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
 import {
   SIGNATURE_AD_HOC_SPORT_CODE,
+  SIGNATURE_ADMINISTRATION_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+  isStandaloneStaffSignatureCollection,
   signatureCollectionTitle,
 } from "@/lib/signatures/types";
 import { cn } from "@/lib/utils";
@@ -91,8 +93,7 @@ const GROUP_META: Record<Member["roleGroup"], { label: string; icon: typeof User
 
 const CAPTURE_ON_IPAD_TOOLTIP = "Capture can only be done on an iPad with an Apple Pencil.";
 
-function CaptureAction({ collectionId, member, isIpad }: { collectionId: string; member: Member; isIpad: boolean }) {
-  const primaryCapture = member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF";
+function CaptureAction({ collectionId, member, isIpad, primaryCapture }: { collectionId: string; member: Member; isIpad: boolean; primaryCapture: boolean }) {
   if (isIpad) {
     return (
       <Button size="sm" variant={primaryCapture ? "brand" : "outline"} className="h-11 w-40" asChild>
@@ -145,10 +146,12 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
   const [collapsedGroups, setCollapsedGroups] = useState<Set<Member["roleGroup"]>>(new Set());
   const [isIpad, setIsIpad] = useState(false);
   const isCreativeStaffRoster = collection?.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
+  const isAdministrationRoster = collection?.sportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE;
+  const isStandaloneStaffRoster = collection ? isStandaloneStaffSignatureCollection(collection.sportCode) : false;
   const isAdHocRoster = collection?.sportCode === SIGNATURE_AD_HOC_SPORT_CODE;
   const rosterGroupOrder = useMemo<Member["roleGroup"][]>(
-    () => isCreativeStaffRoster ? ["CREATIVE_STAFF"] : isAdHocRoster ? ["SUPPORT_STAFF"] : ["PLAYER", "COACHING_STAFF", "SUPPORT_STAFF"],
-    [isAdHocRoster, isCreativeStaffRoster],
+    () => isCreativeStaffRoster ? ["CREATIVE_STAFF"] : isStandaloneStaffRoster ? ["SUPPORT_STAFF"] : isAdHocRoster ? ["SUPPORT_STAFF"] : ["PLAYER", "COACHING_STAFF", "SUPPORT_STAFF"],
+    [isAdHocRoster, isStandaloneStaffRoster, isCreativeStaffRoster],
   );
 
   useEffect(() => {
@@ -273,7 +276,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
   if (loading) return <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading signature roster…</CardContent></Card>;
   if (error || !collection) return <EmptyState icon="wifi-off" title="Couldn’t load this signature collection" description="The collection may have moved or the connection failed." actionLabel="Retry" onAction={reload} />;
 
-  const teamRoster = !isCreativeStaffRoster && !isAdHocRoster;
+  const teamRoster = !isStandaloneStaffRoster && !isAdHocRoster;
   const staffCompleteness = collection.staffCompleteness ?? { complete: 0, total: 0 };
 
   return (
@@ -300,7 +303,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
               </div>
             )}
          </div>
-          {!isCreativeStaffRoster && !isAdHocRoster && (
+          {teamRoster && (
             <Select value={group} onValueChange={(value) => setGroup(value as typeof group)}>
               <SelectTrigger className="h-10 w-full sm:w-52" aria-label="Filter signature roster"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="ALL">All roster groups</SelectItem><SelectItem value="PLAYER">Players</SelectItem><SelectItem value="COACHING_STAFF">Coaching staff</SelectItem><SelectItem value="SUPPORT_STAFF">Support staff</SelectItem></SelectContent>
@@ -311,7 +314,11 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
         {groupSections.length === 0 ? <EmptyState icon="users" title="No roster members in this view" description="Try another roster group." /> : (
          <div className="space-y-7">
            {groupSections.map((section) => {
-              const meta = isAdHocRoster ? { label: "Ad-hoc signers", icon: FilePenLine } : GROUP_META[section.roleGroup];
+              const meta = isAdHocRoster
+                ? { label: "Ad-hoc signers", icon: FilePenLine }
+                : isAdministrationRoster
+                  ? { label: "Administration", icon: UsersRound }
+                  : GROUP_META[section.roleGroup];
               const Icon = meta.icon;
               const sectionOpen = !collapsedGroups.has(section.roleGroup);
              return (
@@ -338,8 +345,8 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                    <Card className="border-dashed bg-muted/15">
                      <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                        <div>
-                         <p className="font-medium">Creative Staff is syncing automatically</p>
-                         <p className="mt-1 text-sm text-muted-foreground">Active full-time Video, Photo, and Graphics staff will appear here.</p>
+                         <p className="font-medium">{isCreativeStaffRoster ? "Creative Staff is syncing automatically" : "No Administration members are active"}</p>
+                         <p className="mt-1 text-sm text-muted-foreground">{isCreativeStaffRoster ? "Active full-time Video, Photo, and Graphics staff will appear here." : "Apply a fresh UWBadgers Administration roster snapshot to populate this group."}</p>
                        </div>
                      </CardContent>
                    </Card>
@@ -407,7 +414,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                                  />
                                </button>
                              ) : collection.status === "OPEN" ? (
-                               <CaptureAction collectionId={collection.id} member={member} isIpad={isIpad} />
+                               <CaptureAction collectionId={collection.id} member={member} isIpad={isIpad} primaryCapture={member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF" || isAdministrationRoster} />
                              ) : null}
                            </div>
 

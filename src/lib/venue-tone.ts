@@ -1,6 +1,7 @@
 export const VENUE_TONE_VALUES = ["home", "away", "neutral", "non-game"] as const;
 export type VenueTone = (typeof VENUE_TONE_VALUES)[number];
 export type VenueFilter = "all" | VenueTone;
+export type CalendarEventSiteValue = "HOME" | "AWAY" | "NEUTRAL";
 
 type VenueToneStyle = {
   label: string;
@@ -71,13 +72,29 @@ export function isHomeFromVenueTone(tone: VenueTone): boolean | null {
   return null;
 }
 
+/** Store the same venue direction used by Schedule as the event's canonical site. */
+export function siteFromVenueTone(tone: VenueTone): CalendarEventSiteValue | null {
+  if (tone === "home") return "HOME";
+  if (tone === "away") return "AWAY";
+  if (tone === "neutral") return "NEUTRAL";
+  return null;
+}
+
+function venueToneFromSite(site: CalendarEventSiteValue): Exclude<VenueTone, "non-game"> {
+  if (site === "HOME") return "home";
+  if (site === "AWAY") return "away";
+  return "neutral";
+}
+
 export function venueToneFromEvent(event: {
   isHome?: boolean | null;
+  site?: CalendarEventSiteValue | null;
   opponent?: string | null;
   summary?: string | null;
   rawSummary?: string | null;
 }): VenueTone {
   if (!event.opponent) return "non-game";
+  if (event.site) return venueToneFromSite(event.site);
   const title = event.rawSummary ?? event.summary ?? "";
   const prefix = title.match(/^\s*\[([HAN])\]/i)?.[1]?.toUpperCase();
   if (prefix === "H") return "home";

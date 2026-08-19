@@ -916,6 +916,45 @@ describe("sport roster previews", () => {
       data: expect.objectContaining({ sourceKey: `UW_BADGERS_${sportCode}` }),
     }));
   });
+
+  it("seeds Administration members as required standalone support staff", async () => {
+    tx.signatureRosterSnapshot.findUnique.mockResolvedValue({
+      id: "admin-snapshot",
+      collectionId: "admin-collection",
+      status: SignatureSnapshotStatus.PREVIEW,
+      entries: [{
+        sourceExternalId: "1325",
+        sourceProfileUrl: "https://uwbadgers.com/staff-directory/shawn-eichorst/1325",
+        name: "Shawn Eichorst",
+        normalizedName: "shawn eichorst",
+        jerseyNumber: null,
+        roleGroup: "SUPPORT_STAFF",
+        title: "Director of Athletics",
+      }],
+      collection: { sportCode: "ADMIN", status: SignatureCollectionStatus.OPEN, collectionVersion: 1, settingsVersion: 1 },
+    });
+    tx.signatureMember.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "admin-member" }]);
+    tx.signatureMember.create.mockResolvedValue({ id: "admin-member", sourceExternalId: "1325", required: true, roleGroup: "SUPPORT_STAFF" });
+    tx.signatureCollection.update.mockResolvedValue({ id: "admin-collection", collectionVersion: 2 });
+
+    await expect(applySignatureRosterSnapshot({
+      actor,
+      snapshotId: "admin-snapshot",
+      expectedCollectionVersion: 1,
+    })).resolves.toMatchObject({ collectionId: "admin-collection", collectionVersion: 2, memberCount: 1 });
+
+    expect(tx.signatureMember.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        collectionId: "admin-collection",
+        name: "Shawn Eichorst",
+        roleGroup: "SUPPORT_STAFF",
+        title: "Director of Athletics",
+        required: true,
+      }),
+    });
+  });
 });
 
 describe("ad-hoc signatures", () => {

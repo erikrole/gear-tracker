@@ -43,6 +43,12 @@ type BadgeDefinitionForProgress = {
 type BadgeProgress = {
   current: number;
   target: number;
+  /**
+   * When the evidence says this goal was actually met, for a goal already past
+   * its threshold. Used only to date a self-healed award; a live award is dated
+   * by the evaluator at the moment of the event.
+   */
+  metAt: Date | null;
 };
 
 export type EarnedBadge = {
@@ -253,7 +259,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     completedCheckouts,
     completedTrades,
     streaks,
-    damageFreeCount,
+    _unusedDamageFreeSlot,
     workedAssignments,
   ] = await Promise.all([
     needsCheckoutOpened || needsCheckoutRuleEvidence
@@ -262,10 +268,10 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             userId,
             eventType: "checkout_opened",
           },
-          select: { sourceKey: true },
+          select: { sourceKey: true, receivedAt: true },
         })
       : Promise.resolve([]),
-    needsOnTimeReturns || needsReturnRuleEvidence
+    needsOnTimeReturns || needsReturnRuleEvidence || needsDamageFree
       ? db.booking.findMany({
           where: {
             requesterUserId: userId,
@@ -306,16 +312,11 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
           select: { streakType: true, current: true, longest: true },
         })
       : Promise.resolve([]),
-    needsDamageFree
-      ? db.booking.count({
-          where: {
-            requesterUserId: userId,
-            kind: BookingKind.CHECKOUT,
-            status: BookingStatus.COMPLETED,
-            checkinReports: { none: {} },
-          },
-        })
-      : Promise.resolve(0),
+    // Damage-free used to be its own `count()` with the same filter as the rows
+    // above plus "no check-in report" -- and those rows already select
+    // `checkinReports`. Deriving it here drops a query and, unlike a count,
+    // leaves the timestamps needed to date a repaired award.
+    Promise.resolve(0),
     needsShifts
       ? db.shiftAssignment.findMany({
           where: {
@@ -383,9 +384,58 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     ...tradeAutomaticRuleCounts(completedTrades, userId),
   ]);
 
-  const onTimeReturnCount = completedCheckouts.filter(
-    (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
-  ).length;
+  void _unusedDamageFreeSlot;
+
+  // Evidence timelines, ascending. The Nth entry is the moment a count-based
+  // goal of threshold N was actually met -- which is what dates a repaired
+  // award honestly instead of stamping it with whenever someone happened to
+  // open the profile.
+  // Nullable and legacy rows are dropped rather than substituted. A missing
+  // timestamp means "cannot date this one", and a placeholder would quietly
+  // become the Nth entry and date the award to the epoch.
+  const ascending = (dates: Array<Date | null | undefined>): Date[] =>
+    dates.filter((date): date is Date => date instanceof Date && !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+  const returnedAt = (booking: { completedAt: Date | null; updatedAt: Date }) =>
+    booking.completedAt ?? booking.updatedAt;
+
+  const onTimeReturnDates = ascending(
+    completedCheckouts
+      .filter((booking) => returnedAt(booking).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS)
+      .map(returnedAt),
+  );
+  const damageFreeDates = ascending(
+    completedCheckouts.filter((booking) => booking.checkinReports.length === 0).map(returnedAt),
+  );
+  const checkoutOpenedDates = ascending(checkoutOpenedReceipts.map((receipt) => receipt.receivedAt));
+  const tradeDates = ascending(
+    completedTrades.map((trade) => trade.claimedAt ?? trade.shiftAssignment?.shift?.startsAt),
+  );
+  const shiftDates = ascending(
+    workedAssignments.map((assignment) => assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt),
+  );
+
+  const onTimeReturnCount = onTimeReturnDates.length;
+  const damageFreeCount = damageFreeDates.length;
+
+  /** The moment a count of `target` was reached, if it ever was. */
+  const nthDate = (dates: Date[], target: number): Date | null =>
+    target > 0 && dates.length >= target ? dates[target - 1] ?? null : null;
+
+  /**
+   * The fallback for goals whose progress is a distinct-count or a streak
+   * rather than a running tally of events -- there is no "Nth event" to point
+   * at. The latest piece of evidence the user has is not when they crossed the
+   * line, but it is a true upper bound and always in the past, which is the
+   * property that matters: a repaired award must never look freshly earned.
+   */
+  const latestEvidence = ascending([
+    ...checkoutOpenedDates,
+    ...completedCheckouts.map(returnedAt),
+    ...tradeDates,
+    ...shiftDates,
+  ]).at(-1) ?? null;
+
   const streakMap = new Map(streaks.map((streak) => [streak.streakType, streak]));
 
   for (const definition of thresholdDefinitions) {
@@ -396,21 +446,28 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
     // triggers that already mean something else, so testing the trigger first
     // would report a checkout total as category breadth.
     let current: number | null = null;
+    // A count-based goal can point at the exact event that met it. A
+    // distinct-count or streak goal cannot, and falls back to the latest
+    // evidence -- see `latestEvidence`.
+    let timeline: Date[] | null = null;
     if (definition.ruleKey === "category_collector") current = measuredRuleCounts.get("category_collector") ?? 0;
     else if (definition.ruleKey !== null && automaticMeasuredRuleKeys.has(definition.ruleKey)) {
       current = measuredRuleCounts.get(definition.ruleKey) ?? 0;
     }
-    else if (definition.ruleKey === "damage_free_return") current = damageFreeCount;
-    else if (definition.ruleKey === "on_time_return") current = onTimeReturnCount;
-    else if (definition.trigger === "shift:completed") current = workedAssignments.length;
-    else if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
+    else if (definition.ruleKey === "damage_free_return") { current = damageFreeCount; timeline = damageFreeDates; }
+    else if (definition.ruleKey === "on_time_return") { current = onTimeReturnCount; timeline = onTimeReturnDates; }
+    else if (definition.trigger === "shift:completed") { current = workedAssignments.length; timeline = shiftDates; }
+    else if (definition.trigger === "checkout:opened") { current = checkoutOpenedCount; timeline = checkoutOpenedDates; }
     else if (definition.ruleKey === "on_time_return_streak") current = streakMap.get(BadgeStreakType.ON_TIME_RETURN)?.current ?? 0;
-    else if (definition.trigger === "trade:completed") current = completedTrades.length;
+    else if (definition.trigger === "trade:completed") { current = completedTrades.length; timeline = tradeDates; }
 
     if (current !== null) {
       progressByKey.set(definition.key, {
         current: Math.min(current, target),
         target,
+        metAt: current >= target
+          ? (timeline ? nthDate(timeline, target) ?? latestEvidence : latestEvidence)
+          : null,
       });
     }
   }
@@ -480,17 +537,38 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
   // delay must never render a completed goal as locked. Repair any automatic
   // threshold award whose same server-derived progress has reached its target,
   // then reload the award rows before building the response.
-  const completedUnawardedDefinitionIds = definitions
+  //
+  // The award is dated from the evidence, not from this request. Stamping
+  // `now()` made a goal completed in March read "Earned Aug 19" on the shelf
+  // forever, and -- because `/api/badges/recent` selects by `awardedAt` -- it
+  // also fired a celebration on the user's phone for months-old work, triggered
+  // by whoever happened to open their profile. A backdated row is both honest
+  // on the shelf and naturally behind every device cursor, so it cannot
+  // masquerade as newly earned.
+  //
+  // Repairs deliberately do not notify. The evaluator notifies when a badge is
+  // actually earned; a reconciliation of eight historical awards must not
+  // arrive as eight inbox entries.
+  const completedUnawarded = definitions
     .filter((definition) => {
       if (!definition.active || definition.awards.length > 0 || definition.trigger === "manual") return false;
       const progress = progressByKey.get(definition.key);
       return Boolean(progress && progress.current >= progress.target);
     })
-    .map((definition) => definition.id);
+    .map((definition) => ({
+      definitionId: definition.id,
+      metAt: progressByKey.get(definition.key)?.metAt ?? null,
+    }));
 
-  if (completedUnawardedDefinitionIds.length > 0) {
+  if (completedUnawarded.length > 0) {
+    const now = new Date();
     await db.studentBadge.createMany({
-      data: completedUnawardedDefinitionIds.map((definitionId) => ({ userId, definitionId })),
+      data: completedUnawarded.map(({ definitionId, metAt }) => ({
+        userId,
+        definitionId,
+        // A future or absent timestamp would defeat the point; clamp to now.
+        awardedAt: metAt && metAt.getTime() <= now.getTime() ? metAt : now,
+      })),
       skipDuplicates: true,
     });
     definitions = await loadDefinitions();

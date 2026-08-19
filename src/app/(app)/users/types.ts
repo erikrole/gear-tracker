@@ -71,6 +71,7 @@ export type UserDetail = UserRow & {
   icsToken?: string | null;
   /** Win-loss tally across games this user held a shift assignment on. */
   gameRecord?: {
+    eventsWorked: number;
     wins: number;
     losses: number;
     bySport: Array<{ sportCode: string | null; wins: number; losses: number }>;

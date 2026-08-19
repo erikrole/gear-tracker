@@ -73,4 +73,19 @@ describe("scheduleEventTitleParts", () => {
       detail: "Shamrock Series",
     });
   });
+
+  it("uses the canonical Schedule site when the legacy boolean disagrees", () => {
+    expect(
+      scheduleEventTitleParts({
+        summary: "Wisconsin Athletics Football vs Notre Dame",
+        sportCode: "FB",
+        opponent: "Notre Dame",
+        isHome: true,
+        site: "AWAY",
+      }),
+    ).toEqual({
+      title: "Football at Notre Dame",
+      detail: null,
+    });
+  });
 });

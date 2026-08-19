@@ -17,10 +17,13 @@ import { renderSignatureArtifacts } from "@/lib/signatures/artifacts";
 import {
   DEFAULT_SIGNATURE_PEN_SETTINGS,
   SIGNATURE_AD_HOC_SPORT_CODE,
+  SIGNATURE_ADMINISTRATION_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
   SIGNATURE_MBB_SPORT_CODE,
   getSignatureRosterSourceConfig,
   isRequiredSignatureGroup,
+  isStandaloneSignatureCollection,
+  isStandaloneStaffSignatureCollection,
   normalizeSignatureName,
   penSettingsSchema,
   signatureAthleteProfileSchema,
@@ -189,6 +192,11 @@ function isPrismaUniqueConflict(error: unknown) {
   return Boolean(error && typeof error === "object" && (error as { code?: unknown }).code === "P2002");
 }
 
+function defaultImportedMemberRequired(sportCode: string, roleGroup: SignatureMemberGroup) {
+  const source = getSignatureRosterSourceConfig(sportCode || SIGNATURE_MBB_SPORT_CODE);
+  return source.requiredByDefault === true || isRequiredSignatureGroup(roleGroup);
+}
+
 async function resolveSignatureCaptureTarget(collectionId: string, memberId: string) {
   const requested = await db.signatureCapture.findFirst({
     where: { collectionId, memberId },
@@ -214,13 +222,17 @@ async function resolveSignatureCaptureTarget(collectionId: string, memberId: str
 }
 
 function visibleSignatureMembers<T extends { roleGroup: SignatureMemberGroup }>(sportCode: string, members: T[]) {
-  return sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE
-    ? members.filter((member) => member.roleGroup === SignatureMemberGroup.CREATIVE_STAFF)
-    : members.filter((member) => member.roleGroup !== SignatureMemberGroup.CREATIVE_STAFF);
+  if (sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE) {
+    return members.filter((member) => member.roleGroup === SignatureMemberGroup.CREATIVE_STAFF);
+  }
+  if (isStandaloneStaffSignatureCollection(sportCode)) {
+    return members.filter((member) => member.roleGroup === SignatureMemberGroup.SUPPORT_STAFF);
+  }
+  return members.filter((member) => member.roleGroup !== SignatureMemberGroup.CREATIVE_STAFF);
 }
 
 function isTeamSignatureCollection(sportCode: string) {
-  return sportCode !== SIGNATURE_CREATIVE_STAFF_SPORT_CODE && sportCode !== SIGNATURE_AD_HOC_SPORT_CODE;
+  return !isStandaloneSignatureCollection(sportCode);
 }
 
 function primarySignatureMembers<T extends { active: boolean; required: boolean; roleGroup: SignatureMemberGroup }>(sportCode: string, members: T[]) {
@@ -305,7 +317,7 @@ export async function listSignatureCollections(options: { includeArchived?: bool
     const staffMembers = staffSignatureMembers(collection.sportCode, members);
     const completeness = collectionCompleteness(
       primaryMembers.map((member) => ({ active: member.active, artifactReady: hasReadyArtifact(member) })),
-      collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE && members.every((member) => !member.active) ? 0 : 100,
+      isStandaloneStaffSignatureCollection(collection.sportCode) && members.every((member) => !member.active) ? 0 : 100,
     );
     return {
       id: collection.id,
@@ -398,7 +410,7 @@ function serializeSignatureCollection(
   const staffMembers = staffSignatureMembers(collection.sportCode, serializedMembers);
   const completeness = collectionCompleteness(
     primaryMembers.map((member) => ({ active: member.active, artifactReady: Boolean(member.artifact) })),
-    collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE && !serializedMembers.some((member) => member.active) ? 0 : 100,
+    isStandaloneStaffSignatureCollection(collection.sportCode) && !serializedMembers.some((member) => member.active) ? 0 : 100,
   );
 
   return {
@@ -702,7 +714,7 @@ export async function applySignatureRosterSnapshot(input: {
             roleGroup: entry.roleGroup as SignatureMemberGroup,
             title: entry.title,
             hometown: entry.roleGroup === SignatureMemberGroup.PLAYER ? entry.hometown ?? null : null,
-            required: isRequiredSignatureGroup(entry.roleGroup),
+            required: defaultImportedMemberRequired(snapshot.collection.sportCode, entry.roleGroup),
           },
         });
         existingBySource.set(entry.sourceExternalId, { id: member.id, sourceExternalId: member.sourceExternalId, required: member.required, roleGroup: member.roleGroup, hometown: entry.roleGroup === SignatureMemberGroup.PLAYER ? entry.hometown ?? null : null });
@@ -976,7 +988,7 @@ export async function syncSignatureCreativeStaff(input: {
         normalizedName: { in: [...uniquelyNamedUsers.keys()] },
         collection: {
           season: collection.season,
-          sportCode: { notIn: [SIGNATURE_CREATIVE_STAFF_SPORT_CODE, SIGNATURE_AD_HOC_SPORT_CODE] },
+          sportCode: { notIn: [SIGNATURE_CREATIVE_STAFF_SPORT_CODE, SIGNATURE_ADMINISTRATION_SPORT_CODE, SIGNATURE_AD_HOC_SPORT_CODE] },
         },
       },
       select: { id: true, normalizedName: true, linkedUserId: true },

@@ -8,12 +8,17 @@ export const SIGNATURE_WOMENS_HOCKEY_SPORT_CODE = "WHKY" as const;
 export const SIGNATURE_WBB_SPORT_CODE = "WBB" as const;
 export const SIGNATURE_WRESTLING_SPORT_CODE = "WRES" as const;
 export const SIGNATURE_CREATIVE_STAFF_SPORT_CODE = "CREATIVE" as const;
+export const SIGNATURE_ADMINISTRATION_SPORT_CODE = "ADMIN" as const;
 export const SIGNATURE_AD_HOC_SPORT_CODE = "ADHOC" as const;
 export type SignatureRosterSourceConfig = {
   sourceKey: string;
   parserVersion: string;
   rosterPath: string;
   usesStartYearPath: boolean;
+  fixedPathSuffix?: string;
+  profilePathPrefix?: string;
+  defaultRoleGroup?: SignatureMemberGroup;
+  requiredByDefault?: boolean;
 };
 
 export const SIGNATURE_SPORT_REGISTRY = {
@@ -83,6 +88,19 @@ export const SIGNATURE_SPORT_REGISTRY = {
   [SIGNATURE_CREATIVE_STAFF_SPORT_CODE]: {
     label: "Creative Staff",
   },
+  [SIGNATURE_ADMINISTRATION_SPORT_CODE]: {
+    label: "Administration",
+    source: {
+      sourceKey: "UW_BADGERS_ADMINISTRATION",
+      parserVersion: "uwbadgers-administration-v1",
+      rosterPath: "/staff-directory/administration-department",
+      usesStartYearPath: false,
+      fixedPathSuffix: "/1",
+      profilePathPrefix: "/staff-directory/",
+      defaultRoleGroup: "SUPPORT_STAFF",
+      requiredByDefault: true,
+    },
+  },
   [SIGNATURE_AD_HOC_SPORT_CODE]: {
     label: "Ad-hoc signatures",
   },
@@ -106,14 +124,22 @@ export const SIGNATURE_COLLECTION_SPORT_CODES = Object.keys(SIGNATURE_SPORT_REGI
 ];
 export const DEFAULT_SIGNATURE_SEASON = "2026-27";
 
-export function getSignatureRosterSourceConfig(sportCode: string) {
+export function getSignatureRosterSourceConfig(sportCode: string): SignatureRosterSourceConfig {
   const definition = SIGNATURE_SPORT_REGISTRY[sportCode as SignatureCollectionSportCode];
   if (!definition || !("source" in definition)) throw new Error(`Unsupported signature roster sport: ${sportCode}`);
-  return definition.source;
+  return definition.source as SignatureRosterSourceConfig;
 }
 
 export function signatureCollectionTitle(sportCode: string): string {
   return SIGNATURE_SPORT_REGISTRY[sportCode as SignatureCollectionSportCode]?.label ?? sportCode;
+}
+
+export function isStandaloneStaffSignatureCollection(sportCode: string): boolean {
+  return sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE || sportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE;
+}
+
+export function isStandaloneSignatureCollection(sportCode: string): boolean {
+  return isStandaloneStaffSignatureCollection(sportCode) || sportCode === SIGNATURE_AD_HOC_SPORT_CODE;
 }
 
 export const SIGNATURE_SOURCE_KEY = getSignatureRosterSourceConfig(SIGNATURE_MBB_SPORT_CODE).sourceKey;

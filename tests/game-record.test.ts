@@ -4,22 +4,59 @@ vi.mock("@/lib/db", () => ({
   db: {
     calendarEvent: {
       groupBy: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
 
 import { db } from "@/lib/db";
 import {
+  GAME_RECORD_END_DATE,
+  GAME_RECORD_START_DATE,
   gameRecordEventWhere,
+  getWorkedEventCountForUser,
   getGameRecordForUser,
+  workedEventWhere,
 } from "@/lib/services/game-record";
 
 const mockedDb = db as unknown as {
-  calendarEvent: { groupBy: ReturnType<typeof vi.fn> };
+  calendarEvent: { groupBy: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedDb.calendarEvent.count.mockResolvedValue(0);
+});
+
+describe("workedEventWhere", () => {
+  it("counts completed visible assigned events without requiring a result", () => {
+    const where = workedEventWhere("user-1");
+
+    expect(where.startsAt).toEqual({ gte: GAME_RECORD_START_DATE, lt: GAME_RECORD_END_DATE });
+    expect(where.endsAt).toEqual({ lt: expect.any(Date) });
+    expect(where.status).toBe("CONFIRMED");
+    expect(where.isHidden).toBe(false);
+    expect(where.archivedAt).toBeUndefined();
+    expect(where.result).toBeUndefined();
+    expect(where.NOT).toBeUndefined();
+    expect(where.shiftGroup?.shifts?.some?.assignments?.some).toEqual({
+      userId: "user-1",
+      status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+    });
+  });
+});
+
+describe("getWorkedEventCountForUser", () => {
+  it("reads one event-level count for recap and recognition consumers", async () => {
+    mockedDb.calendarEvent.count.mockResolvedValue(7);
+
+    await expect(getWorkedEventCountForUser("user-1")).resolves.toBe(7);
+    expect(mockedDb.calendarEvent.count).toHaveBeenCalledTimes(1);
+    const args = mockedDb.calendarEvent.count.mock.calls[0]![0];
+    expect(args.where.startsAt).toEqual({ gte: GAME_RECORD_START_DATE, lt: GAME_RECORD_END_DATE });
+    expect(args.where.endsAt).toEqual({ lt: expect.any(Date) });
+    expect(args.where.shiftGroup.shifts.some.assignments.some.userId).toBe("user-1");
+  });
 });
 
 describe("gameRecordEventWhere", () => {
@@ -27,11 +64,25 @@ describe("gameRecordEventWhere", () => {
     expect(gameRecordEventWhere("user-1").result).toEqual({ not: null });
   });
 
+  it("starts counting at the July 1, 2026 app-timezone boundary", () => {
+    expect(gameRecordEventWhere("user-1").startsAt).toEqual({
+      gte: GAME_RECORD_START_DATE,
+    });
+  });
+
   it("excludes cancelled, hidden, and archived events", () => {
     const where = gameRecordEventWhere("user-1");
     expect(where.status).toEqual({ not: "CANCELLED" });
     expect(where.isHidden).toBe(false);
     expect(where.archivedAt).toBeNull();
+  });
+
+  it("keeps exhibitions and alumni matches out of the official record", () => {
+    expect(gameRecordEventWhere("user-1").NOT).toEqual([
+      { rawSummary: { contains: "exhibition", mode: "insensitive" } },
+      { rawSummary: { contains: "scrimmage", mode: "insensitive" } },
+      { rawSummary: { contains: "alumni match", mode: "insensitive" } },
+    ]);
   });
 
   it("credits the user through an active shift assignment only", () => {
@@ -54,12 +105,19 @@ describe("getGameRecordForUser", () => {
 
   it("returns a zero record when the user has no resolved games", async () => {
     mockedDb.calendarEvent.groupBy.mockResolvedValue([]);
-    await expect(getGameRecordForUser("user-1")).resolves.toEqual({ wins: 0, losses: 0, bySport: [], bySite: [] });
+    await expect(getGameRecordForUser("user-1")).resolves.toEqual({ eventsWorked: 0, wins: 0, losses: 0, bySport: [], bySite: [] });
   });
 
   it("fills the missing side when every game went one way", async () => {
     mockedDb.calendarEvent.groupBy.mockResolvedValue([{ result: "WIN", sportCode: "VB", site: "HOME", _count: { _all: 3 } }]);
     await expect(getGameRecordForUser("user-1")).resolves.toMatchObject({ wins: 3, losses: 0 });
+  });
+
+  it("keeps the all-event total separate from the official record", async () => {
+    mockedDb.calendarEvent.count.mockResolvedValue(3);
+    mockedDb.calendarEvent.groupBy.mockResolvedValue([{ result: "LOSS", sportCode: "VB", site: "HOME", _count: { _all: 1 } }]);
+
+    await expect(getGameRecordForUser("user-1")).resolves.toMatchObject({ eventsWorked: 3, wins: 0, losses: 1 });
   });
 
   it("ignores an unexpected null bucket rather than miscounting it", async () => {

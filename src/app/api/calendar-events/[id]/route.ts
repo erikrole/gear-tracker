@@ -3,14 +3,10 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntryTx } from "@/lib/audit";
-import {
-  cleanSummary,
-  extractSportInfo,
-  isHomeLocationText,
-} from "@/lib/services/calendar-sync";
-import { normalizeOpponentName, normalizeVenueText } from "@/lib/schedule-event-identity";
+import { cleanSummary } from "@/lib/services/calendar-sync";
+import { classifySourceEvent, normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { nullableSportCodeSchema } from "@/lib/validation";
-import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
+import { isHomeFromVenueTone, siteFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
 import { enforceRateLimit, SCHEDULE_MUTATION_LIMIT } from "@/lib/rate-limit";
@@ -80,6 +76,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         subtitle: true,
         sportCode: true,
         isHome: true,
+        site: true,
         locationId: true,
         rawSummary: true,
         rawLocationText: true,
@@ -126,31 +123,37 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (body.revertHomeAway) {
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
+      before.site = existing.site;
       before.opponent = existing.opponent;
       before.sportCode = existing.sportCode;
-      let derived: boolean | null = null;
-      let derivedOpponent: string | null = null;
-      let derivedSportCode: string | null = null;
+      let derived = {
+        isHome: null as boolean | null,
+        site: null as "HOME" | "AWAY" | "NEUTRAL" | null,
+        opponent: null as string | null,
+        sportCode: null as string | null,
+      };
       if (existing.rawSummary) {
-        const cleaned = cleanSummary(existing.rawSummary);
-        const info = extractSportInfo(cleaned);
-        derived = info.isHome;
-        derivedOpponent = info.opponent;
-        derivedSportCode = info.sportCode;
-        const locationText = normalizeVenueText(existing.rawLocationText) || "";
-        if (locationText) {
-          const homeByLocation = existing.location?.isHomeVenue === true || isHomeLocationText(locationText);
-          if (derived === null) derived = homeByLocation;
-          else if (derived === true && !homeByLocation) derived = null;
-        }
+        const classified = classifySourceEvent({
+          rawSummary: existing.rawSummary,
+          rawLocationText: existing.rawLocationText,
+          mappedIsHomeVenue: existing.location?.isHomeVenue ?? null,
+        });
+        derived = {
+          isHome: classified.isHome,
+          site: classified.site,
+          opponent: classified.opponent,
+          sportCode: classified.sportCode,
+        };
       }
-      patch.isHome = derived;
-      patch.opponent = derivedOpponent;
-      patch.sportCode = derivedSportCode;
+      patch.isHome = derived.isHome;
+      patch.site = derived.site;
+      patch.opponent = derived.opponent;
+      patch.sportCode = derived.sportCode;
       patch.isHomeLocked = false;
-      after.isHome = derived;
-      after.opponent = derivedOpponent;
-      after.sportCode = derivedSportCode;
+      after.isHome = derived.isHome;
+      after.site = derived.site;
+      after.opponent = derived.opponent;
+      after.sportCode = derived.sportCode;
       after.isHomeLocked = false;
     } else if (body.eventType !== undefined) {
       const normalizedOpponent = body.eventType === "non-game"
@@ -166,13 +169,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
+      before.site = existing.site;
       before.opponent = existing.opponent;
       before.sportCode = existing.sportCode;
       patch.isHome = isHomeFromVenueTone(body.eventType);
+      patch.site = siteFromVenueTone(body.eventType);
       patch.opponent = normalizedOpponent;
       patch.sportCode = effectiveSportCode;
       patch.isHomeLocked = true;
       after.isHome = patch.isHome;
+      after.site = patch.site;
       after.opponent = patch.opponent;
       after.sportCode = patch.sportCode;
       after.isHomeLocked = true;
@@ -212,6 +218,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         subtitle: true,
         sportCode: true,
         isHome: true,
+        site: true,
         opponent: true,
         locationId: true,
         summaryLocked: true,

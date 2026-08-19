@@ -8,6 +8,7 @@ import { AREA_LABELS, deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
 import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
+import UserScoreboardTab from "./UserScoreboardTab";
 import UserActivityTab from "./UserActivityTab";
 import UserAvailabilityTab from "./UserAvailabilityTab";
 import UserBadgesTab from "./UserBadgesTab";
@@ -71,7 +72,7 @@ import { formatAnticipatedGraduation } from "@/lib/student-profile";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
-type TabKey = "info" | "activity" | "availability" | "badges";
+type TabKey = "info" | "scoreboard" | "activity" | "availability" | "badges";
 
 type BadgeDefinitionOption = {
   id: string;
@@ -216,6 +217,7 @@ function CustomIconPicker({
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
+  { key: "scoreboard", label: "Scoreboard" },
   { key: "activity", label: "Activity" },
   { key: "availability", label: "Availability" },
   { key: "badges", label: "Badges" },
@@ -782,7 +784,13 @@ export default function UserDetailPage() {
               {profile.gameRecord && profile.gameRecord.wins + profile.gameRecord.losses > 0 && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Trophy className="size-3 shrink-0" />
-                  {profile.gameRecord.wins}–{profile.gameRecord.losses} on games staffed
+                  {profile.gameRecord.wins}–{profile.gameRecord.losses} on official games
+                </p>
+              )}
+              {profile.gameRecord && profile.gameRecord.eventsWorked > 0 && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="size-3 shrink-0" />
+                  {profile.gameRecord.eventsWorked} events worked in 2026–27
                 </p>
               )}
             </div>
@@ -1088,6 +1096,10 @@ export default function UserDetailPage() {
           isSelf={isSelf}
           onUpdated={loadUser}
         />
+      )}
+
+      {activeTab === "scoreboard" && (
+        <UserScoreboardTab userId={user.id} />
       )}
 
       {activeTab === "activity" && (

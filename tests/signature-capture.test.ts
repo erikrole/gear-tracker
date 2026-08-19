@@ -176,7 +176,8 @@ describe("UWBadgers signature roster adapter", () => {
     expect(buildUWBadgersRosterUrl("WHKY", "2026-27")).toBe("https://uwbadgers.com/sports/womens-ice-hockey/roster/2026-27");
     expect(buildUWBadgersRosterUrl("WBB", "2026-27")).toBe("https://uwbadgers.com/sports/womens-basketball/roster/2026-27");
     expect(buildUWBadgersRosterUrl("WRES", "2026-27")).toBe("https://uwbadgers.com/sports/wrestling/roster/2026-27");
-    expect(SIGNATURE_IMPORTED_SPORT_CODES).toEqual(["MBB", "FB", "VB", "MHKY", "WHKY", "WBB", "WRES"]);
+    expect(buildUWBadgersRosterUrl("ADMIN", "2026-27")).toBe("https://uwbadgers.com/staff-directory/administration-department/1");
+    expect(SIGNATURE_IMPORTED_SPORT_CODES).toEqual(["MBB", "FB", "VB", "MHKY", "WHKY", "WBB", "WRES", "ADMIN"]);
     expect(() => buildUWBadgersRosterUrl("CREATIVE", "2026-27")).toThrow();
     expect(isAllowedUWBadgersUrl("https://www.uwbadgers.com/sports/mens-basketball/roster/2025-26")).toBe(true);
     expect(isAllowedUWBadgersUrl("https://example.com/roster")).toBe(false);
@@ -192,6 +193,23 @@ describe("UWBadgers signature roster adapter", () => {
     expect(entries.find((entry) => entry.sourceExternalId === "200")?.roleGroup).toBe("COACHING_STAFF");
     expect(entries.find((entry) => entry.sourceExternalId === "300")?.roleGroup).toBe("SUPPORT_STAFF");
     expect(normalizedRosterHash(entries)).toBe(normalizedRosterHash([...entries]));
+  });
+
+  it("parses the fixed Administration staff-directory source as required support staff", () => {
+    const entries = parseUWBadgersRosterHtml([
+      "<a href=\"/staff-directory/administration-department/1\">Administration</a>",
+      "<a href=\"/staff-directory/shawn-eichorst/1325\">Shawn Eichorst</a><div class=\"s-person-details__position\">Director of Athletics</div>",
+      "<a href=\"/staff-directory/shawn-eichorst/1325\">Shawn Eichorst</a>",
+      "<a href=\"/staff-directory/marcus-sedberry/831\">Marcus Sedberry</a><div class=\"s-person-details__position\">Deputy Athletic Director/Chief Operating Officer</div>",
+    ].join(""), "ADMIN");
+
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.name)).toEqual(["Shawn Eichorst", "Marcus Sedberry"]);
+    expect(entries.every((entry) => entry.roleGroup === "SUPPORT_STAFF")).toBe(true);
+    expect(entries.find((entry) => entry.sourceExternalId === "1325")).toMatchObject({
+      title: "Director of Athletics",
+      sourceProfileUrl: "https://uwbadgers.com/staff-directory/shawn-eichorst/1325",
+    });
   });
 
   it("requires student-athletes while treating team staff as optional by default", () => {
@@ -363,7 +381,7 @@ describe("signature roster presentation", () => {
     expect(source).toContain("!isCreativeStaffRoster && <span");
     expect(source).toContain("member.title || roleLabel(member.roleGroup)");
     expect(source).toContain('title={member.title || roleLabel(member.roleGroup)}');
-    expect(source).toContain('const primaryCapture = member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF";');
+    expect(source).toContain('primaryCapture={member.roleGroup === "PLAYER" || member.roleGroup === "CREATIVE_STAFF" || isAdministrationRoster}');
     expect(source).toContain('variant={primaryCapture ? "brand" : "outline"}');
     expect(source).not.toContain('<span>Requirement</span>');
     expect(source).not.toContain('<span>Status</span>');
@@ -408,6 +426,7 @@ describe("signature roster presentation", () => {
       "Women’s Basketball",
       "Wrestling",
       "Creative Staff",
+      "Administration",
       "Ad-hoc signatures",
     ]);
     expect(signatureCollectionTitle("MBB")).toBe("Men’s Basketball");

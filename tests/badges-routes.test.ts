@@ -423,9 +423,12 @@ describe("GET /api/badges/user/[userId]", () => {
       .mockResolvedValueOnce(badgeDefinitionRows([earned]));
     vi.mocked(db.shiftAssignment.findMany).mockResolvedValue([{
       callStartsAt: null,
+      callEndsAt: null,
       shift: {
         startsAt: new Date("2026-08-10T15:00:00.000Z"),
+        endsAt: new Date("2026-08-10T18:00:00.000Z"),
         callStartsAt: null,
+        callEndsAt: null,
         shiftGroup: { event: { isHome: true } },
       },
     }] as never);
@@ -436,8 +439,16 @@ describe("GET /api/badges/user/[userId]", () => {
     });
     const body = await res.json();
 
+    // Dated from the shift that met the threshold, not from this request. A
+    // repair stamped `now()` claimed on the shelf that months-old work had just
+    // happened, and -- because the recent-awards feed selects by `awardedAt` --
+    // fired a celebration triggered by whoever opened the profile.
     expect(db.studentBadge.createMany).toHaveBeenCalledWith({
-      data: [{ userId: "student-1", definitionId: "definition-1" }],
+      data: [{
+        userId: "student-1",
+        definitionId: "definition-1",
+        awardedAt: new Date("2026-08-10T18:00:00.000Z"),
+      }],
       skipDuplicates: true,
     });
     expect(body.data.badges[0]).toEqual(expect.objectContaining({
@@ -482,7 +493,10 @@ describe("GET /api/badges/user/[userId]", () => {
       .mockResolvedValueOnce(badgeDefinitionRows([locked]))
       .mockResolvedValueOnce(badgeDefinitionRows([earned]));
     vi.mocked(db.badgeEventReceipt.findMany).mockResolvedValue(
-      Array.from({ length: 10 }, (_, index) => ({ sourceKey: `booking-${index + 1}` })) as never,
+      Array.from({ length: 10 }, (_, index) => ({
+        sourceKey: `booking-${index + 1}`,
+        receivedAt: new Date(`2026-0${index < 9 ? "3" : "4"}-1${index % 9}T12:00:00.000Z`),
+      })) as never,
     );
     vi.mocked(db.booking.findMany).mockResolvedValue(
       Array.from({ length: 10 }, (_, index) => ({
@@ -499,8 +513,16 @@ describe("GET /api/badges/user/[userId]", () => {
     });
     const body = await res.json();
 
+    // A distinct-count rule has no "Nth event" to point at, so the repair falls
+    // back to the latest evidence the user has. That is an upper bound rather
+    // than the exact moment, but it is always in the past, which is the
+    // property that keeps a repair from masquerading as a fresh award.
     expect(db.studentBadge.createMany).toHaveBeenCalledWith({
-      data: [{ userId: "student-1", definitionId: "definition-power-player" }],
+      data: [{
+        userId: "student-1",
+        definitionId: "definition-power-player",
+        awardedAt: new Date("2026-04-10T12:00:00.000Z"),
+      }],
       skipDuplicates: true,
     });
     expect(body.data.badges[0]).toEqual(expect.objectContaining({

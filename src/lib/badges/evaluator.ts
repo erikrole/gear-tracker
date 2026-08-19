@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { normalizePrefs } from "@/lib/services/notification-prefs";
 
 import { isSerializationConflict } from "@/lib/serialization";
 import {
@@ -45,6 +46,70 @@ async function runBadgeTransaction<T>(fn: (tx: TxClient) => Promise<T>): Promise
   throw new Error("Badge transaction retry exhausted");
 }
 
+/**
+ * Write the award rows an event earned, and tell the person.
+ *
+ * Automatic awards used to be silent. `awardBadgeManually` wrote a
+ * `badge_awarded` notification, and the three evaluator paths wrote none, so
+ * recognition ran backwards: a staff pat on the back left a durable inbox
+ * entry while `checkout_25` -- twenty-five checkouts of work -- left nothing
+ * but a popup that required being in the app when the poll landed. The nightly
+ * `onShiftsWorked` pass and any return completed at a shared kiosk are exactly
+ * the cases where nobody is holding their phone.
+ *
+ * `createManyAndReturn` is what makes this idempotent rather than noisy: it
+ * returns only the rows this call actually inserted, so a duplicate event that
+ * re-runs the evaluator awards nothing and therefore notifies nothing. The
+ * per-award `dedupeKey` is the second guard.
+ */
+async function grantBadges(tx: TxClient, args: {
+  userId: string;
+  definitions: Array<{ id: string; name: string }>;
+}) {
+  if (args.definitions.length === 0) return;
+
+  const created = await tx.studentBadge.createManyAndReturn({
+    data: args.definitions.map((definition) => ({
+      userId: args.userId,
+      definitionId: definition.id,
+    })),
+    skipDuplicates: true,
+    select: { id: true, definitionId: true },
+  });
+
+  if (created.length === 0) return;
+
+  // Only read prefs once something was actually earned.
+  const target = await tx.user.findUnique({
+    where: { id: args.userId },
+    select: { notificationPrefs: true },
+  });
+  if (normalizePrefs(target?.notificationPrefs).badges === false) return;
+
+  const nameByDefinitionId = new Map(args.definitions.map((d) => [d.id, d.name]));
+  const sentAt = new Date();
+
+  await tx.notification.createMany({
+    data: created.map((award) => ({
+      userId: args.userId,
+      type: "badge_awarded",
+      // "Earned", not "awarded": nobody handed this one over.
+      title: "Badge earned",
+      body: `You earned ${nameByDefinitionId.get(award.definitionId) ?? "a new badge"}.`,
+      payload: {
+        userId: args.userId,
+        badgeDefinitionId: award.definitionId,
+        studentBadgeId: award.id,
+        href: `/users/${args.userId}?tab=badges`,
+      },
+      channel: "IN_APP" as const,
+      sentAt,
+      dedupeKey: `badge_awarded_${award.id}`,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 async function awardThresholdBadges(tx: TxClient, args: {
   userId: string;
   category: BadgeCategory;
@@ -60,18 +125,10 @@ async function awardThresholdBadges(tx: TxClient, args: {
       threshold: { not: null, lte: args.count },
       ...(args.ruleKey ? { ruleKey: args.ruleKey } : {}),
     },
-    select: { id: true },
+    select: { id: true, name: true },
   });
 
-  if (definitions.length === 0) return;
-
-  await tx.studentBadge.createMany({
-    data: definitions.map((definition) => ({
-      userId: args.userId,
-      definitionId: definition.id,
-    })),
-    skipDuplicates: true,
-  });
+  await grantBadges(tx, { userId: args.userId, definitions });
 }
 
 async function awardRuleBadges(tx: TxClient, args: {
@@ -85,18 +142,10 @@ async function awardRuleBadges(tx: TxClient, args: {
       trigger: args.trigger,
       ruleKey: args.ruleKey,
     },
-    select: { id: true },
+    select: { id: true, name: true },
   });
 
-  if (definitions.length === 0) return;
-
-  await tx.studentBadge.createMany({
-    data: definitions.map((definition) => ({
-      userId: args.userId,
-      definitionId: definition.id,
-    })),
-    skipDuplicates: true,
-  });
+  await grantBadges(tx, { userId: args.userId, definitions });
 }
 
 async function awardMeasuredRuleBadges(tx: TxClient, args: {
@@ -115,7 +164,7 @@ async function awardMeasuredRuleBadges(tx: TxClient, args: {
       threshold: { not: null },
       ruleKey: { in: ruleKeys },
     },
-    select: { id: true, ruleKey: true, threshold: true },
+    select: { id: true, name: true, ruleKey: true, threshold: true },
   });
   const earnedDefinitions = definitions.filter((definition) => (
     definition.ruleKey !== null
@@ -123,14 +172,7 @@ async function awardMeasuredRuleBadges(tx: TxClient, args: {
     && (args.counts.get(definition.ruleKey) ?? 0) >= definition.threshold
   ));
 
-  if (earnedDefinitions.length === 0) return;
-  await tx.studentBadge.createMany({
-    data: earnedDefinitions.map((definition) => ({
-      userId: args.userId,
-      definitionId: definition.id,
-    })),
-    skipDuplicates: true,
-  });
+  await grantBadges(tx, { userId: args.userId, definitions: earnedDefinitions });
 }
 
 async function claimEventReceipt(tx: TxClient, args: {

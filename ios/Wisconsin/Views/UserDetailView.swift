@@ -16,7 +16,6 @@ struct UserDetailView: View {
     @State private var error: String?
     @State private var showBadgeGallery = false
     @State private var selectedBadge: UserBadge?
-    @State private var badgeTapFeedback = false
 
     private var isCollaboratorDirectoryViewer: Bool {
         session.currentUser?.role == "COLLABORATOR" && session.currentUser?.id != userId
@@ -247,60 +246,20 @@ struct BadgeShelfCard: View {
 
     @State private var tapFeedback = false
 
+    /// How many medals fit before the shelf stops being a glance. Anything past
+    /// this lives one tap away behind the overflow tile.
+    private static let shelfLimit = 16
+
     var body: some View {
         if profile.disabled != true {
             FormCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .center) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "trophy")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Color.statusText(.orange))
-                                    .accessibilityHidden(true)
-                                Text("Badges")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .textCase(.uppercase)
-                                    .tracking(0.04)
-                            }
-                            Text("\(profile.earnedCount) earned")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        Spacer()
-                        Button(action: openGallery) {
-                            Label("See all", systemImage: "square.grid.2x2")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        // Neutral, not brand red: opening a gallery is not
-                        // urgent and not destructive.
-                        .tint(Color.primary)
-                        .accessibilityLabel("See all badges")
-                    }
+                    header
 
                     if profile.earnedBadges.isEmpty {
-                        Text("No badges yet")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        emptyShelf
                     } else {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 2) {
-                                ForEach(profile.earnedBadges.prefix(16)) { badge in
-                                    Button {
-                                        tapFeedback.toggle()
-                                        openBadge(badge)
-                                    } label: {
-                                        BadgeShelfItem(badge: badge)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        .sensoryFeedback(.selection, trigger: tapFeedback)
+                        shelf
                     }
 
                     if !liveStreaks.isEmpty {
@@ -325,14 +284,127 @@ struct BadgeShelfCard: View {
         }
     }
 
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.statusText(.orange))
+                        .accessibilityHidden(true)
+                    Text("Badges")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.04)
+                }
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Button(action: openGallery) {
+                Label("See all", systemImage: "square.grid.2x2")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            // Neutral, not brand red: opening a gallery is not
+            // urgent and not destructive.
+            .tint(Color.primary)
+            .accessibilityLabel("See all badges")
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// "12 earned" is the count; the fresh tally is the news. A badge earned
+    /// this week is the reason to look at this card at all.
+    private var subtitle: String {
+        let freshCount = profile.earnedBadges.filter(\.recentlyEarned).count
+        guard freshCount > 0 else { return "\(profile.earnedCount) earned" }
+        return "\(profile.earnedCount) earned · \(freshCount) new this week"
+    }
+
+    private var emptyShelf: some View {
+        // A profile with nothing on the shelf used to say only "No badges yet",
+        // which reads as a dead end. There is always something in reach, and the
+        // closest-to-earned row below says what it is.
+        HStack(spacing: 10) {
+            Image(systemName: "trophy")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            Text("No badges yet — they arrive as gear goes out and comes back.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var shelf: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 2) {
+                ForEach(shelfBadges) { badge in
+                    Button {
+                        tapFeedback.toggle()
+                        openBadge(badge)
+                    } label: {
+                        BadgeShelfItem(badge: badge)
+                    }
+                    .buttonStyle(.plain)
+                }
+                // The shelf silently dropped everything past the sixteenth
+                // badge, so the most decorated profiles were the ones that
+                // looked incomplete.
+                if overflowCount > 0 {
+                    Button(action: openGallery) {
+                        BadgeShelfOverflowItem(count: overflowCount)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .sensoryFeedback(.selection, trigger: tapFeedback)
+    }
+
+    /// Newest first. Sorted by the catalog's `sortOrder`, a badge earned this
+    /// morning could land fourteenth on a horizontal shelf that shows six --
+    /// so the glow marking it as new was scrolled off the screen it was drawn
+    /// for.
+    private var shelfBadges: [UserBadge] {
+        profile.earnedBadges
+            .sorted { ($0.awardedDate ?? .distantPast) > ($1.awardedDate ?? .distantPast) }
+            .prefix(Self.shelfLimit)
+            .map { $0 }
+    }
+
+    private var overflowCount: Int {
+        max(0, profile.earnedBadges.count - Self.shelfLimit)
+    }
+
     /// The unearned badge this person is nearest to earning. The server already
     /// derives real progress for threshold and streak badges; until now it was
     /// only legible after opening the gallery, so the shelf showed what you had
     /// and never what was within reach.
+    ///
+    /// Reads the visible collection, not every badge: the server derives real
+    /// progress for the hidden easter eggs too, so an unfiltered pick would put
+    /// a surprise badge's name and its progress bar on the profile card -- the
+    /// most prominent place in the feature to give one away.
     private var closestToEarned: UserBadge? {
-        profile.badges
+        profile.visibleBadges
             .filter(\.hasProgress)
-            .max { $0.progressFraction < $1.progressFraction }
+            .max {
+                // Ties broken by how few steps are left, so "9 of 10" leads
+                // "90 of 100" instead of depending on catalog order.
+                if $0.progressFraction != $1.progressFraction {
+                    return $0.progressFraction < $1.progressFraction
+                }
+                return $0.progressRemaining > $1.progressRemaining
+            }
     }
 
     private var liveStreaks: [BadgeStreakSummary] {
@@ -405,7 +477,7 @@ private struct BadgeProgressRow: View {
                         .foregroundStyle(.secondary)
                 }
                 ProgressView(value: badge.progressFraction)
-                    .tint(Color.statusText(badge.rarity.tone))
+                    .tint(badge.rarity.accent)
             }
             .contentShape(Rectangle())
         }
@@ -524,9 +596,20 @@ private struct UserDetailSkeleton: View {
 private struct BadgeTile: View {
     let badge: UserBadge
 
+    /// Tiles are laid out on a fixed adaptive grid, so the medal has to give way
+    /// as text grows or the name is squeezed into nothing at accessibility
+    /// sizes.
+    @ScaledMetric(relativeTo: .footnote) private var medallionSize: CGFloat = 48
+
     var body: some View {
         VStack(spacing: 8) {
-            BadgeMedallionView(badge: badge, size: 48)
+            ZStack(alignment: .topTrailing) {
+                BadgeMedallionView(badge: badge, size: medallionSize)
+                if badge.recentlyEarned {
+                    BadgeFreshDot()
+                        .offset(x: 3, y: -1)
+                }
+            }
             VStack(spacing: 2) {
                 Text(badge.name)
                     .font(.footnote.weight(.semibold))
@@ -540,7 +623,7 @@ private struct BadgeTile: View {
             }
             if badge.hasProgress {
                 ProgressView(value: badge.progressFraction)
-                    .tint(Color.statusText(badge.rarity.tone))
+                    .tint(badge.rarity.accent)
                     .frame(maxWidth: 88)
             }
         }
@@ -555,39 +638,97 @@ private struct BadgeTile: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color(.separator).opacity(badge.earned ? 0.5 : 0.35), lineWidth: 0.5)
         )
-        .shadow(color: badge.recentlyEarned ? Color.statusText(badge.rarity.tone).opacity(0.20) : .clear, radius: 12, x: 0, y: 4)
+        .shadow(color: badge.recentlyEarned ? badge.rarity.accent.opacity(0.20) : .clear, radius: 12, x: 0, y: 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
+        .accessibilityLabel(badge.tileAccessibilityLabel)
+        .accessibilityHint("Opens badge details.")
     }
+}
 
-    private var accessibilityLabel: String {
-        [badge.name, badge.earned ? "earned" : "locked", badge.tileMetaLine].joined(separator: ", ")
+/// The "New" marker. A dot rather than a chip: at gallery-tile scale a word
+/// costs a line of the badge name, and this sits on a medal that is already
+/// glowing.
+private struct BadgeFreshDot: View {
+    var body: some View {
+        Circle()
+            .fill(Color.statusText(.green))
+            .frame(width: 10, height: 10)
+            .overlay(Circle().strokeBorder(Color(.secondarySystemGroupedBackground), lineWidth: 2))
+            .accessibilityHidden(true)
     }
 }
 
 /// Horizontal-shelf item for the profile card: medallion over a two-line name.
-struct BadgeShelfItem: View {
+private struct BadgeShelfItem: View {
     let badge: UserBadge
+
+    @ScaledMetric(relativeTo: .caption2) private var medallionSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .caption2) private var itemWidth: CGFloat = 82
 
     var body: some View {
         VStack(spacing: 6) {
-            BadgeMedallionView(badge: badge, size: 52)
+            ZStack(alignment: .topTrailing) {
+                BadgeMedallionView(badge: badge, size: medallionSize)
+                if badge.recentlyEarned {
+                    BadgeFreshDot()
+                        .offset(x: 3, y: -1)
+                }
+            }
             Text(badge.name)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2, reservesSpace: true)
         }
-        .frame(width: 82)
+        // Grows with Dynamic Type instead of clipping the name into it. The
+        // shelf scrolls horizontally, so a wider item costs nothing but scroll.
+        .frame(width: itemWidth)
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(badge.name), earned. Double-tap for details.")
+        .accessibilityLabel(badge.shelfAccessibilityLabel)
+        .accessibilityHint("Opens badge details.")
+    }
+}
+
+/// The tail of a long shelf: "+7 more", tapping through to the full gallery.
+private struct BadgeShelfOverflowItem: View {
+    let count: Int
+
+    @ScaledMetric(relativeTo: .caption2) private var medallionSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .caption2) private var itemWidth: CGFloat = 82
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(Color.statusBackground(.gray))
+                Circle()
+                    .strokeBorder(Color.secondary.opacity(0.25), lineWidth: max(1, medallionSize * 0.035))
+                Text("+\(count)")
+                    .font(.system(size: medallionSize * 0.32, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+            }
+            .frame(width: medallionSize, height: medallionSize)
+            Text("more")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2, reservesSpace: true)
+        }
+        .frame(width: itemWidth)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(count) more earned \(count == 1 ? "badge" : "badges")")
+        .accessibilityHint("Opens the badge gallery.")
     }
 }
 
 struct BadgeGallerySheet: View {
     let profile: BadgeProfile
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var filter: BadgeGalleryFilter = .all
     @State private var selectedBadge: UserBadge?
     @State private var tapFeedback = false
@@ -697,37 +838,71 @@ struct BadgeGallerySheet: View {
         }
     }
 
+    /// Mirrors the web tab's summary band: completion leads with a bar, then the
+    /// three counts that explain it. The old middle cell read "Gallery" over the
+    /// number of visible badges -- a total that answered no question anyone had,
+    /// while "how many are left" went unanswered.
     private var gallerySummary: some View {
-        HStack(spacing: 8) {
-            BadgeSummaryCell(value: "\(profile.earnedCount)", label: "Earned")
-            BadgeSummaryCell(value: "\(profile.visibleBadges.count)", label: "Gallery")
-            BadgeSummaryCell(value: "\(profile.completionPercent)%", label: "Complete")
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(profile.completionPercent)%")
+                        .font(.system(.largeTitle, design: .default, weight: .semibold))
+                        .monospacedDigit()
+                    Text("of automatic goals")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                ProgressView(value: Double(profile.completionPercent), total: 100)
+                    .tint(Color.brandPrimary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(profile.completionPercent) percent of automatic goals complete")
+
+            HStack(spacing: 8) {
+                BadgeSummaryCell(value: "\(profile.earnedCount)", label: "Earned")
+                BadgeSummaryCell(value: "\(profile.goalsRemainingCount)", label: "Goals left")
+                if profile.hiddenSurpriseCount > 0 {
+                    BadgeSummaryCell(value: "\(profile.hiddenSurpriseCount)", label: "Hidden")
+                }
+            }
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    /// The shared `FilterChip`, not a local capsule. The hand-rolled version
+    /// this replaces was a 40pt target painted from `Color.accentColor`, and it
+    /// never told VoiceOver which filter was active -- `FilterChip` carries the
+    /// 44pt minimum and the `.isSelected` trait for every other filter strip in
+    /// the app.
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(BadgeGalleryFilter.allCases) { item in
-                    Button {
-                        withAnimation(.snappy(duration: 0.18)) {
+                    FilterChip(
+                        label: item.title,
+                        systemImage: item.systemImage,
+                        isOn: filter == item,
+                        tone: .blue
+                    ) {
+                        guard filter != item else { return }
+                        tapFeedback.toggle()
+                        if reduceMotion {
                             filter = item
+                        } else {
+                            withAnimation(.snappy(duration: 0.18)) { filter = item }
                         }
-                    } label: {
-                        Text(item.title)
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 14)
-                            .frame(minHeight: 40)
-                            .background(filter == item ? Color.accentColor.opacity(0.14) : Color(.secondarySystemGroupedBackground), in: Capsule())
-                            .foregroundStyle(filter == item ? Color.accentColor : Color.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Show \(item.title.lowercased()) badges")
                 }
             }
             .padding(.vertical, 2)
         }
+        .scrollClipDisabled()
     }
+
 }
 
 struct BadgeDetailSheet: View {
@@ -738,61 +913,30 @@ struct BadgeDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        BadgeMedallionView(badge: badge, size: 72)
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                BadgeStatusChip(badge: badge)
-                                Text(badge.rarity.title)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Color.statusText(badge.rarity.tone))
-                            }
-                            Text(badge.name)
-                                .font(.title2.weight(.bold))
-                                .textSelection(.enabled)
-                            Text(badge.description)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(18)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
-
+                    hero
                     detailGrid
 
                     if badge.hasProgress {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Progress")
-                                    .font(.subheadline.weight(.semibold))
-                                Spacer()
-                                Text("\(badge.progressCurrent ?? 0)/\(badge.progressTarget ?? 0)")
-                                    .font(.caption.monospacedDigit().weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            ProgressView(value: badge.progressFraction)
-                                .tint(Color.statusText(badge.rarity.tone))
-                        }
-                        .padding(14)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                        progressCard
                     }
 
-                    if let note = badge.note, !note.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Award Note")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.3)
-                            Text(note)
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                        }
-                        .padding(14)
+                    if hasRecognitionNote {
+                        recognitionCard
+                    }
+
+                    if !badge.earned && !badge.hasProgress {
+                        // The one thing a locked badge with no measurable
+                        // progress can still say: it is reachable, and how.
+                        Label(
+                            badge.trigger == "manual"
+                                ? "Unlocks when a staff member recognises the work."
+                                : "Unlocks from a qualifying gear or shift workflow.",
+                            systemImage: "lock"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 2)
                     }
                 }
                 .padding()
@@ -808,10 +952,121 @@ struct BadgeDetailSheet: View {
         }
     }
 
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            BadgeMedallionView(badge: badge, size: 72)
+            VStack(alignment: .leading, spacing: 8) {
+                // Chips wrap rather than clip. A recently earned manual award of
+                // a retired definition carries four of them, and on a narrow
+                // phone the fixed row simply cut the last one off.
+                HStack(spacing: 6) {
+                    BadgeStatusChip(badge: badge)
+                    if badge.recentlyEarned {
+                        BadgeChip(text: "New", tone: .green)
+                    }
+                    // Nothing is deleted from the catalog -- retirement is
+                    // `active = false` -- so an earned badge can outlive the goal
+                    // it came from. Web says so and the phone did not.
+                    if badge.isRetiredAward {
+                        BadgeChip(text: "Retired", tone: .gray)
+                    }
+                    Text(badge.rarity.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(badge.rarity.accent)
+                }
+                Text(badge.name)
+                    .font(.title2.weight(.bold))
+                    .textSelection(.enabled)
+                Text(badge.description)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                // Rarity was an adjective with nothing behind it. The holder
+                // count is the fact it is computed from, and the API has been
+                // serving it all along.
+                if let holdersLine = badge.holdersLine {
+                    Text(holdersLine)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var progressCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Progress")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(badge.progressCurrent ?? 0)/\(badge.progressTarget ?? 0)")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: badge.progressFraction)
+                .tint(badge.rarity.accent)
+            if badge.progressRemaining > 0 && badge.progressRemaining != .max {
+                Text("\(badge.progressRemaining) to go")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Progress, \(badge.progressCurrent ?? 0) of \(badge.progressTarget ?? 0)")
+    }
+
+    private var hasRecognitionNote: Bool {
+        (badge.note?.isEmpty == false) || (badge.awardedByName?.isEmpty == false)
+    }
+
+    /// The note and who wrote it. The attribution was served on every award row
+    /// and dropped on the floor here, so a Staff Picks badge that someone chose
+    /// to give you arrived on the phone unsigned.
+    private var recognitionCard: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Rectangle()
+                .fill(badge.rarity.accent.opacity(0.7))
+                .frame(width: 4)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Award note", systemImage: "checkmark.seal")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.3)
+                if let note = badge.note, !note.isEmpty {
+                    Text(note)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let awardedBy = badge.awardedByName, !awardedBy.isEmpty {
+                    Text("— \(awardedBy)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(14)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .combine)
+    }
+
     private var detailGrid: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
             BadgeDetailMetric(label: "Category", value: badge.category.displayCategory)
-            BadgeDetailMetric(label: "Source", value: badge.source == "MANUAL" ? "Manual award" : badge.earned ? "Automatic" : "Not earned")
+            // Not "Not earned" -- the Earned metric beside it already says that,
+            // and repeating it wasted the one slot that could explain how the
+            // badge is come by at all.
+            BadgeDetailMetric(label: "Source", value: badge.sourceText)
             BadgeDetailMetric(label: "Earned", value: badge.earnedDateText)
         }
     }
@@ -859,37 +1114,78 @@ private struct BadgeDetailMetric: View {
 
 // MARK: - Shaped medallions (web BadgeMedallion parity)
 
+/// The medal itself, at every size the badge page draws one.
+///
+/// This is the celebration popup's artwork, scaled down: a rarity-tinted
+/// gradient disc under a white glyph, with a soft accent shadow. It used to be
+/// a pale wash behind a tinted glyph, which meant the badge you had just
+/// watched land as a solid coloured medal turned into a faint outline the
+/// moment you went to look at it on your shelf. Locked badges keep the quiet
+/// treatment -- an unearned medal should not shine.
 private struct BadgeMedallionView: View {
     let badge: UserBadge
     let size: CGFloat
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var celebrate = false
+
     var body: some View {
-        // One medallion shape for every badge. The per-badge silhouettes this
-        // replaces -- coin, hex, shield, stack -- were drawn from hand-plotted
-        // paths, and `stack` in particular rendered as a notched square behind
-        // an offset second square, which read as a clipping fault rather than a
-        // medal. A single ringed disc says "award" without any badge looking
-        // broken, and rarity still speaks through colour.
-        let tone: StatusTone = badge.earned ? badge.rarity.tone : .gray
         ZStack {
-            Circle()
-                .fill(Color.statusBackground(tone))
-            Circle()
-                .strokeBorder(Color.statusText(tone).opacity(badge.earned ? 0.35 : 0.2), lineWidth: max(1, size * 0.05))
+            // The celebration's halo, kept for the week a badge is new. On a
+            // dense gallery grid every medal wearing one would just be haze.
+            if badge.recentlyEarned {
+                Circle()
+                    .fill(badge.rarity.accentBackground)
+                    .frame(width: size * 1.16, height: size * 1.16)
+                    .blur(radius: size * 0.08)
+            }
+
+            if badge.earned {
+                Circle()
+                    .fill(badge.rarity.accent.gradient)
+                // A hairline of light along the rim, so the disc reads as struck
+                // metal rather than a flat swatch.
+                Circle()
+                    .strokeBorder(.white.opacity(0.28), lineWidth: max(1, size * 0.035))
+            } else {
+                // One medallion shape for every badge. The per-badge silhouettes
+                // this replaces -- coin, hex, shield, stack -- were drawn from
+                // hand-plotted paths, and `stack` in particular rendered as a
+                // notched square behind an offset second square, which read as a
+                // clipping fault rather than a medal.
+                Circle()
+                    .fill(Color.statusBackground(.gray))
+                Circle()
+                    .strokeBorder(Color.secondary.opacity(0.25), lineWidth: max(1, size * 0.035))
+            }
+
             // A locked badge keeps its own icon, dimmed. Every locked badge used
             // to draw `lock.fill`, which told you a badge existed but never what
             // it was -- the same "one glyph repeated" problem the icon map had,
             // just confined to the half of the shelf you have not earned yet.
             // What it takes is the reason to go get it.
-            Image(systemName: badge.icon.sfSymbolName)
+            Image(systemName: BadgeArtwork.symbolName(for: badge.icon))
                 .font(.system(size: size * 0.42, weight: .semibold))
-                .foregroundStyle(Color.statusText(tone))
-                .opacity(badge.earned ? 1 : 0.45)
-                .symbolEffect(.bounce, value: badge.recentlyEarned)
+                .foregroundStyle(badge.earned ? AnyShapeStyle(.white) : AnyShapeStyle(Color.secondary))
+                .opacity(badge.earned ? 1 : 0.55)
+                // Driven by state, not by `recentlyEarned`. A symbol effect only
+                // fires when its value *changes*, and `recentlyEarned` is derived
+                // from the award date, so it held one value for the whole life of
+                // the view and the bounce never played once.
+                .symbolEffect(.bounce, options: .nonRepeating, value: celebrate)
         }
         .frame(width: size, height: size)
-        .shadow(color: badge.recentlyEarned ? Color.statusText(badge.rarity.tone).opacity(0.22) : .clear, radius: 12, x: 0, y: 4)
+        .shadow(
+            color: badge.earned ? badge.rarity.accent.opacity(badge.recentlyEarned ? 0.38 : 0.22) : .clear,
+            radius: badge.recentlyEarned ? size * 0.22 : size * 0.12,
+            x: 0,
+            y: size * 0.06
+        )
         .accessibilityHidden(true)
+        .onAppear {
+            guard badge.recentlyEarned, !reduceMotion, !celebrate else { return }
+            celebrate = true
+        }
     }
 }
 
@@ -935,16 +1231,37 @@ private struct BadgeGallerySection: Identifiable {
     var id: String { collection.id }
 }
 
-private struct BadgeStatusChip: View {
-    let badge: UserBadge
+/// One chip shape for every badge state, so Earned, New, and Retired cannot
+/// drift into three different pill treatments.
+private struct BadgeChip: View {
+    let text: String
+    let tone: StatusTone
 
     var body: some View {
-        Text(badge.earned ? (badge.source == "MANUAL" ? "Manual" : "Earned") : "Locked")
+        Text(text)
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Color.statusBackground(badge.earned ? (badge.source == "MANUAL" ? .purple : .green) : .gray), in: Capsule())
-            .foregroundStyle(Color.statusText(badge.earned ? (badge.source == "MANUAL" ? .purple : .green) : .gray))
+            .background(Color.statusBackground(tone), in: Capsule())
+            .foregroundStyle(Color.statusText(tone))
+    }
+}
+
+private struct BadgeStatusChip: View {
+    let badge: UserBadge
+
+    private var tone: StatusTone {
+        guard badge.earned else { return .gray }
+        return badge.source == "MANUAL" ? .purple : .green
+    }
+
+    private var label: String {
+        guard badge.earned else { return "Locked" }
+        return badge.source == "MANUAL" ? "Manual" : "Earned"
+    }
+
+    var body: some View {
+        BadgeChip(text: label, tone: tone)
     }
 }
 
@@ -988,42 +1305,35 @@ private enum BadgeGalleryFilter: String, CaseIterable, Identifiable {
         case .rare: "Rare"
         }
     }
-}
 
-private enum BadgeRarity: String {
-    case common, uncommon, rare, legendary
-
-    /// The server sends title case ("Legendary"); an unrecognised value means a
-    /// newer server vocabulary, so fall through to the local rating rather than
-    /// guessing.
-    init?(serverValue: String) {
-        self.init(rawValue: serverValue.lowercased())
-    }
-
-    var title: String {
+    var systemImage: String {
         switch self {
-        case .common: "Common"
-        case .uncommon: "Uncommon"
-        case .rare: "Rare"
-        case .legendary: "Legendary"
-        }
-    }
-
-    var tone: StatusTone {
-        switch self {
-        case .common: return .blue
-        case .uncommon: return .green
-        case .rare: return .orange
-        case .legendary: return .purple
+        case .all: "square.grid.2x2"
+        case .earned: "checkmark.seal"
+        case .locked: "lock"
+        case .manual: "hand.thumbsup"
+        case .rare: "sparkles"
         }
     }
 }
 
+/// The awards that stay out of the locked grid until they are earned, so a
+/// surprise is still a surprise. This must stay equal to `HIDDEN_BADGE_KEYS` in
+/// `src/lib/badges/display.ts`: it had fallen five keys behind, which spoiled
+/// every v7 easter egg on iOS, undercounted the hidden tally, and made the same
+/// user's completion percentage disagree with the web tab.
+/// `tests/ios-badge-icon-coverage.test.ts` guards the two lists against drifting
+/// apart again.
 private let hiddenBadgeKeys: Set<String> = [
     "above_and_beyond",
     "event_hero",
     "clean_loop",
     "go_to_bed",
+    "old_faithful",
+    "battery_run",
+    "buzzer_beater",
+    "take_thirteen",
+    "holiday_hours",
 ]
 
 private let legendaryBadgeKeys: Set<String> = [
@@ -1061,13 +1371,24 @@ private extension BadgeProfile {
         badges.filter { !$0.earned && $0.active && hiddenBadgeKeys.contains($0.key) }.count
     }
 
-    var completionPercent: Int {
-        let goals = badges.filter {
+    /// The automatic goals completion is measured against. Manual recognition,
+    /// hidden surprises, and retired history are all excluded, so no amount of
+    /// staff generosity or easter-egg hoarding moves the number, and a retired
+    /// badge nobody can earn any more cannot hold it down.
+    var automaticGoals: [UserBadge] {
+        badges.filter {
             $0.active && !$0.isManualRecognition && !hiddenBadgeKeys.contains($0.key)
         }
+    }
+
+    var goalsEarnedCount: Int { automaticGoals.filter(\.earned).count }
+
+    var goalsRemainingCount: Int { max(0, automaticGoals.count - goalsEarnedCount) }
+
+    var completionPercent: Int {
+        let goals = automaticGoals
         guard !goals.isEmpty else { return 0 }
-        let completed = goals.filter(\.earned).count
-        return Int((Double(completed) / Double(goals.count) * 100).rounded())
+        return Int((Double(goalsEarnedCount) / Double(goals.count) * 100).rounded())
     }
 }
 
@@ -1127,6 +1448,58 @@ private extension UserBadge {
         return min(1, Double(current) / Double(target))
     }
 
+    /// How many more it takes. Used to break ties between two badges sitting at
+    /// the same percentage.
+    var progressRemaining: Int {
+        guard hasProgress, let current = progressCurrent, let target = progressTarget else { return .max }
+        return max(0, target - current)
+    }
+
+    /// An earned award whose definition has since been retired. Nothing is ever
+    /// deleted from the catalog -- retirement is `active = false` -- so these
+    /// stay on the shelf, and saying so is the difference between a piece of
+    /// history and a goal someone might chase.
+    var isRetiredAward: Bool { earned && !active }
+
+    /// How scarce this badge actually is, in people rather than adjectives.
+    /// Rarity is computed from exactly this number, and printing only the
+    /// adjective asked people to trust a word with nothing behind it.
+    var holdersLine: String? {
+        guard let holders, holders > 0 else { return nil }
+        return holders == 1 ? "1 person has this" : "\(holders) people have this"
+    }
+
+    /// How this badge is come by. Answers the same question whether or not it
+    /// has been earned yet.
+    var sourceText: String {
+        if source == "MANUAL" { return "Manual award" }
+        return trigger == "manual" ? "Staff award" : "Automatic"
+    }
+
+    var statusWord: String {
+        if !earned { return "locked" }
+        return source == "MANUAL" ? "awarded by staff" : "earned"
+    }
+
+    var tileAccessibilityLabel: String {
+        var parts = [name, statusWord, tileMetaLine]
+        if recentlyEarned { parts.insert("new", at: 1) }
+        if isRetiredAward { parts.append("retired") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// The shelf only ever holds earned badges, but it used to say so in a
+    /// hardcoded string that skipped both the fresh state and manual awards.
+    var shelfAccessibilityLabel: String {
+        var parts = [name]
+        if recentlyEarned { parts.append("new") }
+        parts.append(statusWord)
+        if let earnedOn = awardedDate {
+            parts.append(earnedOn.formatted(date: .abbreviated, time: .omitted))
+        }
+        return parts.joined(separator: ", ")
+    }
+
     var recentlyEarned: Bool {
         guard earned, let date = awardedDate else { return false }
         let age = Date().timeIntervalSince(date)
@@ -1170,97 +1543,252 @@ private extension String {
         default: lowercased().replacingOccurrences(of: "_", with: " ")
         }
     }
+}
 
-    var badgeTone: StatusTone {
-        switch self {
-        case "CHECKOUT": .blue
-        case "ON_TIME": .green
-        case "SCAN": .green
-        case "TRADE": .purple
-        case "SHIFT": .orange
-        case "STREAK": .orange
-        case "MILESTONE": .red
-        default: .blue
-        }
+// MARK: - Previews
+
+#if DEBUG
+
+/// Sample badge data for the canvas.
+///
+/// The badge page can only be reached behind a signed-in session against a live
+/// API, which made every visual change to it a build-sign-in-navigate round
+/// trip and left native visual acceptance open as a release gate. These build
+/// the profile payload directly so the shelf, the gallery, and the detail sheet
+/// can be checked in light and dark from the canvas.
+///
+/// Deliberately built through the memberwise initialiser rather than decoded
+/// from a JSON literal: a new field on `UserBadge` then breaks this file at
+/// compile time, which is the moment to decide how the badge page should show
+/// it.
+///
+/// Internal rather than private, and DEBUG-only, so a test-target harness can
+/// host these in a `UIHostingController` and capture the badge surfaces without
+/// a signed-in session. That is how this pass was visually accepted.
+enum BadgePreviewData {
+    static func badge(
+        key: String,
+        name: String,
+        description: String = "Sample badge description for the canvas.",
+        icon: String = "Trophy",
+        category: String = "CHECKOUT",
+        kind: String = "COUNT",
+        trigger: String = "checkout:opened",
+        threshold: Int? = nil,
+        active: Bool = true,
+        earned: Bool = false,
+        daysAgo: Int? = nil,
+        source: String? = nil,
+        note: String? = nil,
+        awardedByName: String? = nil,
+        progress: (current: Int, target: Int)? = nil,
+        rarity: String = "Common",
+        holders: Int = 12
+    ) -> UserBadge {
+        UserBadge(
+            id: key,
+            key: key,
+            name: name,
+            description: description,
+            icon: icon,
+            category: category,
+            kind: kind,
+            trigger: trigger,
+            threshold: threshold,
+            ruleKey: nil,
+            active: active,
+            sortOrder: 0,
+            earned: earned,
+            awardedAt: daysAgo.map {
+                ISO8601DateFormatter.gearBadge.string(
+                    from: Date().addingTimeInterval(-Double($0) * 86_400)
+                )
+            },
+            source: source,
+            note: note,
+            awardedByName: awardedByName,
+            progressCurrent: progress?.current,
+            progressTarget: progress?.target,
+            servedRarity: rarity,
+            holders: holders
+        )
     }
 
-    /// `BadgeDefinition.icon` holds a Lucide name, because the catalog was built
-    /// for the web. This map has to cover every name the catalog actually uses
-    /// or badges silently collapse into one glyph -- which is exactly what
-    /// happened: the twelve names below the seeded set were the only ones here,
-    /// they overlap the catalog on `Trophy` alone, and 31 of 33 badges rendered
-    /// `seal.fill`. A shelf of identical medals is not a shelf.
-    ///
-    /// `tests/ios-badge-icon-coverage.test.ts` fails if the seed catalog or the
-    /// custom-icon picker gains a name this switch does not answer.
-    var sfSymbolName: String {
-        switch self {
-        // Seeded catalog: gear flow
-        case "PackageCheck": "shippingbox.circle.fill"
-        case "PackageOpen": "shippingbox.fill"
-        case "Boxes": "square.stack.3d.up.fill"
-        case "Warehouse": "building.2.fill"
-        // Seeded catalog: scans
-        case "ScanLine": "barcode.viewfinder"
-        case "ScanSearch": "text.viewfinder"
-        case "QrCode": "qrcode"
-        // Seeded catalog: time and reliability
-        case "Clock3": "clock.fill"
-        case "CalendarCheck2": "calendar.badge.checkmark"
-        case "AlarmClockCheck": "alarm.waves.left.and.right.fill"
-        case "CalendarClock": "calendar.badge.clock"
-        case "CalendarDays": "calendar"
-        case "CalendarRange": "calendar.badge.plus"
-        case "ShieldCheck": "checkmark.shield.fill"
-        case "BadgeCheck": "checkmark.seal.fill"
-        // Seeded catalog: people and teamwork
-        case "Handshake": "hands.sparkles.fill"
-        case "UserCheck": "person.fill.checkmark"
-        case "Repeat2": "arrow.triangle.2.circlepath"
-        case "Flame": "flame.fill"
-        case "Trophy": "trophy.fill"
-        // Curated automatic awards, manual awards, and app-open easter eggs.
-        case "Cable": "cable.connector"
-        case "BatteryCharging": "battery.100percent.bolt"
-        case "BatteryLow": "battery.25"
-        case "Truck": "truck.box.fill"
-        case "ArrowLeftRight": "arrow.left.arrow.right"
-        case "Timer": "timer"
-        case "AlarmClock": "alarm.fill"
-        case "Clapperboard": "clapperboard.fill"
-        case "Gift": "gift.fill"
-        case "Aperture": "camera.aperture"
-        case "AudioLines": "waveform"
-        case "BusFront": "bus.fill"
-        case "Camera": "camera.fill"
-        case "Focus": "viewfinder"
-        case "HardDrive": "externaldrive.fill"
-        case "Lightbulb": "lightbulb.fill"
-        case "ShoppingCart": "cart.fill"
-        case "Sunrise": "sunrise.fill"
-        case "Sunset": "sunset.fill"
-        case "Shuffle": "shuffle"
-        case "Ticket": "ticket.fill"
-        case "CloudRain": "cloud.rain.fill"
-        case "Combine": "arrow.triangle.merge"
-        case "Dumbbell": "dumbbell.fill"
-        case "Binoculars": "binoculars.fill"
-        case "LayoutGrid": "square.grid.3x3.fill"
-        case "LifeBuoy": "lifepreserver.fill"
-        case "MoonStar": "moon.stars.fill"
-        // Custom-badge picker options that are not already covered above.
-        case "Medal": "medal.fill"
-        case "Star": "star.fill"
-        case "Sparkles": "sparkles"
-        case "Shield": "shield.fill"
-        case "Zap": "bolt.fill"
-        case "Heart": "heart.fill"
-        case "Crown": "crown.fill"
-        case "Rocket": "paperplane.fill"
-        case "Target": "target"
-        case "Wrench": "wrench.adjustable.fill"
-        case "Coffee": "cup.and.saucer.fill"
-        default: "seal.fill"
-        }
+    /// A profile with something on every branch the page can draw: a fresh
+    /// award, a manual award with a note, a retired badge that outlived its
+    /// goal, measurable progress, and a hidden surprise that must stay out of
+    /// both the grid and the closest-to-earned row.
+    static var populated: BadgeProfile {
+        BadgeProfile(
+            userId: "preview-user",
+            peerVisible: true,
+            earnedCount: 5,
+            totalCount: 9,
+            badges: [
+                badge(
+                    key: "above_and_beyond",
+                    name: "Above and Beyond",
+                    description: "Memorable help that made the operation better.",
+                    icon: "Trophy",
+                    category: "MILESTONE",
+                    kind: "RULE",
+                    trigger: "manual",
+                    earned: true,
+                    daysAgo: 2,
+                    source: "MANUAL",
+                    note: "Stayed through the weather delay and reset the entire sideline kit solo.",
+                    awardedByName: "Dana Whitfield",
+                    rarity: "Legendary",
+                    holders: 2
+                ),
+                badge(
+                    key: "checkout_25",
+                    name: "Gear Regular",
+                    description: "Opened 25 checkouts.",
+                    icon: "PackageCheck",
+                    threshold: 25,
+                    earned: true,
+                    daysAgo: 40,
+                    source: "AUTO",
+                    rarity: "Rare",
+                    holders: 4
+                ),
+                badge(
+                    key: "on_time_10",
+                    name: "Always On Time",
+                    description: "Ten on-time returns.",
+                    icon: "Clock3",
+                    category: "ON_TIME",
+                    trigger: "checkout:returned",
+                    threshold: 10,
+                    earned: true,
+                    daysAgo: 90,
+                    source: "AUTO",
+                    rarity: "Uncommon",
+                    holders: 9
+                ),
+                badge(
+                    key: "first_checkout",
+                    name: "First Checkout",
+                    description: "Opened a first checkout.",
+                    icon: "PackageOpen",
+                    threshold: 1,
+                    earned: true,
+                    daysAgo: 220,
+                    source: "AUTO",
+                    rarity: "Common",
+                    holders: 28
+                ),
+                badge(
+                    key: "scan_25",
+                    name: "Scan Veteran",
+                    description: "A retired scan goal, kept because the award is real history.",
+                    icon: "ScanLine",
+                    category: "SCAN",
+                    trigger: "scan:success",
+                    threshold: 25,
+                    active: false,
+                    earned: true,
+                    daysAgo: 300,
+                    source: "AUTO",
+                    rarity: "Uncommon",
+                    holders: 10
+                ),
+                badge(
+                    key: "deep_inventory",
+                    name: "Deep Inventory",
+                    description: "Twenty-five different serialized items handled.",
+                    icon: "Boxes",
+                    threshold: 25,
+                    progress: (18, 25),
+                    rarity: "Rare",
+                    holders: 3
+                ),
+                badge(
+                    key: "regular_rotation",
+                    name: "Regular Rotation",
+                    description: "Checkouts across six different weeks.",
+                    icon: "CalendarRange",
+                    threshold: 6,
+                    progress: (5, 6),
+                    rarity: "Uncommon",
+                    holders: 7
+                ),
+                badge(
+                    key: "under_the_lights",
+                    name: "Under the Lights",
+                    description: "Eight shifts that ran to 10 p.m. or later.",
+                    icon: "MoonStar",
+                    category: "SHIFT",
+                    trigger: "shift:completed",
+                    threshold: 8,
+                    rarity: "Rare",
+                    holders: 3
+                ),
+                // Hidden. Must not appear in the gallery grid, must not be
+                // chosen as the closest-to-earned row, and must not move the
+                // completion percentage -- even though the server derives real
+                // progress for it.
+                badge(
+                    key: "old_faithful",
+                    name: "Old Faithful",
+                    description: "The same item checked out twenty-five times.",
+                    icon: "Repeat2",
+                    threshold: 25,
+                    progress: (24, 25),
+                    rarity: "Legendary",
+                    holders: 1
+                ),
+            ],
+            disabled: false,
+            streaks: [
+                BadgeStreakSummary(type: "ON_TIME_RETURN", current: 6, longest: 11, lastEventAt: nil),
+            ]
+        )
+    }
+
+    static var empty: BadgeProfile {
+        BadgeProfile(
+            userId: "preview-user",
+            peerVisible: true,
+            earnedCount: 0,
+            totalCount: 2,
+            badges: [
+                badge(
+                    key: "first_checkout",
+                    name: "First Checkout",
+                    icon: "PackageOpen",
+                    threshold: 1,
+                    progress: (0, 1)
+                ),
+            ],
+            disabled: false,
+            streaks: []
+        )
     }
 }
+
+#Preview("Badge shelf") {
+    ScrollView {
+        VStack(spacing: Brand.Space.sm) {
+            BadgeShelfCard(profile: BadgePreviewData.populated, openGallery: {}, openBadge: { _ in })
+            BadgeShelfCard(profile: BadgePreviewData.empty, openGallery: {}, openBadge: { _ in })
+        }
+        .padding(Brand.Space.md)
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Badge gallery") {
+    BadgeGallerySheet(profile: BadgePreviewData.populated)
+}
+
+#Preview("Badge detail — manual award") {
+    BadgeDetailSheet(badge: BadgePreviewData.populated.badges[0])
+}
+
+#Preview("Badge detail — locked with progress") {
+    BadgeDetailSheet(badge: BadgePreviewData.populated.badges[5])
+}
+
+#endif

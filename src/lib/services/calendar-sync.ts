@@ -409,6 +409,9 @@ export function splitEventsForSync(
           data.sportCode = existing.sportCode;
           data.isHome = existing.isHome;
           data.opponent = existing.opponent;
+          data.site = existing.site ?? (existing.opponent
+            ? existing.isHome === true ? "HOME" : existing.isHome === false ? "AWAY" : null
+            : null);
         }
         if (existing.locationLocked) data.locationId = existing.locationId;
 

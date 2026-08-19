@@ -16,6 +16,10 @@ enum AppRuntimeMode {
         case resourcesGuides
         case resourcesUsers
         case resourcesLicenses
+        /// The Schedule list, served canned events and shifts so the real
+        /// rows, headers, and control strip can be rendered and screenshotted
+        /// without a signed-in session.
+        case schedule
     }
 
     static var performanceScenario: PerformanceScenario? {
@@ -38,7 +42,7 @@ enum AppRuntimeMode {
     static var usesFixtureAPI: Bool {
 #if DEBUG
         switch performanceScenario {
-        case .resourcesGuides, .resourcesUsers, .resourcesLicenses:
+        case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .schedule:
             return true
         default:
             return false

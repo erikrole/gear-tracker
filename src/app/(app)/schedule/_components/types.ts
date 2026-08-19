@@ -1,6 +1,7 @@
 import type { BadgeProps } from "@/components/ui/badge";
 import { cleanSourceSummary, normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { sportLabel } from "@/lib/sports";
+import { venueToneFromEvent } from "@/lib/venue-tone";
 
 /* ───── Types ───── */
 
@@ -15,6 +16,7 @@ export type CalendarEvent = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  site: "HOME" | "AWAY" | "NEUTRAL" | null;
   subtitle: string | null;
   location: { id: string; name: string } | null;
   source: { id: string; name: string } | null;
@@ -135,6 +137,7 @@ function splitTitleQualifier(value: string): { primary: string; qualifier: strin
 }
 
 type ScheduleEventTitleInput = Pick<CalendarEntry, "summary" | "sportCode" | "opponent" | "isHome"> & {
+  site?: CalendarEntry["site"];
   location?: CalendarEntry["location"];
 };
 
@@ -144,8 +147,9 @@ export function scheduleEventTitleParts(entry: ScheduleEventTitleInput): {
 } {
   if (entry.sportCode && entry.opponent) {
     const opponent = splitTitleQualifier(normalizeOpponentName(entry.opponent) ?? entry.opponent);
-    const venueWord = entry.isHome === false ? "at" : "vs";
-    const neutralLocation = entry.isHome === null ? entry.location?.name ?? null : null;
+    const venueTone = venueToneFromEvent(entry);
+    const venueWord = venueTone === "away" ? "at" : "vs";
+    const neutralLocation = venueTone === "neutral" ? entry.location?.name ?? null : null;
     return {
       title: `${sportLabel(entry.sportCode)} ${venueWord} ${opponent.primary}`,
       detail: opponent.qualifier ?? neutralLocation,

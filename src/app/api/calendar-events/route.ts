@@ -6,7 +6,7 @@ import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { normalizeAllDayToUtcMidnight } from "@/lib/app-time";
 import { normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
-import { isHomeFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
+import { isHomeFromVenueTone, siteFromVenueTone, VENUE_TONE_VALUES } from "@/lib/venue-tone";
 import { nullableSportCodeSchema, optionalSportCodeSchema } from "@/lib/validation";
 import { z } from "zod";
 import { normalizeManualEventTitle } from "@/lib/title-normalization";
@@ -170,6 +170,7 @@ export const POST = withAuth(async (req, { user }) => {
   const end = isAllDay ? normalizeAllDayToUtcMidnight(rawEnd) : rawEnd;
   const isNonGame = body.eventType === "non-game";
   const isHome = isHomeFromVenueTone(body.eventType);
+  const site = siteFromVenueTone(body.eventType);
 
   const event = await db.calendarEvent.create({
     data: {
@@ -182,6 +183,7 @@ export const POST = withAuth(async (req, { user }) => {
       locationId: body.locationId,
       sportCode: body.sportCode,
       isHome: isNonGame ? null : isHome,
+      site,
       opponent: isNonGame ? null : normalizeOpponentName(body.opponent),
     },
     include: {
@@ -204,6 +206,7 @@ export const POST = withAuth(async (req, { user }) => {
       locationId: event.locationId,
       sportCode: event.sportCode,
       isHome: event.isHome,
+      site: event.site,
       opponent: event.opponent,
       eventType: body.eventType,
     },

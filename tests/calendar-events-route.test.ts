@@ -396,10 +396,10 @@ describe("POST /api/calendar-events", () => {
   });
 
   it.each([
-    ["home", true],
-    ["away", false],
-    ["neutral", null],
-  ] as const)("derives %s game venue state from the explicit event type", async (eventType, isHome) => {
+    ["home", true, "HOME"],
+    ["away", false, "AWAY"],
+    ["neutral", null, "NEUTRAL"],
+  ] as const)("derives %s game venue state from the explicit event type", async (eventType, isHome, site) => {
     const res = await POST(
       post({
         summary: "Volleyball vs Kentucky",
@@ -417,6 +417,7 @@ describe("POST /api/calendar-events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           isHome,
+          site,
           opponent: "Kentucky",
         }),
       }),
@@ -629,6 +630,7 @@ describe("PATCH /api/calendar-events/[id]", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           isHome: null,
+          site: null,
           opponent: null,
           sportCode: "FB",
           isHomeLocked: true,
@@ -654,6 +656,7 @@ describe("PATCH /api/calendar-events/[id]", () => {
         data: expect.objectContaining({
           opponent: "Illinois",
           isHome: true,
+          site: "HOME",
           isHomeLocked: true,
         }),
       }),
@@ -690,6 +693,7 @@ describe("PATCH /api/calendar-events/[id]", () => {
         data: expect.objectContaining({
           sportCode: "VB",
           isHome: null,
+          site: "NEUTRAL",
           opponent: "Kentucky",
           isHomeLocked: true,
         }),

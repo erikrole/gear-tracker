@@ -11,6 +11,12 @@ const { mockTx } = vi.hoisted(() => ({
       findMany: vi.fn(),
     },
     studentBadge: {
+      createManyAndReturn: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
+    },
+    notification: {
       createMany: vi.fn(),
     },
     badgeEventReceipt: {
@@ -48,7 +54,11 @@ const dbMock = db as unknown as {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockTx.studentBadge.createMany.mockResolvedValue({ count: 0 });
+  // Awards return the rows that were actually inserted, which is what drives
+  // the earned-badge notification. Default to "nothing new was written".
+  mockTx.studentBadge.createManyAndReturn.mockResolvedValue([]);
+  mockTx.user.findUnique.mockResolvedValue({ notificationPrefs: null });
+  mockTx.notification.createMany.mockResolvedValue({ count: 0 });
   mockTx.badgeEventReceipt.createMany.mockResolvedValue({ count: 1 });
   mockTx.badgeEventReceipt.findMany.mockResolvedValue([{ sourceKey: "booking-1" }]);
   mockTx.badgeStreak.upsert.mockResolvedValue({});
@@ -89,12 +99,13 @@ describe("badge evaluator shift work", () => {
         }),
       }),
     );
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         { userId: "user-1", definitionId: "first-shift" },
         { userId: "user-1", definitionId: "shift-10" },
       ],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -135,7 +146,7 @@ describe("badge evaluator shift work", () => {
     await onShiftsWorked({ userId: "user-1" });
     await onShiftsWorked({ userId: "user-1" });
 
-    const [first, second] = mockTx.studentBadge.createMany.mock.calls;
+    const [first, second] = mockTx.studentBadge.createManyAndReturn.mock.calls;
     expect(first).toBeDefined();
     expect(second).toBeDefined();
     expect(second).toEqual(first);
@@ -195,12 +206,13 @@ describe("badge evaluator shift work", () => {
 
     await onShiftsWorked({ userId: "user-1" });
 
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         { userId: "user-1", definitionId: "road-tested" },
         { userId: "user-1", definitionId: "before-sunrise" },
       ],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -248,13 +260,14 @@ describe("badge evaluator shift work", () => {
 
     // Season Pass stays locked at two sports; the other three are met, and the
     // two shifts land on one local evening despite spanning two UTC days.
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         { userId: "user-1", definitionId: "utility-crew" },
         { userId: "user-1", definitionId: "doubleheader" },
         { userId: "user-1", definitionId: "under-the-lights" },
       ],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 });
@@ -291,12 +304,13 @@ describe("badge evaluator checkout events", () => {
       },
       select: { sourceKey: true },
     });
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         { userId: "user-1", definitionId: "first-checkout" },
         { userId: "user-1", definitionId: "checkout-5" },
       ],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
     expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
@@ -355,9 +369,10 @@ describe("badge evaluator checkout events", () => {
         },
       },
     }));
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "category-collector" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -417,7 +432,7 @@ describe("badge evaluator checkout events", () => {
       sourceKey: "booking-1",
     });
 
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [
         { userId: "user-1", definitionId: "power-player" },
         { userId: "user-1", definitionId: "glass-class" },
@@ -429,6 +444,7 @@ describe("badge evaluator checkout events", () => {
         { userId: "user-1", definitionId: "heavy-lifter" },
       ],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -489,7 +505,7 @@ describe("badge evaluator checkout events", () => {
       }),
     );
     // The on-time badge and the streak badge, each written once.
-    const written = mockTx.studentBadge.createMany.mock.calls.flatMap(
+    const written = mockTx.studentBadge.createManyAndReturn.mock.calls.flatMap(
       (call) => {
         const request = call[0] as { data?: Array<{ definitionId: string }> } | undefined;
         return request?.data?.map((row) => row.definitionId) ?? [];
@@ -615,9 +631,10 @@ describe("badge evaluator checkout events", () => {
         checkinReports: { select: { id: true }, take: 1 },
       },
     });
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "on-time-2" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -646,7 +663,7 @@ describe("badge evaluator checkout events", () => {
         }),
       }),
     );
-    expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
+    expect(mockTx.studentBadge.createManyAndReturn).not.toHaveBeenCalled();
   });
 
   it("awards damage-free badges for late clean returns", async () => {
@@ -663,9 +680,10 @@ describe("badge evaluator checkout events", () => {
       sourceKey: "booking-1",
     });
 
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "damage-free-10" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
     expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -701,9 +719,10 @@ describe("badge evaluator checkout events", () => {
         ],
       },
     }));
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "trade-10" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -737,9 +756,10 @@ describe("badge evaluator checkout events", () => {
       sourceKey: "trade-1",
     });
 
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "short-notice" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 
@@ -760,9 +780,10 @@ describe("badge evaluator checkout events", () => {
       }],
       skipDuplicates: true,
     });
-    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ userId: "user-1", definitionId: "go-to-bed" }],
       skipDuplicates: true,
+      select: { id: true, definitionId: true },
     });
   });
 });
@@ -802,5 +823,81 @@ describe("badge evaluator serialization retry", () => {
     await expect(onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "checkout-1" }))
       .rejects.toThrow("boom");
     expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("badge earned notifications", () => {
+  /**
+   * Automatic awards used to be silent: only `awardBadgeManually` wrote a
+   * `badge_awarded` row, so the badges that took the most work were the ones
+   * that left no durable record. The nightly shift pass and any return
+   * completed at a shared kiosk are exactly the moments nobody is holding
+   * their phone to catch the popup.
+   */
+  it("tells the user about a badge they just earned automatically", async () => {
+    mockTx.badgeEventReceipt.findMany.mockResolvedValue([
+      { sourceKey: "booking-1" },
+      { sourceKey: "booking-2" },
+    ]);
+    mockTx.booking.findMany.mockResolvedValue([]);
+    mockTx.badgeDefinition.findMany.mockImplementation(async ({ where }) => (
+      where.trigger === "checkout:opened" && where.threshold
+        ? [{ id: "checkout-2", name: "Getting the Hang of It" }]
+        : []
+    ));
+    mockTx.studentBadge.createManyAndReturn.mockResolvedValue([
+      { id: "award-77", definitionId: "checkout-2" },
+    ]);
+
+    await onCheckoutOpened({ userId: "user-1", bookingId: "booking-2", source: "kiosk_checkout", sourceKey: "booking-2" });
+
+    expect(mockTx.notification.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          userId: "user-1",
+          type: "badge_awarded",
+          title: "Badge earned",
+          body: "You earned Getting the Hang of It.",
+          channel: "IN_APP",
+          dedupeKey: "badge_awarded_award-77",
+          payload: expect.objectContaining({
+            studentBadgeId: "award-77",
+            badgeDefinitionId: "checkout-2",
+            href: "/users/user-1?tab=badges",
+          }),
+        }),
+      ],
+      skipDuplicates: true,
+    });
+  });
+
+  it("stays quiet when the event awarded nothing new", async () => {
+    mockTx.badgeEventReceipt.findMany.mockResolvedValue([{ sourceKey: "booking-1" }]);
+    mockTx.booking.findMany.mockResolvedValue([]);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "checkout-1", name: "First Checkout" }]);
+    // The award row already existed, so `createManyAndReturn` inserts nothing.
+    // A replayed event must not re-notify.
+    mockTx.studentBadge.createManyAndReturn.mockResolvedValue([]);
+
+    await onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "booking-1" });
+
+    expect(mockTx.notification.createMany).not.toHaveBeenCalled();
+    expect(mockTx.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("respects a user who turned badge notifications off", async () => {
+    mockTx.badgeEventReceipt.findMany.mockResolvedValue([{ sourceKey: "booking-1" }]);
+    mockTx.booking.findMany.mockResolvedValue([]);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "checkout-1", name: "First Checkout" }]);
+    mockTx.studentBadge.createManyAndReturn.mockResolvedValue([
+      { id: "award-1", definitionId: "checkout-1" },
+    ]);
+    mockTx.user.findUnique.mockResolvedValue({ notificationPrefs: { badges: false } });
+
+    await onCheckoutOpened({ userId: "user-1", bookingId: "booking-1", source: "kiosk_checkout", sourceKey: "booking-1" });
+
+    // The award still lands; only the telling is suppressed.
+    expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalled();
+    expect(mockTx.notification.createMany).not.toHaveBeenCalled();
   });
 });

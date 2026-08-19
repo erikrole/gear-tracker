@@ -502,6 +502,10 @@ struct UserBadge: Codable, Identifiable {
     let awardedAt: String?
     let source: String?
     let note: String?
+    /// Who gave a manual award. Served on every badge row; without it a Staff
+    /// Picks award arrived on the phone anonymous while the web tab named the
+    /// person who gave it.
+    let awardedByName: String?
     let progressCurrent: Int?
     let progressTarget: Int?
     /// Served rarity, computed from how many people actually hold the badge.
@@ -514,7 +518,7 @@ struct UserBadge: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, key, name, description, icon, category, kind, trigger
         case threshold, ruleKey, active, sortOrder, earned, awardedAt
-        case source, note, progressCurrent, progressTarget, holders
+        case source, note, awardedByName, progressCurrent, progressTarget, holders
         case servedRarity = "rarity"
     }
 }

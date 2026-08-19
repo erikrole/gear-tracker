@@ -27,6 +27,7 @@ import {
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
   SIGNATURE_IMPORTED_SPORT_CODES,
   SIGNATURE_MBB_SPORT_CODE,
+  isStandaloneStaffSignatureCollection,
   signatureCollectionTitle,
   type SignatureImportedSportCode,
 } from "@/lib/signatures/types";
@@ -331,6 +332,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
               {collections.map((collection) => {
                 const isWorking = workingCollectionId === collection.id;
                 const isCreativeStaffRoster = collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
+                const isStandaloneStaffRoster = isStandaloneStaffSignatureCollection(collection.sportCode);
                 const isAdHocRoster = collection.sportCode === SIGNATURE_AD_HOC_SPORT_CODE;
                 const hasSyncedMembers = collection.activeMemberCount > 0;
                 const staffCompleteness = collection.staffCompleteness ?? { complete: 0, total: 0 };
@@ -341,7 +343,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                       <div className="min-w-0">
                         <CardTitle className="text-base">
                           <Link href={"/signatures/" + collection.id} className="inline-flex items-center gap-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                            {isCreativeStaffRoster && <UsersRound className="size-4 text-muted-foreground" aria-hidden="true" />}
+                            {isStandaloneStaffRoster && <UsersRound className="size-4 text-muted-foreground" aria-hidden="true" />}
                             {isAdHocRoster && <FilePenLine className="size-4 text-muted-foreground" aria-hidden="true" />}
                             {signatureCollectionTitle(collection.sportCode)}
                           </Link>
@@ -417,9 +419,9 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="signature-import-sport">Sport</Label>
+              <Label htmlFor="signature-import-sport">Roster source</Label>
               <Select value={importSportCode} onValueChange={(value) => setImportSportCode(value as SignatureImportedSportCode)}>
-                <SelectTrigger id="signature-import-sport" className="h-10 w-full" aria-label="Import sport">
+                <SelectTrigger id="signature-import-sport" className="h-10 w-full" aria-label="Import roster source">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

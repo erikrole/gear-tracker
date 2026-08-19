@@ -18,7 +18,9 @@ import { del, get, put } from "@vercel/blob";
 import { fetchUWBadgersRoster } from "../src/lib/signatures/uwbadgers";
 import {
   DEFAULT_SIGNATURE_PEN_SETTINGS,
+  SIGNATURE_ADMINISTRATION_SPORT_CODE,
   SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+  getSignatureRosterSourceConfig,
   normalizeSignatureName,
   signatureRosterEntrySchema,
   type SignatureImportedSportCode,
@@ -381,7 +383,7 @@ async function applyRoster(
             jerseyNumber: entry.jerseyNumber,
             roleGroup: entry.roleGroup,
             title: entry.title,
-            required: entry.roleGroup !== SignatureMemberGroup.SUPPORT_STAFF,
+            required: getSignatureRosterSourceConfig(sportCode).requiredByDefault === true || entry.roleGroup !== SignatureMemberGroup.SUPPORT_STAFF,
           },
         });
         existingBySource.set(entry.sourceExternalId, {
@@ -451,23 +453,43 @@ function assertDatabaseCoverage(
   return { playerCount: players.length, assetCount: assets.length, blankNumbers: missingNumbers };
 }
 
-function assertCreativeStaffCoverage(
+function assertStandaloneStaffCoverage(
   collection: NonNullable<Awaited<ReturnType<typeof fetchCollection>>>,
   assets: PreparedArtifact[],
   memberName: string,
+  roleGroup: SignatureMemberGroup,
 ) {
-  if (assets.length !== 1) throw new Error("Creative Staff artifact imports require exactly one manifest entry.");
+  const label = roleGroup === SignatureMemberGroup.CREATIVE_STAFF ? "Creative Staff" : "Administration";
+  if (assets.length !== 1) throw new Error(`${label} artifact imports require exactly one manifest entry.`);
   const asset = assets[0];
-  if (!asset) throw new Error("Creative Staff artifact manifest entry is missing.");
-  if (asset.jerseyNumber !== null) throw new Error("Creative Staff artifact manifests must use a null jersey number.");
+  if (!asset) throw new Error(`${label} artifact manifest entry is missing.`);
+  if (asset.jerseyNumber !== null) throw new Error(`${label} artifact manifests must use a null jersey number.`);
   const normalizedName = normalizeSignatureName(memberName);
   if (asset.normalizedName !== normalizedName) throw new Error(`Manifest signer ${asset.name} does not match --member-name ${memberName}.`);
-  const matches = collection.members.filter((member) => member.roleGroup === SignatureMemberGroup.CREATIVE_STAFF && member.normalizedName === normalizedName);
-  if (matches.length !== 1) throw new Error(`Expected exactly one active Creative Staff member named ${memberName}; found ${matches.length}.`);
+  const matches = collection.members.filter((member) => member.roleGroup === roleGroup && member.normalizedName === normalizedName);
+  if (matches.length !== 1) throw new Error(`Expected exactly one active ${label} member named ${memberName}; found ${matches.length}.`);
   const member = matches[0];
-  if (!member) throw new Error(`Creative Staff member ${memberName} is missing after matching.`);
-  if (!member.capture) throw new Error(`Creative Staff capture row is missing for ${memberName}.`);
+  if (!member) throw new Error(`${label} member ${memberName} is missing after matching.`);
+  if (!member.capture) throw new Error(`${label} capture row is missing for ${memberName}.`);
   return { member, asset };
+}
+
+function assertStandaloneStaffSourceCoverage(
+  entries: SignatureRosterEntry[],
+  assets: PreparedArtifact[],
+  memberName: string,
+  roleGroup: SignatureMemberGroup,
+) {
+  const label = roleGroup === SignatureMemberGroup.CREATIVE_STAFF ? "Creative Staff" : "Administration";
+  if (assets.length !== 1) throw new Error(`${label} artifact imports require exactly one manifest entry.`);
+  const asset = assets[0];
+  if (!asset) throw new Error(`${label} artifact manifest entry is missing.`);
+  if (asset.jerseyNumber !== null) throw new Error(`${label} artifact manifests must use a null jersey number.`);
+  const normalizedName = normalizeSignatureName(memberName);
+  if (asset.normalizedName !== normalizedName) throw new Error(`Manifest signer ${asset.name} does not match --member-name ${memberName}.`);
+  const matches = entries.filter((entry) => entry.roleGroup === roleGroup && entry.normalizedName === normalizedName);
+  if (matches.length !== 1) throw new Error(`Expected exactly one ${label} source member named ${memberName}; found ${matches.length}.`);
+  return { entry: matches[0], asset };
 }
 
 async function markRevisionFailed(db: PrismaClient, revisionId: string, error: unknown) {
@@ -582,50 +604,74 @@ async function main() {
   if (!manifestPath) throw new Error("Provide --manifest <manifest.json>.");
   if (apply && !confirm) throw new Error("Refusing a Production write without --confirm.");
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required.");
-  const isCreativeStaffImport = requestedSportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE;
-  if (isCreativeStaffImport && !memberName) throw new Error("Creative Staff imports require --member-name <name>.");
-  if (!isCreativeStaffImport && memberName) throw new Error("--member-name is only supported with --sport CREATIVE.");
+  const isStandaloneStaffImport = requestedSportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE || requestedSportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE;
+  const standaloneStaffRoleGroup = requestedSportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE
+    ? SignatureMemberGroup.SUPPORT_STAFF
+    : SignatureMemberGroup.CREATIVE_STAFF;
+  const standaloneStaffLabel = requestedSportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE ? "Administration" : "Creative Staff";
+  if (isStandaloneStaffImport && !memberName) throw new Error(`${standaloneStaffLabel} imports require --member-name <name>.`);
+  if (!isStandaloneStaffImport && memberName) throw new Error("--member-name is only supported with --sport CREATIVE or --sport ADMIN.");
 
   const db = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
   try {
     const assets = await loadManifest(manifestPath);
-    if (isCreativeStaffImport) {
-      const existingCollection = await fetchCollection(db, SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season);
-      if (!existingCollection) throw new Error(`The Production ${SIGNATURE_CREATIVE_STAFF_SPORT_CODE} collection does not exist.`);
-      const { member, asset } = assertCreativeStaffCoverage(existingCollection, assets, memberName!);
-      const currentRevision = member.capture?.currentRevision ?? null;
-      if (currentRevision && (currentRevision.state !== SignatureArtifactState.READY || currentRevision.pngHash !== asset.pngHash || currentRevision.svgHash !== asset.svgHash)) {
-        throw new Error(`A different current signature already exists for ${member.name}; refusing to replace it.`);
-      }
+    if (isStandaloneStaffImport) {
+      const sourceSnapshot = requestedSportCode === SIGNATURE_ADMINISTRATION_SPORT_CODE
+        ? await fetchUWBadgersRoster(SIGNATURE_ADMINISTRATION_SPORT_CODE, season)
+        : null;
+      const existingCollection = await fetchCollection(db, requestedSportCode, season);
+      if (!sourceSnapshot && !existingCollection) throw new Error(`The Production ${SIGNATURE_CREATIVE_STAFF_SPORT_CODE} collection does not exist.`);
+      const sourceMatch = sourceSnapshot
+        ? assertStandaloneStaffSourceCoverage(sourceSnapshot.entries, assets, memberName!, standaloneStaffRoleGroup)
+        : null;
+
       if (!apply) {
+        const databaseMatch = existingCollection
+          ? assertStandaloneStaffCoverage(existingCollection, assets, memberName!, standaloneStaffRoleGroup)
+          : null;
         console.log(JSON.stringify({
           mode: "dry-run",
-          sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+          sportCode: requestedSportCode,
           season,
-          member: { id: member.id, name: member.name, roleGroup: member.roleGroup, currentRevision: currentRevision ? { id: currentRevision.id, revision: currentRevision.revision, state: currentRevision.state } : null },
-          asset: { name: asset.name, pngHash: asset.pngHash, svgHash: asset.svgHash, width: asset.width, height: asset.height },
-          message: "No Production roster or artifact writes were performed. Re-run with --apply --confirm to execute the guarded import.",
+          source: sourceSnapshot ? { url: sourceSnapshot.sourceUrl, hash: sourceSnapshot.sourceHash, parserVersion: sourceSnapshot.parserVersion, entryCount: sourceSnapshot.entries.length, member: sourceMatch?.entry ?? null } : null,
+          collection: existingCollection ? { id: existingCollection.id, version: existingCollection.collectionVersion, status: existingCollection.status } : null,
+          member: databaseMatch ? { id: databaseMatch.member.id, name: databaseMatch.member.name, roleGroup: databaseMatch.member.roleGroup, currentRevision: databaseMatch.member.capture?.currentRevision ? { id: databaseMatch.member.capture.currentRevision.id, revision: databaseMatch.member.capture.currentRevision.revision, state: databaseMatch.member.capture.currentRevision.state } : null } : null,
+          asset: { name: assets[0]?.name, pngHash: assets[0]?.pngHash, svgHash: assets[0]?.svgHash, width: assets[0]?.width, height: assets[0]?.height },
+          message: `No ${standaloneStaffLabel} roster or artifact writes were performed. Re-run with --apply --confirm to execute the guarded import.`,
         }, null, 2));
         return;
       }
 
       const actor = await findActor(db);
-      const result = await importArtifact(db, actor, existingCollection.id, member.id, asset);
-      const finalCollection = await fetchCollection(db, SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season);
+      privateBlobAuth();
+      const roster = sourceSnapshot
+        ? await applyRoster(db, actor, sourceSnapshot, SIGNATURE_ADMINISTRATION_SPORT_CODE, season)
+        : null;
+      const collection = await fetchCollection(db, requestedSportCode, season);
+      if (!collection) throw new Error(`The Production ${requestedSportCode} collection was not readable after roster apply.`);
+      const { member, asset } = assertStandaloneStaffCoverage(collection, assets, memberName!, standaloneStaffRoleGroup);
+      const currentRevision = member.capture?.currentRevision ?? null;
+      if (currentRevision && (currentRevision.state !== SignatureArtifactState.READY || currentRevision.pngHash !== asset.pngHash || currentRevision.svgHash !== asset.svgHash)) {
+        throw new Error(`A different current signature already exists for ${member.name}; refusing to replace it.`);
+      }
+      const result = await importArtifact(db, actor, collection.id, member.id, asset);
+      const finalCollection = await fetchCollection(db, requestedSportCode, season);
       const finalMember = finalCollection?.members.find((candidate) => candidate.id === member.id);
       const finalRevision = finalMember?.capture?.currentRevision;
       if (!finalRevision || finalRevision.state !== SignatureArtifactState.READY || finalRevision.pngHash !== asset.pngHash || finalRevision.svgHash !== asset.svgHash) {
-        throw new Error(`Creative Staff artifact verification failed for ${member.name}.`);
+        throw new Error(`${standaloneStaffLabel} artifact verification failed for ${member.name}.`);
       }
       console.log(JSON.stringify({
         mode: "applied",
-        sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+        sportCode: requestedSportCode,
         season,
         actorRole: actor.role,
-        collection: { id: existingCollection.id, version: finalCollection?.collectionVersion ?? existingCollection.collectionVersion, status: finalCollection?.status ?? existingCollection.status },
+        source: sourceSnapshot ? { url: sourceSnapshot.sourceUrl, hash: sourceSnapshot.sourceHash, parserVersion: sourceSnapshot.parserVersion, entryCount: sourceSnapshot.entries.length } : null,
+        roster,
+        collection: { id: collection.id, version: finalCollection?.collectionVersion ?? collection.collectionVersion, status: finalCollection?.status ?? collection.status },
         member: { id: member.id, name: member.name, roleGroup: member.roleGroup },
         artifact: result,
-        message: "Production Creative Staff artifact and private readback verification completed.",
+        message: `Production ${standaloneStaffLabel} artifact and private readback verification completed.`,
       }, null, 2));
       return;
     }
@@ -651,6 +697,7 @@ async function main() {
     }
 
     const actor = await findActor(db);
+    privateBlobAuth();
     const roster = await applyRoster(db, actor, snapshot, sportCode, season);
     const collection = await fetchCollection(db, sportCode, season);
     if (!collection) throw new Error("The Production collection was not readable after roster apply.");

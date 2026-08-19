@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-18
+- Last Updated: 2026-08-19
 - Status: Active
-- Version: V1.2
+- Version: V1.3
 
 ## Direction
 Use a simple tiered permission model with inheritance so behavior is predictable in UI and backend authorization.
@@ -119,6 +119,18 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-19: **Profiles now expose a separate 2026–27 Events worked total.** The total counts each completed, confirmed Schedule event once per person with an active assignment, including result-less events, exhibitions, scrimmages, Alumni Matches, and non-game work. Future, cancelled, and hidden events are excluded while archived history remains eligible for future Wrapped-style recaps and event-count badges. The official W–L record and existing assignment-based `shift:completed` badges remain separate; the shared event-level count is reusable by both the profile and Scoreboard surfaces.
+
+- 2026-08-19: **Profile game records now start July 1, 2026.** The shared tally applies an app-timezone `startsAt` lower bound so pre-July testing events remain in history but no longer contribute to the profile's "games staffed" record. Events on July 1 and later retain the existing outcome, assignment, visibility, cancellation, archive, and event-level deduplication rules.
+
+- 2026-08-19: **Profile Scoreboard implementation added.** The read-only profile tab presents the season record and groups resolved worked events by sport, opponent, site, and calendar venue, so venue records can answer questions such as a person's record at Camp Randall Stadium or the Kohl Center. Each event remains count-once and links back to its source event; collaborator privacy boundaries remain unchanged. Local implementation and build verification are complete; authenticated production rollout proof remains open.
+
+- 2026-08-19: **Profile Scoreboard is tied to Schedule data.** Schedule sync, manual event edits, and the profile Scoreboard now share the canonical `CalendarEvent.site` classification instead of deriving Home/Away/Neutral separately. A reversible, idempotent preview backfill repaired 256 post-July site values and restored three `CalendarEvent.result` values from explicit synced `[W]`/`[L]` markers, covering 11 active worker links already present in the schedule. It does not invent assignments; events without a recorded outcome remain outside the W–L record.
+
+- 2026-08-19: **Profile Scoreboard excludes exhibitions.** Official records now omit source events marked Exhibition, Scrimmage, or Alumni Match while preserving their source outcomes on the schedule event for history. Nolan Kromke's preview record correctly moves from `1–2` to `0–1` after the Alumni Match and Butler Exhibition are removed from the official tally.
+
+- 2026-08-19: **Profile Scoreboard venue labels use the cleaned Schedule venue component.** Imported city/state qualifiers are removed from both venue buckets and worked-event metadata, so `Madison, Wis., UW Field House` and `Madison, WI, McClimon Track/Soccer Complex` display as `UW Field House` and `McClimon Track/Soccer Complex` while the raw calendar text remains intact as source evidence.
 
 - 2026-08-19: **The profile game record now carries counting dimensions.** `getGameRecordForUser` returns win-loss totals plus a per-sport and per-site breakdown from a single grouped query, so records can be counted by sport and by home/away/neutral rather than only in aggregate. Site comes from the new `site` column, not `isHome`, so neutral games are counted as neutral instead of being pooled with games that could not be classified. The profile hero still shows the plain total; the breakdowns are available on the API payload for callers that need them.
 

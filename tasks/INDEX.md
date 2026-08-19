@@ -60,6 +60,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 ## Archive Buckets
 
 - `tasks/archive/completed-2026-08-12/` - completed launch and Login visual-polish plan.
+- `tasks/archive/completed-2026-08-19/` - completed Scoreboard and profile season-event-total plan.
 - `tasks/archive/completed-2026-06/` - completed plans and queue cleanup summaries from the June cleanup run.
 - `tasks/archive/completed-2026-07/` - completed plans moved during the July 11 repository cleanup.
 - `tasks/archive/proofs/` - browser-smoke and screenshot proof artifacts.
@@ -75,6 +76,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `archive/completed-2026-08-19/profile-scoreboard-plan-2026-08-19.md` - added the read-only profile Scoreboard and a reusable 2026–27 event-level work total that includes exhibitions and non-game Schedule events while preserving the official game record and assignment-based badge semantics.
 - `archive/completed-2026-08-18/license-expiry-date-only-plan.md` - corrected Photo Mechanic annual expiry display and local-calendar status handling while preserving the date-only storage, claim-eligibility, and notification boundaries; authenticated browser proof remains deferred by the shared local Next runtime blocker.
 - `archive/completed-2026-08-18/schedule-activity-counts-plan.md` - restored audit-backed Schedule activity counts for imported calendar and staff working-copy changes while preserving the worker-facing release boundary.
 - `archive/completed-2026-08-18/schedule-activity-preview-plan.md` - made audit-backed Schedule activity counts actionable through read-only previews linked to Event detail.

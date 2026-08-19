@@ -142,6 +142,7 @@ final class ScheduleViewModel {
             let (fetchedEvents, fetchedShifts) = try await (eventsTask, shiftsTask)
             guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             events = fetchedEvents
+            NSLog("HARNESS-DEBUG events=\(fetchedEvents.count) cov=\(fetchedEvents.map { $0.coverage?.total ?? -1 })")
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true

@@ -18,4 +18,9 @@ describe("venueToneFromEvent", () => {
       rawSummary: "[N] Volleyball Media Day",
     })).toBe("non-game");
   });
+
+  it("uses the canonical site from Schedule before the legacy isHome fallback", () => {
+    expect(venueToneFromEvent({ site: "AWAY", isHome: true, opponent: "Iowa" })).toBe("away");
+    expect(venueToneFromEvent({ site: "NEUTRAL", isHome: true, opponent: "Iowa" })).toBe("neutral");
+  });
 });

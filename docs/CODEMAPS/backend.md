@@ -22,7 +22,7 @@
 | `src/lib/services/bulk-schedule-assignment.ts` | 743 |
 | `src/lib/services/bulk-unit-scans.ts` | 617 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
-| `src/lib/services/calendar-sync.ts` | 725 |
+| `src/lib/services/calendar-sync.ts` | 728 |
 | `src/lib/services/candidate-scoring.ts` | 436 |
 | `src/lib/services/category-mutations.ts` | 168 |
 | `src/lib/services/checkout-policies.ts` | 40 |
@@ -33,7 +33,7 @@
 | `src/lib/services/dashboard-counts.ts` | 119 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 299 |
-| `src/lib/services/game-record.ts` | 95 |
+| `src/lib/services/game-record.ts` | 171 |
 | `src/lib/services/hidden-users-cleanup.ts` | 122 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 90 |
 | `src/lib/services/kiosk-location.ts` | 72 |
@@ -60,12 +60,13 @@
 | `src/lib/services/schedule-publication.ts` | 1007 |
 | `src/lib/services/schedule-template-review.ts` | 554 |
 | `src/lib/services/schedule-working-copy.ts` | 892 |
+| `src/lib/services/scoreboard.ts` | 274 |
 | `src/lib/services/shift-assignment-conflicts.ts` | 43 |
 | `src/lib/services/shift-assignments.ts` | 656 |
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
-| `src/lib/services/signatures.ts` | 1743 |
+| `src/lib/services/signatures.ts` | 1755 |
 | `src/lib/services/software.ts` | 150 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
@@ -170,7 +171,7 @@
 | `src/lib/schedule-change-history-types.ts` | 55 |
 | `src/lib/schedule-data-quality.ts` | 128 |
 | `src/lib/schedule-defaults.ts` | 33 |
-| `src/lib/schedule-event-identity.ts` | 272 |
+| `src/lib/schedule-event-identity.ts` | 305 |
 | `src/lib/schedule-event-where.ts` | 46 |
 | `src/lib/schedule-health-types.ts` | 83 |
 | `src/lib/schedule-publication-types.ts` | 46 |
@@ -206,7 +207,7 @@
 | `src/lib/validation.ts` | 798 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
 | `src/lib/venue-mapping-contract.ts` | 46 |
-| `src/lib/venue-tone.ts` | 97 |
+| `src/lib/venue-tone.ts` | 114 |
 
 ## API Route Groups
 
@@ -663,6 +664,7 @@
 - `/api/users/[id]/reset-password`
 - `/api/users/[id]/role`
 - `/api/users/[id]`
+- `/api/users/[id]/scoreboard`
 - `/api/users/bulk-create`
 - `/api/users/export`
 - `/api/users/hidden-cleanup`

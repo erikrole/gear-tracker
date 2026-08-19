@@ -90,6 +90,39 @@ export function normalizeVenueText(raw: string | null | undefined): string | nul
   return cleaned || null;
 }
 
+/**
+ * Return the venue component shown on Schedule and profile scoreboard surfaces.
+ * Imported calendar locations commonly include a leading or trailing city/state
+ * qualifier; that qualifier is useful source evidence but not part of the venue
+ * name an operator scans for.
+ */
+export function scheduleVenueDisplayName(raw: string | null | undefined): string | null {
+  const normalized = normalizeVenueText(raw);
+  if (!normalized) return null;
+
+  const parts = normalized
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const first = parts[0];
+  if (!first) return normalized;
+  if (parts.length < 2) return first;
+
+  // A location with only "City, ST" has no venue component to remove.
+  if (parts.length === 2 && isVenueStateToken(parts[1]!)) return parts.join(", ");
+
+  // The feed most often uses "City, ST, Venue".
+  if (parts.length >= 3 && isVenueStateToken(parts[1]!)) return parts[2] ?? first;
+
+  // Some sources use "Venue, City, ST". For any other malformed shape, keep
+  // the leading component instead of confidently displaying the wrong value.
+  return first;
+}
+
+function isVenueStateToken(token: string): boolean {
+  return /^[A-Z]{2}$/.test(token) || /^[A-Za-z]{1,6}\.$/.test(token);
+}
+
 export function buildVenueSearchText(...values: Array<string | null | undefined>): string {
   return values
     .map((value) => normalizeVenueText(value) ?? "")
