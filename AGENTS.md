@@ -84,6 +84,7 @@ If a conflict could change behavior, stop and reconcile the source of truth in t
 | API or schema | service/route tests, migration checks, `npm run build:app`, and full deploy-shaped build only in a controlled migration-safe environment |
 | Native iOS | `xcodebuild` for the affected target, plus affected source-contract tests and any required generic-device build |
 | Authenticated UI flow | local authenticated browser proof for the changed route or an explicit statement of why that proof is unavailable |
+| User-facing UI change | a `gt-ui-review` review page: matched before/after captures where the two columns differ only by the change, the measured difference, and the verification above |
 
 Use the full `npm run build` when shipping or validating deploy-shaped behavior, especially schema and migration work. It may run database deployment steps, so do not use it casually against an uncontrolled environment.
 

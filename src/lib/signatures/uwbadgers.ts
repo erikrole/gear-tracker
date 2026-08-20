@@ -19,6 +19,7 @@ export const UW_BADGERS_ORIGIN = "https://uwbadgers.com";
 const ALLOWED_HOSTS = new Set(["uwbadgers.com", "www.uwbadgers.com"]);
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_REDIRECTS = 5;
 
 export function buildUWBadgersRosterUrl(sportCode: string, season: string): string {
   const parsed = signatureRosterImportSchema.parse({ sportCode, season });
@@ -304,6 +305,67 @@ async function readBoundedResponse(response: Response): Promise<string> {
   return new TextDecoder().decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))));
 }
 
+function normalizedRosterPath(pathname: string): string {
+  return pathname === "/" ? pathname : pathname.replace(/\/+$/, "");
+}
+
+function allowedRosterFetchUrl(value: string, expectedPath: string): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:"
+      || !ALLOWED_HOSTS.has(url.hostname.toLowerCase())
+      || url.username
+      || url.password
+      || url.port
+      || normalizedRosterPath(url.pathname) !== expectedPath
+    ) {
+      return null;
+    }
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchRosterResponse(sourceUrl: string, signal: AbortSignal): Promise<Response> {
+  const expectedPath = normalizedRosterPath(new URL(sourceUrl).pathname);
+  const visited = new Set<string>();
+  let currentUrl = sourceUrl;
+  let redirectCount = 0;
+
+  while (true) {
+    const allowedCurrentUrl = allowedRosterFetchUrl(currentUrl, expectedPath);
+    if (!allowedCurrentUrl) throw new Error("UWBadgers redirect left the allowlist");
+    if (visited.has(allowedCurrentUrl)) throw new Error("UWBadgers redirect loop detected");
+    visited.add(allowedCurrentUrl);
+
+    const response = await fetch(allowedCurrentUrl, {
+      redirect: "manual",
+      signal,
+      headers: { Accept: "text/html" },
+    });
+    if (response.status < 300 || response.status >= 400) return response;
+    if (redirectCount >= MAX_REDIRECTS) throw new Error("UWBadgers roster exceeded the redirect limit");
+
+    const location = response.headers.get("location");
+    if (!location) throw new Error("UWBadgers roster redirect was missing a Location header");
+    let resolvedLocation: string;
+    try {
+      resolvedLocation = new URL(location, allowedCurrentUrl).toString();
+    } catch {
+      throw new Error("UWBadgers roster redirect had an invalid Location header");
+    }
+    const nextUrl = allowedRosterFetchUrl(resolvedLocation, expectedPath);
+    if (!nextUrl) throw new Error("UWBadgers redirect left the allowlist");
+    if (visited.has(nextUrl)) throw new Error("UWBadgers redirect loop detected");
+
+    currentUrl = nextUrl;
+    redirectCount += 1;
+  }
+}
+
 export async function fetchUWBadgersRoster(
   sportCode: SignatureImportedSportCode,
   season: string,
@@ -314,12 +376,7 @@ export async function fetchUWBadgersRoster(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(sourceUrl, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { Accept: "text/html" },
-    });
-    if (!isAllowedUWBadgersUrl(response.url)) throw new Error("UWBadgers redirect left the allowlist");
+    const response = await fetchRosterResponse(sourceUrl, controller.signal);
     if (!response.ok) throw new Error(`UWBadgers roster returned HTTP ${response.status}`);
     if (!(response.headers.get("content-type") ?? "").toLocaleLowerCase().includes("text/html")) {
       throw new Error("UWBadgers roster did not return HTML");

@@ -87,7 +87,11 @@ final class ScheduleViewModel {
         groupedEvents = byDay
             .sorted { $0.key < $1.key }
             .map { (date: $0.key, events: $0.value.sorted { $0.startsAt < $1.startsAt }) }
-        eventsByDay = allByDay
+        // Calendar mode's day list reads from this index, so it needs the same
+        // chronological order the list groups get. Without it the day rendered
+        // in whatever order the API returned, which the leading time column
+        // made obvious: 11:00 AM, 4:00 PM, 7:30 PM, then 5:50 PM.
+        eventsByDay = allByDay.mapValues { $0.sorted { $0.startsAt < $1.startsAt } }
     }
 
     func load(forceRefresh: Bool = false) async {
@@ -142,7 +146,6 @@ final class ScheduleViewModel {
             let (fetchedEvents, fetchedShifts) = try await (eventsTask, shiftsTask)
             guard loadRequests.owns(requestToken), !Task.isCancelled else { return }
             events = fetchedEvents
-            NSLog("HARNESS-DEBUG events=\(fetchedEvents.count) cov=\(fetchedEvents.map { $0.coverage?.total ?? -1 })")
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true
@@ -1025,32 +1028,58 @@ private struct InternalScheduleView: View {
             .toast($toast)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
-            // Inline title reclaims the tall, empty large-title band on this
-            // pushed view, pulling the content up under the nav bar.
+            // Schedule is a tab root, not a pushed view. It stays inline anyway
+            // because the screen is scanned rather than read, and it matches the
+            // compact title Bookings already uses; Items and Users keep large
+            // titles because they lead with search.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Filters is a list control, so it rides the toolbar with the
+                // same tint contract Items and Users use: secondary at rest,
+                // primary while it is changing what the list shows.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showFilters = true
+                    } label: {
+                        Label(
+                            "Filters",
+                            systemImage: activeFilterCount > 0
+                                ? "line.3.horizontal.decrease.circle.fill"
+                                : "line.3.horizontal.decrease.circle"
+                        )
+                    }
+                    .listControlTint(isActive: activeFilterCount > 0)
+                    .accessibilityLabel(activeFilterCount > 0
+                        ? "Filters, \(activeFilterCount) active"
+                        : "Filters")
+                    .sensoryFeedback(.selection, trigger: activeFilterCount)
+                }
+
+                // A control and two actions are different kinds of thing, so
+                // they get different glass groups rather than one long capsule.
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         scheduleOpenWorkTip.invalidate(reason: .actionPerformed)
                         showTradeBoard = true
                     } label: {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "arrow.left.arrow.right")
-                                .font(.body.weight(.semibold))
-                                .frame(width: 44, height: 44)
-                            if appState.openTradeCount > 0 {
-                                Text("\(appState.openTradeCount)")
-                                    .font(.caption2.weight(.semibold).monospacedDigit())
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.statusText(.orange), in: Capsule())
-                                    .foregroundStyle(.white)
-                                    .offset(x: 4, y: -2)
-                            }
-                        }
-                        .foregroundStyle(Color.primary)
+                        // No count badge: the iOS 26 toolbar clips item content
+                        // to its glass capsule, which sliced the old overlay
+                        // into an orange half-disc with the number cut off. The
+                        // filled variant carries "there is open work" instead,
+                        // the way Items' star does, and the exact number stays
+                        // in the accessibility label and on the board itself.
+                        Label(
+                            "Trade Board",
+                            systemImage: appState.openTradeCount > 0
+                                ? "arrow.left.arrow.right.circle.fill"
+                                : "arrow.left.arrow.right.circle"
+                        )
                         .popoverTip(scheduleOpenWorkTip, arrowEdge: .top)
                     }
+                    .tint(Color.primary)
+                    .sensoryFeedback(.selection, trigger: showTradeBoard)
                     .accessibilityLabel(appState.openTradeCount > 0
                         ? "Trade Board, \(appState.openTradeCount) open"
                         : "Trade Board")
@@ -1071,12 +1100,10 @@ private struct InternalScheduleView: View {
                             Label("Shift Calendar", systemImage: "calendar.badge.plus")
                         }
                     } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .foregroundStyle(Color.primary)
+                        Label("More", systemImage: "ellipsis")
                             .popoverTip(shiftCalendarTip, arrowEdge: .top)
                     }
+                    .tint(Color.primary)
                     .accessibilityLabel("More Schedule actions")
                 }
             }
@@ -1207,54 +1234,25 @@ private struct InternalScheduleView: View {
     }
 
     private var scheduleControlStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             // The segmented control is self-explanatory (List / Calendar), so it
             // carries no "View" label, matching Apple's own switchers. Filters
-            // rides the same row so the strip costs one row instead of two.
-            HStack(spacing: 12) {
-                Picker("Schedule view", selection: $viewMode) {
-                    ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
+            // moved to the toolbar with the other list controls, which leaves
+            // the switcher the full width instead of a shared row.
+            Picker("Schedule view", selection: $viewMode) {
+                ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Schedule view")
-
-                Button {
-                    showFilters = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Filters")
-                        if activeFilterCount > 0 {
-                            Text("\(activeFilterCount)")
-                                .font(.caption2.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.brandPrimary, in: Capsule())
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.primary)
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 44)
-                    .background(Color.cardSurfaceRaised, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Color.hairline, lineWidth: 0.5))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(activeFilterCount > 0 ? "Filters, \(activeFilterCount) active" : "Filters")
             }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Schedule view")
 
             // The summary only earns a row once something is actually filtered.
             // In the default state it restated "everything" and cost a full row.
+            // It carries Clear so undoing a filter does not require reopening
+            // the sheet that set it.
             if activeFilterCount > 0 {
-                Text(activeFilterSummary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                ActiveControlBar(summary: activeFilterSummary, clear: clearScheduleFilters)
             }
         }
         .padding(.horizontal, Brand.Space.md)
@@ -1262,7 +1260,6 @@ private struct InternalScheduleView: View {
         .padding(.bottom, Brand.Space.xs)
         .background(Color(.systemGroupedBackground))
         .sensoryFeedback(.selection, trigger: viewMode)
-        .sensoryFeedback(.selection, trigger: activeFilterCount)
     }
 
     @ViewBuilder
@@ -1310,7 +1307,7 @@ private struct InternalScheduleView: View {
                 }
             }
             .listStyle(.plain)
-            .listSectionSpacing(.compact)
+            .listSectionSpacing(8)
             .scrollContentBackground(.hidden)
             .contentMargins(.top, 0, for: .scrollContent)
             .contentMargins(.bottom, 96, for: .scrollContent)
@@ -2146,31 +2143,48 @@ private struct ScheduleDateHeader: View {
         return date.formatted(.dateTime.weekday(.wide))
     }
 
+    /// "Today"/"Tomorrow" already spend the primary slot, so those two carry the
+    /// weekday here; a named weekday elsewhere would only repeat itself.
     private var dateLabel: String {
         let calendar = Calendar.current
         let year = calendar.component(.year, from: date)
         let currentYear = calendar.component(.year, from: .now)
-        return year == currentYear
-            ? date.formatted(.dateTime.month(.abbreviated).day())
-            : date.formatted(.dateTime.month(.abbreviated).day().year())
+        guard year == currentYear else {
+            return date.formatted(.dateTime.month(.abbreviated).day().year())
+        }
+        return (isToday || isTomorrow)
+            ? date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+            : date.formatted(.dateTime.month(.abbreviated).day())
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(primaryLabel)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isToday ? Color.brandPrimary : .primary)
-                Text(dateLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        // One line, not two: the day and its date never needed a stacked pair,
+        // and the row it cost was repeated for every group on the screen.
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(primaryLabel)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isToday ? Color.brandPrimary : .primary)
 
-            Spacer()
+            Text("·")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+
+            Text(dateLabel)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 8)
+
+            // Already computed for VoiceOver; showing it costs nothing and
+            // answers "how heavy is this day" before the day is scrolled.
+            Text(eventCount == 1 ? "1 event" : "\(eventCount) events")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.tertiary)
         }
+        .lineLimit(1)
         .padding(.horizontal, 16)
-        .padding(.top, Brand.Space.md)
-        .padding(.bottom, 6)
+        .padding(.top, Brand.Space.sm)
+        .padding(.bottom, 5)
         .background(Color(.systemGroupedBackground))
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isHeader)
@@ -2213,40 +2227,38 @@ struct EventRow: View {
         return (idx, event.dayCount)
     }
 
-    /// Segment-aware time line: the first day shows the start, the last day the
-    /// end, interior days read "All day".
-    private var timeRowText: String {
-        if let seg = segment {
-            if event.displayAllDay { return "All day" }
-            if seg.index == 1 { return "From \(event.startsAt.formatted(.dateTime.hour().minute()))" }
-            if seg.index == seg.total { return "Until \(event.endsAt.formatted(.dateTime.hour().minute()))" }
-            return "All day"
-        }
-        return event.displayAllDay ? "All day" : eventTimeLabel
-    }
-
     private var eventDisplayTitle: String {
         scheduleEventDisplayTitle(event)
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
+            // Time leads the row so a day of work reads down a single column
+            // instead of being re-found inside each card.
+            timeGutter
+
             StatusRail(color: barColor)
                 .frame(maxHeight: .infinity)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(eventDisplayTitle)
                     .font(.body.weight(.semibold))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
-                metaLine
-
-                if let venueName {
-                    Label(venueName, systemImage: "mappin.and.ellipse")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                // Crew fill still right-aligns into a scannable trailing column,
+                // one line lower than before. Sharing the meta line instead of
+                // the title line is what buys the title its full width back.
+                if !metaParts.isEmpty || hasCoverageChip {
+                    HStack(spacing: 8) {
+                        if !metaParts.isEmpty {
+                            metaLine
+                        }
+                        Spacer(minLength: 0)
+                        if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
+                            coverageChip(cov)
+                        }
+                    }
                 }
 
                 if let myShift {
@@ -2255,51 +2267,124 @@ struct EventRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Crew fill is the one at-a-glance signal worth a trailing chip.
-            // Both ride the title's first line so the trailing edge keeps a
-            // steady rhythm when a title wraps to two lines.
-            HStack(spacing: 12) {
-                if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {
-                    coverageChip(cov)
-                }
-
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 14)
-        .background(myShift == nil ? Color.cardSurface : Color.statusBackground(.blue).opacity(0.34))
+        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
+        .background(rowBackground)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(myShift == nil ? Color.hairline : Color.statusText(.blue).opacity(0.32), lineWidth: myShift == nil ? 0.5 : 1)
+                .strokeBorder(rowStroke, lineWidth: rowStrokeWidth)
         )
+        // A finished event still belongs on the day, but it should stop
+        // competing with the work that has not happened yet.
+        .opacity(timeState == .past ? 0.55 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
     }
 
-    /// A single, quiet secondary line: home/away · time · multi-day · my-shift —
-    /// replacing the old stack of pills that crowded the title.
-    private var metaLine: some View {
-        HStack(spacing: 5) {
-            if let eventTypeLabel {
-                Text(eventTypeLabel)
-                    .foregroundStyle(.secondary)
-                metaDot
-            }
-            Text(timeRowText)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            if let seg = segment {
-                metaDot
-                Text("Day \(seg.index) of \(seg.total)")
+    // MARK: Temporal state
+
+    /// Drives the "NOW" badge and the dimming that lets the eye skip work that
+    /// is already done. Defined on `ScheduleEvent` so Event detail answers the
+    /// same question the same way.
+    private var timeState: ScheduleEventTimeState { event.timeState }
+
+    private var rowBackground: Color {
+        if myShift != nil { return Color.statusBackground(.blue).opacity(0.34) }
+        return Color.cardSurface
+    }
+
+    private var rowStroke: Color {
+        if timeState == .live { return Color.brandPrimary.opacity(0.55) }
+        if myShift != nil { return Color.statusText(.blue).opacity(0.32) }
+        return Color.hairline
+    }
+
+    private var rowStrokeWidth: CGFloat {
+        if timeState == .live { return 1.5 }
+        return myShift == nil ? 0.5 : 1
+    }
+
+    // MARK: Time gutter
+
+    /// The two lines of the leading time column. Multi-day segments report the
+    /// edge that actually falls on this day rather than the whole span.
+    private var gutterLines: (primary: String, secondary: String?) {
+        let start = event.startsAt.formatted(.dateTime.hour().minute())
+        let end = event.endsAt.formatted(.dateTime.hour().minute())
+        if let seg = segment {
+            // "Day 2/3" belongs next to the time, not out in the meta line
+            // where it competed with the venue for the same few points.
+            let span = "Day \(seg.index)/\(seg.total)"
+            if event.displayAllDay { return ("All day", span) }
+            if seg.index == 1 { return (start, span) }
+            if seg.index == seg.total { return (end, span) }
+            return ("All day", span)
+        }
+        if event.displayAllDay { return ("All day", nil) }
+        return (start, end)
+    }
+
+    private var timeGutter: some View {
+        let lines = gutterLines
+        return VStack(alignment: .trailing, spacing: 2) {
+            Text(lines.primary)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(timeState == .live ? Color.brandPrimary : Color.primary)
+
+            if timeState == .live {
+                Text("NOW")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.brandPrimary, in: Capsule())
+            } else if let secondary = lines.secondary {
+                Text(secondary)
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(width: 62, alignment: .trailing)
+        .accessibilityHidden(true)
+    }
+
+    /// A single, quiet secondary line: home/away · venue · multi-day. Time moved
+    /// to the leading gutter, which freed this line to absorb the venue row and
+    /// take a whole line back off every card.
+    private var metaParts: [String] {
+        var parts: [String] = []
+        if let eventTypeLabel { parts.append(eventTypeLabel) }
+        if let venueName { parts.append(venueName) }
+        return parts
+    }
+
+    private var hasCoverageChip: Bool {
+        showsCrewCoverage && (event.coverage?.total ?? 0) > 0
+    }
+
+    private var metaLine: some View {
+        HStack(spacing: 4) {
+            if let eventTypeLabel {
+                Text(eventTypeLabel)
+                metaDot
+            }
+            if let venueName {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.caption2)
+                    .imageScale(.small)
+                Text(venueName)
+            }
+        }
         .font(.subheadline)
+        .foregroundStyle(.secondary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
     }
@@ -2310,11 +2395,17 @@ struct EventRow: View {
 
     /// Home is already carried by the green status rail, so only the exceptions
     /// spend a word on the meta line. VoiceOver still gets the full label below.
+    ///
+    /// Neutral and non-game share the grey rail, and the title already says
+    /// which one it is by naming an opponent or not — so when there is a venue
+    /// to print, the word loses to the venue rather than truncating it.
     private var eventTypeLabel: String? {
         switch event.isHome {
         case true: return nil
         case false: return "Away"
-        case nil: return event.opponent == nil ? "Non-game" : "Neutral"
+        case nil:
+            guard venueName == nil else { return nil }
+            return event.opponent == nil ? "Non-game" : "Neutral"
         }
     }
 
@@ -2341,7 +2432,7 @@ struct EventRow: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .font(.caption.weight(.semibold))
+        .font(.footnote.weight(.semibold))
         .foregroundStyle(Color.statusText(.blue))
     }
 
@@ -2359,6 +2450,11 @@ struct EventRow: View {
 
     private var rowAccessibilityLabel: String {
         var parts: [String] = []
+        switch timeState {
+        case .live: parts.append("In progress")
+        case .past: parts.append("Ended")
+        case .upcoming: break
+        }
         if myShift != nil { parts.append("My shift") }
         parts.append(eventDisplayTitle)
         if showsCrewCoverage, let cov = event.coverage, cov.total > 0 {

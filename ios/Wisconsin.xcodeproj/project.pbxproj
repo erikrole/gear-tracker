@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		01166B5C08621BBC2D8218F6 /* HIDScannerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22B3A50B4815BC1451C26DD /* HIDScannerField.swift */; };
 		01C0E89D9110CBB8DA80D650 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */; };
-		01DEED9E4C2F825C34D40BC9 /* KioskStudentHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D2A559654212BD133FB74F /* KioskStudentHubView.swift */; };
+		01DEED9E4C2F825C34D40BC9 /* KioskOperatorHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D2A559654212BD133FB74F /* KioskOperatorHubView.swift */; };
 		021A7B27623C3C8544FE58BB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04517A8131BAA862DB3FF5E /* ProfileView.swift */; };
 		0342D7B9F506A8995685BC69 /* ItemListText.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC04AA628BB1DEA764D7EEAC /* ItemListText.swift */; };
 		03D13CE00A34B9C6DD2AB6EF /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E4D4F3F432CE124DE63A8 /* KioskPickupView.swift */; };
@@ -222,7 +222,7 @@
 		0B3D4226E94BA750868A4D0B /* LicensesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicensesView.swift; sourceTree = "<group>"; };
 		0D900B3FE267BAB0F0904D07 /* Toast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toast.swift; sourceTree = "<group>"; };
 		0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskShellView.swift; sourceTree = "<group>"; };
-		13D2A559654212BD133FB74F /* KioskStudentHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStudentHubView.swift; sourceTree = "<group>"; };
+		13D2A559654212BD133FB74F /* KioskOperatorHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskOperatorHubView.swift; sourceTree = "<group>"; };
 		14DA88A1DF6F8D23066A07BC /* GuidesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidesView.swift; sourceTree = "<group>"; };
 		1770023701735D8701DCAA5B /* OverdueReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverdueReportView.swift; sourceTree = "<group>"; };
 		1B440FC4AD4F07C1163F8856 /* CheckoutReturnLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckoutReturnLiveActivityWidget.swift; sourceTree = "<group>"; };
@@ -580,7 +580,7 @@
 				0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */,
 				AE625FDFD675BDE49443B571 /* KioskSleepModeView.swift */,
 				FA38BB094C95612DBF9F1C24 /* KioskStore.swift */,
-				13D2A559654212BD133FB74F /* KioskStudentHubView.swift */,
+				13D2A559654212BD133FB74F /* KioskOperatorHubView.swift */,
 				E968BAF46C8E557831F73C27 /* KioskSuccessView.swift */,
 			);
 			path = Kiosk;
@@ -994,7 +994,7 @@
 				9CF45F32E90F4C03DDE548AB /* KioskShellView.swift in Sources */,
 				A4D4C64C1C5E6904BFF894E3 /* KioskSleepModeView.swift in Sources */,
 				F3AE80E47FC7B6AAA76035B6 /* KioskStore.swift in Sources */,
-				01DEED9E4C2F825C34D40BC9 /* KioskStudentHubView.swift in Sources */,
+				01DEED9E4C2F825C34D40BC9 /* KioskOperatorHubView.swift in Sources */,
 				E6F51692EA10D1DF6DA5F049 /* KioskSuccessView.swift in Sources */,
 				47DD202255737DB455061266 /* LatestRequestGeneration.swift in Sources */,
 			);

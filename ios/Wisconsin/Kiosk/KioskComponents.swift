@@ -214,15 +214,28 @@ private struct KioskCornerBrackets: Shape {
 /// panel's own tint and border carry the state, the headline says what to do,
 /// and the camera fallback only appears when it is actually the answer (no
 /// scanner paired), instead of sitting there as permanent instruction text.
+/// What a scan just put in someone's hands, for the flow to confirm.
+struct KioskAcceptedScan: Equatable {
+    let title: String
+    let subtitle: String?
+    /// Flow-specific progress line — "4 items scanned" while a cart builds up,
+    /// "2 of 6 returned" while a checklist drains.
+    let progress: String
+}
+
 struct KioskScanStage: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isHardwareConnected: Bool
     let isReady: Bool
     var lastScanAt: Date?
     var feedbackTint: Color?
+    /// Set for a few seconds after a scan lands. The stage becomes the receipt.
+    var accepted: KioskAcceptedScan?
     var onCamera: (() -> Void)?
     var onHelp: (() -> Void)?
 
     private var tint: Color {
+        if accepted != nil { return KioskStatus.ok }
         if let feedbackTint { return feedbackTint }
         if !isHardwareConnected { return KioskStatus.problem }
         return isReady ? Color.kioskRedGlyph : KioskStatus.attention
@@ -247,16 +260,28 @@ struct KioskScanStage: View {
 
     var body: some View {
         VStack(spacing: KioskSpacing.md) {
-            KioskScanTarget(tint: tint, width: 260, height: 156)
+            if let accepted {
+                // The confirmation *is* the stage, not a caption beside it.
+                //
+                // A landed scan used to produce a small text banner plus a new
+                // row in the side rail. Both are correct and both are unreadable
+                // from where a student stands — so the one question this screen
+                // exists to answer, "did that scan take?", was answered in the
+                // smallest type on it while the scan target sat unchanged in
+                // the middle of the panel.
+                acceptedView(accepted)
+            } else {
+                KioskScanTarget(tint: tint, width: 260, height: 156)
 
-            VStack(spacing: 6) {
-                Text(headline)
-                    .font(KioskType.actionTitle)
-                    .foregroundStyle(KioskText.primary)
-                Text(detail)
-                    .font(KioskType.rowDetail)
-                    .foregroundStyle(KioskText.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 6) {
+                    Text(headline)
+                        .font(KioskType.actionTitle)
+                        .foregroundStyle(KioskText.primary)
+                    Text(detail)
+                        .font(KioskType.rowDetail)
+                        .foregroundStyle(KioskText.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
 
             HStack(spacing: KioskSpacing.sm) {
@@ -284,8 +309,64 @@ struct KioskScanStage: View {
             RoundedRectangle(cornerRadius: KioskRadius.hero)
                 .stroke(tint.opacity(0.45), lineWidth: 1)
         )
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: accepted)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(headline). \(detail)")
+        .accessibilityLabel(accepted.map { "Added \($0.title). \($0.progress)." } ?? "\(headline). \(detail)")
+    }
+
+    private func acceptedView(_ accepted: KioskAcceptedScan) -> some View {
+        KioskScanAcceptedView(accepted: accepted, reduceMotion: reduceMotion)
+            .frame(minHeight: 268)
+    }
+}
+
+/// The moment a scan lands, at counter-reading size.
+///
+/// Shared by all three scan flows. Checkout swaps its scan target for this;
+/// pickup and return swap their progress ring. Those two kept only a caption
+/// banner and a new checklist tick when this was checkout-only — the same
+/// unreadable confirmation the checkout screen had just stopped having.
+struct KioskScanAcceptedView: View {
+    let accepted: KioskAcceptedScan
+    var reduceMotion: Bool = false
+
+    var body: some View {
+        VStack(spacing: KioskSpacing.sm) {
+            ZStack {
+                Circle()
+                    .fill(KioskStatus.ok.opacity(0.16))
+                    .frame(width: 132, height: 132)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 62, weight: .bold))
+                    .foregroundStyle(KioskStatus.ok)
+            }
+            .accessibilityHidden(true)
+
+            Text(accepted.title)
+                .font(.gothamBlack(size: 40))
+                .foregroundStyle(KioskText.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+
+            if let subtitle = accepted.subtitle {
+                Text(subtitle)
+                    .font(KioskType.rowDetail)
+                    .foregroundStyle(KioskText.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            Text(accepted.progress)
+                .font(KioskType.chip)
+                .foregroundStyle(KioskStatus.ok)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(KioskStatus.ok.opacity(0.14), in: Capsule())
+                .padding(.top, 2)
+        }
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.94)))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(accepted.title). \(accepted.progress)")
     }
 }
 
@@ -865,45 +946,104 @@ struct KioskPressStyle: ButtonStyle {
 
 // MARK: Keyboard hint
 
-/// "No keyboard?" helper for UIKit-backed kiosk text fields. When a paired HID
-/// scanner is awake, iPadOS treats it as a hardware keyboard and suppresses
-/// the software keyboard — the field focuses but nothing comes up, which reads
-/// as "typing is broken". While `isFieldFocused` is true this watches keyboard
-/// frame notifications; if no real keyboard lands within a short grace it
-/// surfaces the scanner double-press trick. It disappears the moment a
-/// keyboard shows or focus ends, so scanner-off flows never see it.
+/// Centered "Double-tap trigger to enable keyboard" popup for kiosk text input.
+///
+/// When a paired HID scanner is awake, iPadOS counts it as a hardware keyboard
+/// and suppresses the software one — the field takes focus and nothing comes
+/// up, which reads as "typing is broken". This watches keyboard frame
+/// notifications while a field is focused; if no real keyboard lands within a
+/// short grace, it says what to do about it, and it clears itself the instant a
+/// keyboard appears or focus ends.
+///
+/// It is mounted at screen level and centered rather than tucked under the
+/// field, which two earlier placements ruled out. Anchored above the field the
+/// card covered the field's own "BOOKING NAME · REQUIRED" label — hiding what
+/// to type in order to explain how to type it. Placed inline beneath it, the
+/// card was taller than the advisory line it replaced, and on a checkout step
+/// with no spare height that pushed the committed due-back stamp off the
+/// bottom. Centered, it costs no layout at all and is the most legible thing on
+/// the screen, which is what an "input is not working" message should be.
+///
+/// `allowsHitTesting(false)`: the fix is a physical double-tap on the scanner
+/// trigger, so the popup never needs to take a touch — and a kiosk must not put
+/// an undismissable scrim between someone and the controls underneath it.
 struct KioskKeyboardHint: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// True while a kiosk text field holds focus. Screens feed this from
+    /// `store.scanner.isEditing`, which the fields already maintain.
     let isFieldFocused: Bool
+    var isScannerConnected: Bool = true
 
     @State private var keyboardVisible = false
-    @State private var showTip = false
+    @State private var showTip = KioskKeyboardHint.fixtureForcesTip
 
-    private var waitingForKeyboard: Bool { isFieldFocused && !keyboardVisible }
+    /// Capture-only seed. A simulator cannot attach a HID keyboard without the
+    /// Simulator app's own ⌘⇧K toggle, so the state this popup exists for is
+    /// unreachable under automation. Always false in a real build.
+    static var fixtureForcesTip: Bool {
+        #if DEBUG
+        return KioskFixtureScenario.active == .keyboardTip
+        #else
+        return false
+        #endif
+    }
+
+    private static let message = "Double-tap trigger to enable keyboard"
+    private static let detail = "The hand scanner is acting as this iPad's keyboard."
+
+    private var waitingForKeyboard: Bool {
+        #if DEBUG
+        if Self.fixtureForcesTip { return true }
+        #endif
+        return isFieldFocused && isScannerConnected && !keyboardVisible
+    }
 
     var body: some View {
         Group {
             if showTip {
-                HStack(spacing: 8) {
-                    Image(systemName: "keyboard.badge.ellipsis")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.kioskRed)
-                    Text("Keyboard not showing? Double-press the scanner button to bring it up.")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(KioskText.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                ZStack {
+                    KioskScrim.modal.opacity(0.55).ignoresSafeArea()
+
+                    VStack(spacing: KioskSpacing.md) {
+                        Image(systemName: "keyboard.badge.ellipsis")
+                            .font(.system(size: 46, weight: .semibold))
+                            .foregroundStyle(Color.kioskRedGlyph)
+                            .frame(width: 92, height: 92)
+                            .background(Color.kioskRedGlyph.opacity(0.14), in: Circle())
+                            .accessibilityHidden(true)
+
+                        Text(Self.message)
+                            .font(.gothamBold(size: 28))
+                            .foregroundStyle(KioskText.primary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(Self.detail)
+                            .font(KioskType.body)
+                            .foregroundStyle(KioskText.tertiary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 34)
+                    .frame(maxWidth: 520)
+                    .background(KioskSurface.modal, in: RoundedRectangle(cornerRadius: KioskRadius.modal))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: KioskRadius.modal)
+                            .stroke(Color.kioskRedGlyph.opacity(0.55), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.6), radius: 30, y: 12)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
-                .overlay(
-                    RoundedRectangle(cornerRadius: KioskRadius.sm)
-                        .stroke(Color.kioskRed.opacity(0.35), lineWidth: 1)
+                .transition(
+                    reduceMotion
+                        ? .opacity
+                        : .opacity.combined(with: .scale(scale: 0.92))
                 )
-                .transition(.opacity)
-                .accessibilityLabel("Keyboard not showing? Double-press the scanner button to bring it up.")
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(Self.message). \(Self.detail)")
             }
         }
+        .allowsHitTesting(false)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { note in
             keyboardVisible = Self.isRealKeyboard(note)
         }
@@ -916,10 +1056,7 @@ struct KioskKeyboardHint: View {
                 try? await Task.sleep(nanoseconds: 750_000_000)
                 guard !Task.isCancelled else { return }
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showTip = true }
-                UIAccessibility.post(
-                    notification: .announcement,
-                    argument: "Keyboard not showing? Double-press the scanner button to bring it up."
-                )
+                UIAccessibility.post(notification: .announcement, argument: Self.message)
             } else if showTip {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showTip = false }
             }

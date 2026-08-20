@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Archive, CheckCircle2, ChevronDown, Download, FilePenLine, History, LockKeyhole, Pencil, RefreshCw, RotateCcw, Settings2, ShieldCheck, Trash2, UserRound, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -37,6 +38,7 @@ import { SignatureAthleteProfileForm, type SignatureAthleteProfileValues } from 
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { isCurrentDeviceIpad } from "@/lib/signatures/capture";
+import { invalidateSignatureCollectionCaches } from "@/lib/signatures/client-cache";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
 import {
   SIGNATURE_AD_HOC_SPORT_CODE,
@@ -60,6 +62,8 @@ type Member = {
   settingsVersion: number;
   artifact: { id: string; revision: number; width: number; height: number; committedAt: string | null; replacedAt: string | null } | null;
   revisions?: Array<{ id: string; revision: number; width: number; height: number; committedAt: string | null; replacedAt: string | null }>;
+  revisionCount?: number;
+  revisionHistoryTruncated?: boolean;
   athleteProfile: SignatureAthleteProfileValues | null;
   athleteProfileComplete: boolean;
 };
@@ -126,16 +130,12 @@ async function mutate(url: string, method: string, body?: unknown) {
   return response.json() as Promise<Record<string, unknown>>;
 }
 
-export default function SignatureCollectionPage({ collectionId }: { collectionId: string }) {
+export default function SignatureCollectionPage({ collectionId, isAdmin }: { collectionId: string; isAdmin: boolean }) {
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
-  const { data: collection, loading, error, reload } = useFetch<Collection>({ url: `/api/signatures/collections/${collectionId}` });
-  const { data: me } = useFetch<{ id: string; role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR" }>({
-    url: "/api/me",
-    refetchOnFocus: false,
-    transform: (json) => json.user as { id: string; role: "ADMIN" | "STAFF" | "STUDENT" | "COLLABORATOR" },
-  });
-  const isAdmin = me?.role === "ADMIN";
+  const queryClient = useQueryClient();
+  const { data: collection, loading, refreshing, error, reload } = useFetch<Collection>({ url: `/api/signatures/collections/${collectionId}` });
   const [group, setGroup] = useState<"ALL" | Member["roleGroup"]>("ALL");
+  const [search, setSearch] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [resettingCollection, setResettingCollection] = useState(false);
   const [settings, setSettings] = useState<Collection["penSettings"] | null>(null);
@@ -156,6 +156,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
 
   useEffect(() => {
     setGroup("ALL");
+    setSearch("");
     setCollapsedGroups(new Set());
     setSettingsOpen(false);
   }, [collection?.id]);
@@ -170,7 +171,13 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
 
   const groupSections = useMemo(() => rosterGroupOrder
     .map((roleGroup) => {
-      const members = (collection?.members ?? []).filter((member) => member.active && member.roleGroup === roleGroup).sort(compareSignatureRosterMembers);
+      const normalizedSearch = search.trim().toLocaleLowerCase();
+      const members = (collection?.members ?? []).filter((member) => {
+        if (!member.active || member.roleGroup !== roleGroup) return false;
+        if (!normalizedSearch) return true;
+        return [member.name, member.title, member.jerseyNumber === null ? "" : String(member.jerseyNumber)]
+          .some((value) => value?.toLocaleLowerCase().includes(normalizedSearch));
+      }).sort(compareSignatureRosterMembers);
       const complete = members.filter((member) => member.artifact).length;
       return {
         roleGroup,
@@ -179,7 +186,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
         percent: members.length === 0 ? 100 : Math.round((complete / members.length) * 100),
       };
     })
-    .filter((section) => (group === "ALL" || section.roleGroup === group) && (section.members.length > 0 || (isCreativeStaffRoster && section.roleGroup === "CREATIVE_STAFF"))), [collection?.members, group, isCreativeStaffRoster, rosterGroupOrder]);
+    .filter((section) => (group === "ALL" || section.roleGroup === group) && (section.members.length > 0 || (!search.trim() && isCreativeStaffRoster && section.roleGroup === "CREATIVE_STAFF"))), [collection?.members, group, isCreativeStaffRoster, rosterGroupOrder, search]);
   const effectiveSettings = settings ?? collection?.penSettings;
   const hasCapturedSignatures = collection?.members.some((member) => Boolean(member.artifact)) ?? false;
   const settingsLocked = hasCapturedSignatures;
@@ -190,6 +197,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
     try {
       await mutate(`/api/signatures/collections/${collection.id}`, "PATCH", { ...effectiveSettings, expectedCollectionVersion: collection.collectionVersion, expectedSettingsVersion: collection.settingsVersion });
       setSettings(null);
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success("Pen settings saved");
     } catch (requestError) {
@@ -203,6 +211,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
     if (!collection || !member.artifact || !window.confirm(`Remove ${member.name}'s current signature?`)) return;
     try {
       await mutate(`/api/signatures/collections/${collection.id}/capture/${member.id}`, "DELETE", { expectedCaptureVersion: member.captureVersion });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success(`${member.name}'s signature was removed`);
     } catch (requestError) {
@@ -214,6 +223,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
     if (!collection) return;
     try {
       await mutate(`/api/signatures/collections/${collection.id}/members/${member.id}/required`, "PATCH", { required: !member.required, expectedCollectionVersion: collection.collectionVersion });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success(`${member.name} is now ${member.required ? "optional" : "required"}`);
     } catch (requestError) {
@@ -230,6 +240,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
         ...values,
       });
       setProfileMember(null);
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success(`${profileMember.name}'s website profile saved`);
     } catch (requestError) {
@@ -244,6 +255,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
     setResettingCollection(true);
     try {
       await mutate(`/api/signatures/collections/${collection.id}/reset`, "POST", { expectedCollectionVersion: collection.collectionVersion });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success("Collection reset");
     } catch (requestError) {
@@ -266,6 +278,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
    if (!collection || !window.confirm("Archive this collection? It will become read-only.")) return;
    try {
       await mutate("/api/signatures/collections/" + collection.id + "/archive", "POST", { expectedCollectionVersion: collection.collectionVersion });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
      reload();
      toast.success("Collection archived");
     } catch (requestError) {
@@ -285,7 +298,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
        title={signatureCollectionTitle(collection.sportCode)}
         description={collection.season}
      >
-        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading}><RefreshCw data-icon="inline-start" />Refresh</Button>
+        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading || refreshing}><RefreshCw data-icon="inline-start" className={refreshing ? "animate-spin" : undefined} />Refresh</Button>
         {isAdmin && collection.status === "OPEN" && <Button variant="outline" size="sm" className="h-10" onClick={archiveCollection}><Archive data-icon="inline-start" />Archive</Button>}
       </PageHeader>
 
@@ -299,19 +312,29 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                   <p className="text-sm font-semibold tabular-nums">{collection.completeness.complete}/{collection.completeness.required} Student-Athletes</p>
                   {staffCompleteness.total > 0 && <p className="text-xs text-muted-foreground tabular-nums">{staffCompleteness.complete}/{staffCompleteness.total} Staff</p>}
                 </div>
-                <Progress value={collection.completeness.percent} className="mt-2 h-2" />
+                <Progress value={collection.completeness.percent} className="mt-2 h-2" aria-label={`${signatureCollectionTitle(collection.sportCode)} student-athlete readiness`} />
               </div>
             )}
          </div>
-          {teamRoster && (
-            <Select value={group} onValueChange={(value) => setGroup(value as typeof group)}>
-              <SelectTrigger className="h-10 w-full sm:w-52" aria-label="Filter signature roster"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="ALL">All roster groups</SelectItem><SelectItem value="PLAYER">Players</SelectItem><SelectItem value="COACHING_STAFF">Coaching staff</SelectItem><SelectItem value="SUPPORT_STAFF">Support staff</SelectItem></SelectContent>
-            </Select>
-          )}
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(14rem,22rem)_13rem]">
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, number, or title"
+              aria-label="Search signature roster"
+              className="h-10"
+            />
+            {teamRoster ? (
+              <Select value={group} onValueChange={(value) => setGroup(value as typeof group)}>
+                <SelectTrigger className="h-10 w-full" aria-label="Filter signature roster"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="ALL">All roster groups</SelectItem><SelectItem value="PLAYER">Players</SelectItem><SelectItem value="COACHING_STAFF">Coaching staff</SelectItem><SelectItem value="SUPPORT_STAFF">Support staff</SelectItem></SelectContent>
+              </Select>
+            ) : <div className="hidden sm:block" aria-hidden="true" />}
+          </div>
         </div>
 
-        {groupSections.length === 0 ? <EmptyState icon="users" title="No roster members in this view" description="Try another roster group." /> : (
+        {groupSections.length === 0 ? <EmptyState icon="users" title="No roster members in this view" description={search.trim() ? "Try another name, number, or title." : "Try another roster group."} /> : (
          <div className="space-y-7">
            {groupSections.map((section) => {
               const meta = isAdHocRoster
@@ -361,7 +384,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                      {section.members.map((member) => {
                        const priorRevisions = (member.revisions ?? []).filter((revision) => revision.id !== member.artifact?.id);
                        const canChangeRequirement = Boolean(isAdmin && collection.status === "OPEN" && member.roleGroup !== "PLAYER");
-                       const canEditProfile = member.roleGroup === "PLAYER" && collection.status === "OPEN";
+                       const canEditProfile = member.roleGroup === "PLAYER" && Boolean(member.artifact) && collection.status === "OPEN";
                        const showRowActions = Boolean(member.artifact || priorRevisions.length > 0 || canChangeRequirement || canEditProfile);
                        return (
                          <div
@@ -396,7 +419,7 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                                    </span>
                                  )}
                                </div>
-                               {!isCreativeStaffRoster && <span className="block max-w-full truncate whitespace-nowrap text-xs leading-4 text-muted-foreground" title={member.title || roleLabel(member.roleGroup)}>{member.title || roleLabel(member.roleGroup)}{member.roleGroup === "PLAYER" && !member.athleteProfileComplete ? " · Profile needed" : ""}</span>}
+                               {!isCreativeStaffRoster && <span className="block max-w-full truncate whitespace-nowrap text-xs leading-4 text-muted-foreground" title={member.title || roleLabel(member.roleGroup)}>{member.title || roleLabel(member.roleGroup)}{member.roleGroup === "PLAYER" && member.artifact && !member.athleteProfileComplete ? " · Profile needed" : ""}</span>}
                              </div>
                            </div>
 
@@ -422,11 +445,13 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                              {showRowActions && (
                                <OperationalRowActions label={`Actions for ${member.name}'s signature`} triggerClassName="size-11">
                                  {canEditProfile && <DropdownMenuItem onSelect={() => setProfileMember(member)}><Pencil />Edit athlete profile</DropdownMenuItem>}
-                                 {member.artifact && collection.status === "OPEN" && (
+                                 {member.artifact && collection.status === "OPEN" && (isIpad ? (
                                    <DropdownMenuItem asChild>
                                      <Link href={`/signatures/${collection.id}/capture/${member.id}`}><FilePenLine />Replace signature</Link>
                                    </DropdownMenuItem>
-                                 )}
+                                 ) : (
+                                   <DropdownMenuItem disabled title={CAPTURE_ON_IPAD_TOOLTIP}><FilePenLine />Replace on iPad</DropdownMenuItem>
+                                 ))}
                                  {member.artifact && (
                                    <>
                                      <DropdownMenuItem asChild>
@@ -441,6 +466,11 @@ export default function SignatureCollectionPage({ collectionId }: { collectionId
                                    <>
                                      <DropdownMenuSeparator />
                                      <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground"><History className="size-4" />Previous versions</DropdownMenuLabel>
+                                     {member.revisionHistoryTruncated && (
+                                       <DropdownMenuItem disabled>
+                                         Showing {priorRevisions.length} of {Math.max(0, (member.revisionCount ?? priorRevisions.length + 1) - 1)} previous versions
+                                       </DropdownMenuItem>
+                                     )}
                                      {priorRevisions.flatMap((revision, index) => [
                                        <DropdownMenuItem key={`${revision.id}-png`} asChild>
                                          <a href={`/api/signatures/artifacts/${revision.id}/png?download=1`}><Download />Version {revision.revision} PNG</a>

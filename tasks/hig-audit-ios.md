@@ -103,6 +103,7 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 These are project-wide patterns to adopt in a single sweep before per-screen polish.
 
 - [ ] **CC-1 — Migrate `TabView` to the new `Tab` struct API.** Blocked 2026-06-10 by repeated UIKit tab item/controller assertion on Schedule selection.
+      2026-08-19 note: current `AppTabView` source already uses value-based `Tab(...)` with `TabRole.search` and `.tabPlacement(.pinned)`, which contradicts this block. Re-confirm on a physical device before treating CC-1/CC-2 as open or closed.
       The stable current shell uses `.tabItem { Label(...) }` plus `.tag(...)`. Do not reattempt `Tab("Home", systemImage: "house", value: ...)` until device verification proves UIKit's tab item/controller mapping remains stable. Cite: https://developer.apple.com/documentation/swiftui/tab
 
 - [ ] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.** Blocked with CC-1.
@@ -154,6 +155,19 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
       Cite: https://developer.apple.com/design/human-interface-guidelines/accessibility
 
 - [ ] **P2 — [Navigation] Profile entry not exposed from tab root.** `ProfileView` is reachable only from inside `HomeView`. HIG iOS pattern is a top-trailing avatar on the landing screen, or a dedicated tab. Confirm and document the canonical entry.
+
+---
+
+### `ScheduleView` chrome (`ios/Wisconsin/Views/ScheduleView.swift`)
+
+**Verdict:** closed 2026-08-19 by readiness-plan Slice 22. Recorded here because one finding is a platform constraint worth not re-learning.
+
+- [x] **P1 — [Navigation] List controls sat in content instead of the toolbar.** A hand-rolled capsule shared a row with the List/Calendar switcher while Items and Users had already moved their controls to the toolbar under `listControlTint(isActive:)`. Filters now rides the toolbar with the same contract.
+- [x] **P1 — [Toolbars] Bare `Image`s inside manual `.frame(width: 44, height: 44)`.** Hard-coding the hit target fights the system's own toolbar metrics and the iOS 26 glass capsule. Now `Label`s at system metrics.
+      Cite: https://developer.apple.com/design/human-interface-guidelines/toolbars
+- [x] **P1 — [Toolbars] A numeric badge cannot survive the iOS 26 toolbar.** The Trade Board count was drawn as a `ZStack` overlay; the glass capsule clips item content, so it rendered as an orange half-disc with the number cut off. Confirmed by simulator capture of the pre-change build -- this was already broken, not a regression. Counts belong on tab items and app icons; a toolbar control carries state through its symbol variant instead.
+- [x] **P2 — [Feedback] No inline way to clear an active filter.** The summary line was static text; undoing a filter meant reopening the sheet. It is now the shared `ActiveControlBar` with a Clear action.
+- [x] **P2 — [Comments] Inline-title rationale described a screen this is not.** The comment justified `.inline` as reclaiming the large-title band "on this pushed view"; `ScheduleView` is a tab root. Behavior kept (it matches Bookings' compact title), comment corrected.
 
 ---
 

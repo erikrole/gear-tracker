@@ -2,7 +2,7 @@
 
 ## Goal
 
-Ship the Men’s Basketball signature-capture pilot as an authenticated staff/admin web workflow. Apple Pencil is the only drawing input; touch remains available for controls. Captures are server-rendered into matching private PNG and SVG artifacts, associated with an immutable UWBadgers roster snapshot, and counted complete only after both artifacts and the database state commit.
+Operate Signatures as a trustworthy authenticated staff/admin workflow across supported team, Creative Staff, Administration, and one-off collections. Apple Pencil is the only drawing input; touch remains available for controls. Captures are server-rendered into matching private PNG and SVG artifacts, associated with immutable source snapshots where applicable, and counted complete only after both artifacts and the database state commit.
 
 ## Current State
 
@@ -10,7 +10,7 @@ The V1 implementation is deployed through the web, API, schema, artifact, storag
 
 ## Scope
 
-- Canonical collection key: `sportCode + season`, with `MBB`, `FB`, `VB`, `MHKY`, `WHKY`, `WBB`, and `WRES` for team rosters, `CREATIVE` for the standalone Creative staff roster, and `ADHOC` for manually entered one-off signers.
+- Canonical collection key: `sportCode + season`, with `MBB`, `FB`, `VB`, `MHKY`, `WHKY`, `WBB`, and `WRES` for team rosters, `CREATIVE` for the standalone Creative staff roster, `ADMIN` for the official UWBadgers Administration directory, and `ADHOC` for manually entered one-off signers.
 - External roster members are separate from Gear Tracker users and may have a nullable user link. Creative staff use linked full-time Video/Photo/Graphics accounts as separate signature members with no external snapshot and never live in the MBB collection.
 - UWBadgers import is fixed to an allowlisted adapter with structural parsing, profile-identity deduplication, preview persistence, and versioned reconciliation. MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use sport-specific source URLs and parser labels; Creative staff sync is explicit, version-checked, audited, and preserves imported roster state.
 - Required members are active players from the seven supported team rosters; coaching and support staff are imported as optional secondary work. Standalone Creative staff retain their existing default-required behavior; wrestling weight classes are metadata and jersey numbers remain nullable.
@@ -60,6 +60,60 @@ Local verification on 2026-08-15: focused signature tests 11/11 plus six signatu
 - No client-provided SVG, PNG, filename, path, Blob URL, or private token is trusted.
 - Stale collection, snapshot, settings, capture, and request versions return `409` while preserving the local draft and prior committed capture.
 - The local pre-iPad hardening pass keeps Pencil resize/input handling stable, binds request IDs to their original target, preserves required-state overrides across unchanged imports, and invalidates in-flight saves during collection reset.
+
+## Follow-up: Trust, Scale, and Recovery Hardening — 2026-08-19
+
+### Goal
+
+- Remove the source-confirmed paths that can show stale completion, mutate before revealing the iPad requirement, write a player profile before a committed signature, misreport a fetch failure, or do unbounded roster-scale work.
+- Improve the long-roster operator surface without changing private-artifact, immutable-history, or Apple Pencil acceptance contracts.
+
+### Current Truth
+
+- The documented Production baseline remains deployment `dpl_D9tYGhkyoHDqnLUupjb2Az1xrMEq` from commit `a5604316`; this follow-up describes current local source and does not claim that later local refinements are deployed.
+- Automated Signature tests pass 99/99 after this slice. Coverage is strong at pure/service/storage boundaries; authenticated browser proof covers the landing/detail interactions, while physical input remains a separate gate.
+- Physical iPad Safari/Apple Pencil proof and authenticated artifact-delivery acceptance remain release gates. Source, test, build, or desktop-browser success cannot close them.
+
+### Source Checks
+
+- The audit identified a shared 60-second React Query cache entry whose successful capture/profile mutations navigated without invalidating it.
+- The audit identified Add Signature mutating an ad-hoc roster before the capture route revealed the iPad requirement, with Replace offered before that device check.
+- The audit identified player-profile writes that did not require a current committed artifact at the service boundary.
+- The audit identified collection detail and capture bootstrap loading full snapshot/history data for every member at Football's 164-member scale.
+- The audit identified a serializable roster-apply transaction without an explicit large-roster budget even though the 164-member Football apply exceeded Prisma's default window in prior operator work.
+- The audit identified UWBadgers redirect validation occurring only after `fetch` had issued the redirected request.
+
+### Stop Conditions
+
+- Do not weaken private delivery, current-revision selection, optimistic version checks, audit coverage, or pen-only input behavior.
+- Do not substitute a desktop drawing path for the accepted iPad-only capture contract.
+- Stop before changing roster-source or profile sequencing semantics if the brief, D-050, service, and UI cannot be reconciled in the same slice.
+- Keep authenticated browser proof and physical iPad acceptance distinct; do not present either as inferred from automated gates.
+
+### Slices
+
+- [x] Invalidate exact collection/list cache entries after successful capture, profile, and relevant roster mutations; add regression coverage.
+- [x] Gate Add/Replace before mutation or navigation on unsupported clients and give capture fetch failures a truthful Retry path.
+- [x] Require a current committed player artifact before profile writes at both UI and service boundaries.
+- [x] Restore determinate accessible progress semantics and add explicit accessible names at Signature call sites.
+- [x] Remove repeated snapshot/revision payloads from collection detail and add a one-member capture bootstrap contract.
+- [x] Give large-roster apply an explicit bounded transaction budget and harden allowlisted roster redirects before a second request is issued.
+- [x] Bound private-artifact cleanup work so large reset/remove/delete operations remain retryable within the serverless function budget, and fence late uploads when delete/reset wins the state race.
+- [x] Add long-roster search/collapse polish and truthful empty-preview readiness after the trust and data-shape work is green.
+- [x] Complete focused tests, TypeScript, lint, docs verification, matched UI review, authenticated browser proof, and diff inspection.
+- [ ] Complete the exact `npm run build:app` gate; the debug-prerender build is green at 233/233 pages, while standard retries intermittently fail during unrelated Next page-data collection.
+
+### Verification
+
+- Focused Signature service, route, cache, storage, ZIP, and source-contract tests.
+- `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit --pretty false`, focused lint, `npm run lint -- --quiet`, and `npm run build:app` when the unrelated dirty Schedule work permits those shared gates.
+- `npm run codemap`, `npm run verify:docs`, and `git diff --check` for contract and shared-helper changes.
+- Matched desktop and tablet before/after review plus authenticated local runtime proof; physical iPad/Pencil remains a separate user-operated acceptance gate.
+
+### Review
+
+- Source slice complete locally on 2026-08-20: exact cache invalidation, pre-mutation iPad gates, committed-artifact profile sequencing, truthful capture retry, determinate progress semantics, one-member bootstrap, bounded detail payloads, explicit roster-apply budget, pre-follow redirect validation, bounded cleanup, and late-upload fencing are implemented with focused coverage.
+- Remaining: the exact standard app-build gate, production promotion, and physical iPad/Pencil acceptance. The matched UI review, authenticated browser proof, focused source gates, debug-prerender build, and docs verification are complete locally; these are separate gates and are not inferred from one another.
 
 ## Follow-up: Private Storage and Stroke Smoothing — 2026-08-15
 

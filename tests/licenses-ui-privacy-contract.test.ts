@@ -10,8 +10,8 @@ describe("licenses UI and privacy contracts", () => {
     const route = source("src/app/api/licenses/route.ts");
 
     expect(route).toContain("claim.userId === user.id");
-    expect(route).toContain("userId: null");
-    expect(route).toContain("user: null");
+    expect(route).toContain("userId: isOwnClaim ? claim.userId : null");
+    expect(route).toContain("user: isOwnClaim ? claim.user : null");
     expect(route).toContain("occupantLabel: null");
   });
 
@@ -30,6 +30,18 @@ describe("licenses UI and privacy contracts", () => {
     expect(table).toMatch(/<KeyRound[\s\S]*?Claim/);
     expect(table).toContain('code.status === "CLAIMED" && "bg-[var(--blue-bg)]');
     expect(table).not.toContain('code.status === "CLAIMED" && "bg-[var(--red-bg)]');
+  });
+
+  it("keeps Photo Mechanic license details actionable without a narrow-screen table", () => {
+    const table = source("src/app/(app)/licenses/LicenseTable.tsx");
+
+    expect(table).toContain('className="grid gap-2 md:hidden" role="list"');
+    expect(table).toContain('className="hidden overflow-x-auto rounded-md border md:block"');
+    expect(table).toContain('className="text-xs font-medium text-muted-foreground">Capacity');
+    expect(table).toContain('className="text-xs font-medium text-muted-foreground">Holders');
+    expect(table).toContain('className="text-xs font-medium text-muted-foreground">Expires');
+    expect(table).toContain('className="ml-auto h-10 w-24 rounded-md"');
+    expect(table).toContain('className="ml-auto inline-flex min-h-10 items-center');
   });
 
   it("lets staff assign an open slot to an active user through the managed occupy route", () => {

@@ -6,7 +6,7 @@ const source = (file: string) => readFileSync(path.join(process.cwd(), file), "u
 
 describe("iOS system correctness request ownership", () => {
   it("lets only the current student-hub scan route mutate kiosk flow state", () => {
-    const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const hub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const routeScan = hub.slice(
       hub.indexOf("private func routeScan"),
       hub.indexOf("private func showScanFeedback"),
@@ -19,8 +19,8 @@ describe("iOS system correctness request ownership", () => {
     expect(routeScan).toContain("try Task.checkCancellation()");
     expect(routeScan.match(/guard ownsScanRoute\(requestToken\) else \{ return \}/g)).toHaveLength(2);
     expect(routeScan).toContain("guard ownsScanRoute(requestToken), !isCancellation(error) else { return }");
-    expect(routeScan).toContain("store.scanner.owner == .studentHub");
-    expect(routeScan).toContain("case .studentHub(let activeUser) = store.screen");
+    expect(routeScan).toContain("store.scanner.owner == .operatorHub");
+    expect(routeScan).toContain("case .operatorHub(let activeUser) = store.screen");
     expect(routeScan).toContain("return activeUser.id == user.id");
 
     const disappearance = hub.slice(
@@ -30,12 +30,12 @@ describe("iOS system correctness request ownership", () => {
     expect(disappearance).toContain("scanRouteTask?.cancel()");
     expect(disappearance).toContain("scanRouteRequests.invalidate()");
     expect(disappearance.indexOf("scanRouteRequests.invalidate()")).toBeLessThan(
-      disappearance.indexOf("store.scanner.release(.studentHub)"),
+      disappearance.indexOf("store.scanner.release(.operatorHub)"),
     );
   });
 
   it("BUG: lets only the newest active student-hub refresh publish context", () => {
-    const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const hub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const contextRefresh = hub.slice(
       hub.indexOf("private func loadContext"),
       hub.indexOf("private func routeScan"),
@@ -63,8 +63,8 @@ describe("iOS system correctness request ownership", () => {
       /defer \{\s*if contextLoadRequests\.owns\(requestToken\) \{[\s\S]*?isLoading = false[\s\S]*?contextLoadTask = nil/,
     );
     expect(contextRefresh).toContain("contextLoadRequests.invalidate()");
-    expect(contextRefresh).toContain("store.scanner.owner == .studentHub");
-    expect(contextRefresh).toContain("case .studentHub(let activeUser) = store.screen");
+    expect(contextRefresh).toContain("store.scanner.owner == .operatorHub");
+    expect(contextRefresh).toContain("case .operatorHub(let activeUser) = store.screen");
     expect(contextRefresh).toContain("return activeUser.id == user.id");
 
     const disappearance = hub.slice(
@@ -73,7 +73,7 @@ describe("iOS system correctness request ownership", () => {
     );
     expect(disappearance).toContain("cancelContextLoad()");
     expect(disappearance.indexOf("cancelContextLoad()")).toBeLessThan(
-      disappearance.indexOf("store.scanner.release(.studentHub)"),
+      disappearance.indexOf("store.scanner.release(.operatorHub)"),
     );
 
     const poll = hub.slice(

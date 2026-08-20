@@ -39,7 +39,7 @@
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 519 |
+| `src/lib/services/licenses.ts` | 554 |
 | `src/lib/services/live-activities.ts` | 632 |
 | `src/lib/services/non-game-schedule-defaults.ts` | 49 |
 | `src/lib/services/notification-prefs.ts` | 103 |
@@ -66,8 +66,8 @@
 | `src/lib/services/shift-generation.ts` | 628 |
 | `src/lib/services/shift-trade-emails.ts` | 56 |
 | `src/lib/services/shift-trades.ts` | 931 |
-| `src/lib/services/signatures.ts` | 1755 |
-| `src/lib/services/software.ts` | 150 |
+| `src/lib/services/signatures.ts` | 1909 |
+| `src/lib/services/software.ts` | 271 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 444 |
 | `src/lib/services/usage-analytics-report.ts` | 33 |
@@ -190,7 +190,7 @@
 | `src/lib/shift-notification-workflow.ts` | 18 |
 | `src/lib/software-vault-access.ts` | 20 |
 | `src/lib/software-vault-crypto.ts` | 61 |
-| `src/lib/software-vault-validation.ts` | 37 |
+| `src/lib/software-vault-validation.ts` | 39 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 49 |
 | `src/lib/status-styles.ts` | 46 |
@@ -631,6 +631,7 @@
 - `/api/signatures/collections/[id]/download`
 - `/api/signatures/collections/[id]/members/[memberId]/profile`
 - `/api/signatures/collections/[id]/members/[memberId]/required`
+- `/api/signatures/collections/[id]/members/[memberId]`
 - `/api/signatures/collections/[id]/reset`
 - `/api/signatures/collections/[id]/restore`
 - `/api/signatures/collections/[id]`

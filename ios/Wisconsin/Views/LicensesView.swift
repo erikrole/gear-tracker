@@ -68,6 +68,10 @@ final class LicensesViewModel {
     /// "copied for 2 minutes" banner outlived the clipboard entry it described.
     private func showNotice(_ message: String) {
         notice = message
+        // The notice is a transient row in the middle of a list. Sighted users
+        // see it arrive; VoiceOver users got no announcement at all, so a
+        // successful claim or copy was silent to them.
+        UIAccessibility.post(notification: .announcement, argument: message)
         noticeTask?.cancel()
         noticeTask = Task {
             try? await Task.sleep(for: Self.noticeLifetime)
@@ -95,8 +99,10 @@ final class LicensesViewModel {
         do {
             _ = try await APIClient.shared.claimLicense(id: code.id)
             await load(forceRefresh: true)
+            Haptics.success()
             showNotice("License claimed. Use Copy Code when you’re ready.")
         } catch {
+            Haptics.error()
             self.error = error.localizedDescription
         }
         pendingActionId = nil
@@ -110,8 +116,10 @@ final class LicensesViewModel {
         do {
             try await APIClient.shared.releaseLicense(id: activeClaim.id)
             await load(forceRefresh: true)
+            Haptics.success()
             showNotice("License returned.")
         } catch {
+            Haptics.error()
             self.error = error.localizedDescription
         }
         pendingActionId = nil
@@ -124,6 +132,7 @@ final class LicensesViewModel {
             localOnly: false,
             expirationDate: Date().addingTimeInterval(120)
         )
+        Haptics.success()
         showNotice("Code copied for 2 minutes.")
     }
 }
@@ -391,8 +400,12 @@ struct LicensesView: View {
         }
     }
 
+    private var retiredCount: Int {
+        vm.codes.filter { $0.status == .retired }.count
+    }
+
     private var licensePoolSection: some View {
-        Section("License Pool") {
+        Section {
             ForEach(vm.codes) { code in
                 LicensePoolRow(
                     code: code,
@@ -403,6 +416,18 @@ struct LicensesView: View {
                 ) {
                     claimCandidate = code
                 }
+            }
+        } header: {
+            Text("License Pool")
+        } footer: {
+            // Staff and admin receive retired codes from `/api/licenses`, but
+            // the capacity summary above deliberately counts only live ones.
+            // Without this the header said "across 2 codes" over a list of
+            // three rows and left the reader to work out which was which.
+            if retiredCount > 0 {
+                Text(retiredCount == 1
+                     ? "1 retired code is kept for reference. The summary above counts live codes only."
+                     : "\(retiredCount) retired codes are kept for reference. The summary above counts live codes only.")
             }
         }
     }
@@ -489,6 +514,29 @@ private struct LicensePoolRow: View {
         canRevealUnclaimedCodes || isCurrentHolder
     }
 
+    /// A retired code cannot be claimed by anyone, ever. Occupancy, a claim
+    /// affordance, and "hidden until claimed" all describe a future it does not
+    /// have, so the row drops to a single honest line.
+    private var isRetired: Bool {
+        code.status == .retired
+    }
+
+    /// The code string is already on screen, larger and selectable, in the
+    /// My License card above. Repeating it here bought the reader nothing and
+    /// put the same secret on the glass twice.
+    private var showsCodeLine: Bool {
+        !isRetired && !isCurrentHolder
+    }
+
+    /// Every code in the pool normally carries the same annual expiry, so a
+    /// per-row date was three identical lines of chrome. Keep the line only
+    /// when it has become something to act on.
+    private var showsExpiry: Bool {
+        guard !isRetired, !isCurrentHolder else { return false }
+        guard let daysLeft = LicenseExpiry.daysUntil(code.expiresAt) else { return false }
+        return daysLeft <= 30
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 12) {
@@ -504,46 +552,68 @@ private struct LicensePoolRow: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
 
-                    Text(codeDisplay)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(code.code.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-
-                Spacer(minLength: 8)
-
-                StatusPill(label: availabilityLabel, tone: statusTone)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Label(slotSummary, systemImage: "person.2")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 8)
-
-                if isCurrentHolder {
-                    StatusPill(label: "Yours", tone: .blue)
-                } else if canClaim {
-                    Button("Claim") {
-                        onClaim()
+                    if showsCodeLine {
+                        Text(codeDisplay)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(code.code.isEmpty ? .secondary : .primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    } else if isRetired {
+                        Text(retiredSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                    .frame(minHeight: 44)
-                    .tint(Color.statusText(.green))
-                    .disabled(isPending)
+                }
+
+                Spacer(minLength: 8)
+
+                // One pill, not two. A row you hold used to carry its open-slot
+                // count and a separate "Yours", which read as two competing
+                // verdicts on the same row.
+                StatusPill(label: isCurrentHolder ? "Yours" : availabilityLabel,
+                           tone: isCurrentHolder ? .blue : statusTone)
+            }
+
+            if !isRetired {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Label(slotSummary, systemImage: "person.2")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: 8)
+
+                    if canClaim {
+                        Button("Claim") {
+                            onClaim()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                        .frame(minHeight: 44)
+                        .tint(Color.statusText(.green))
+                        .disabled(isPending)
+                    }
                 }
             }
 
-            Label(expirySummary(code.expiresAt), systemImage: "calendar")
-                .font(.caption)
-                .foregroundStyle(expiryTone(code.expiresAt))
+            if showsExpiry {
+                Label(expirySummary(code.expiresAt), systemImage: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(expiryTone(code.expiresAt))
+            }
         }
         .padding(.vertical, 6)
-        .listRowBackground(rowBackground)
+        .opacity(isRetired ? 0.7 : 1)
+    }
+
+    /// Retired rows say the two things that are still true — when it lapsed and
+    /// that it is out of service — instead of "No one is using this code",
+    /// which reads as an invitation.
+    private var retiredSummary: String {
+        guard LicenseExpiry.calendarDay(from: code.expiresAt) != nil else { return "No longer claimable" }
+        return "\(expirySummary(code.expiresAt)) · No longer claimable"
     }
 
     private var codeDisplay: String {
@@ -584,20 +654,15 @@ private struct LicensePoolRow: View {
     }
 
     private var statusSystemImage: String {
+        // On a code you hold, the status glyph is about you, not about the
+        // remaining capacity — `person.badge.plus` read as "add someone".
+        if isCurrentHolder { return "key.fill" }
         switch code.status {
-        case .available: "checkmark"
-        case .partial: "person.badge.plus"
-        case .claimed: "person.2.fill"
-        case .retired: "archivebox.fill"
-        case .unknown: "questionmark"
-        }
-    }
-
-    private var rowBackground: Color {
-        switch code.status {
-        case .available: Color.statusBackground(.green)
-        case .partial, .claimed: Color.statusBackground(.blue)
-        case .retired, .unknown: Color.cardSurface
+        case .available: return "checkmark"
+        case .partial: return "person.badge.plus"
+        case .claimed: return "person.2.fill"
+        case .retired: return "archivebox.fill"
+        case .unknown: return "questionmark"
         }
     }
 

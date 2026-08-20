@@ -848,30 +848,6 @@ struct AssetStatusBadge: View {
 /// it. Three glyph-only toolbar buttons can say *that* they are engaged, but not
 /// *what* they did -- the sort control in particular changed the list's order
 /// with nothing on screen to show for it.
-private struct ActiveControlBar: View {
-    let summary: String
-    let clear: () -> Void
-
-    var body: some View {
-        HStack(spacing: Brand.Space.sm) {
-            Text(summary)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Button("Clear") {
-                Haptics.tap()
-                clear()
-            }
-            .font(.footnote.weight(.semibold))
-            .tint(Color.primary)
-        }
-        .frame(minHeight: 36)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Showing \(summary)")
-    }
-}
-
 struct AssetStatusFilterMenu: View {
     @Binding var selected: Set<AssetComputedStatus>
     let onSelect: () -> Void

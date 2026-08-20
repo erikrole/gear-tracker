@@ -145,6 +145,7 @@ Scope: `ScheduleView` (List + Calendar modes) + `ScheduleCalendarView` + `Schedu
 - [ ] [Parity] My Hours stat strip (`GET /api/shifts/my-hours`) not on iOS. Useful for shift-totaling but not on the V1 student bar.
 - [ ] [Parity] AREA_SHIFTS filter bar (Sport / Area / Coverage / Time / My Shifts) — iOS has only "My Shifts". Power-user surface.
 - [ ] [Parity] ShiftDetailPanel (per-event admin assignment management) not on iOS — admin-only, web-first by design.
+- [x] [Correctness] Calendar mode's day list rendered in API insertion order, not chronological order — `eventsByDay` was assigned unsorted while list groups sorted. Fixed 2026-08-19; guarded by `tests/ios-schedule-ui-cleanup.test.ts`.
 - [ ] [UI polish] Calendar prev/next month chevrons have no bounds; tapping forward past the last event date is a dead-end with no hint. Cosmetic.
 - [ ] [UI polish] Toolbar Picker `.frame(width: 150)` — only 2 segments, fine on most devices, may clip on iPhone SE in landscape with all toolbar items.
 

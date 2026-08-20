@@ -202,6 +202,47 @@
 - [x] Preserve lookup-only scan scope and kiosk-owned custody routes.
 - [ ] Verify focused tab shell tests, iOS drift/gap checks, whitespace, and simulator build after correction.
 
+## Slice 22 — Schedule Chrome Joins the List-Toolbar Pattern
+
+- [x] Re-audit `ScheduleView` chrome against the 2026-07-22 list-toolbar decision and current Items/Users source.
+- [x] Move Filters from the in-content capsule to the navigation toolbar under `listControlTint(isActive:)`.
+- [x] Give the List/Calendar switcher the full content-strip width.
+- [x] Promote `ActiveControlBar` from private-in-`ItemsView` to `Brand.swift` and adopt it for the active-filter summary, so filters can be cleared without reopening the sheet.
+- [x] Replace bare toolbar `Image`s and manual 44pt frames with `Label`s at system metrics.
+- [x] Split the list control from the two actions with `ToolbarSpacer(.fixed)`.
+- [x] Remove the Trade Board count badge, which the iOS 26 glass toolbar was clipping, and carry open work on the filled symbol variant plus the accessibility label.
+- [x] Correct the inline-title comment, which described `ScheduleView` as a pushed view when it is a tab root.
+- [x] Update the affected Schedule source contracts to assert the new chrome.
+- [x] Sync mobile, HIG audit, and readiness plan docs.
+
+## Slice 24 — Event Detail Temporal Continuity
+
+- [x] Share `ScheduleEvent.timeState` between the Schedule list row and Event detail.
+- [x] State NOW / Ended in the detail header, with cancelled outranking both.
+- [x] Stop a failed staff working-copy fetch from blanking the loaded published roster.
+- [x] Extend the fixture harness with `/api/shift-groups` and capture detail in both temporal states.
+- [x] Add `tests/ios-event-detail-temporal-state.test.ts`.
+- [x] Sync mobile, event-detail audit, and readiness plan docs.
+
+## Slice 25 — Licenses Says It Once, and Only If It Is True
+
+- [x] Stop the pool repeating the holder's own code and expiry, which the My License card already states.
+- [x] Collapse the double verdict on a held row to one `Yours` pill and a `key.fill` glyph.
+- [x] Stop retired codes offering occupancy, a claim affordance, and "hidden until claimed".
+- [x] Reconcile the capacity summary with the retired rows staff actually receive.
+- [x] Show a pool row's expiry only inside the 30-day window or once lapsed; keep it unconditional on the active card.
+- [x] Remove the per-row status wash, the app's only one outside `OverdueReportView`.
+- [x] Add claim/return/copy haptics and a VoiceOver announcement for transient notices.
+- [x] Add the `resourcesLicensesOpen` fixture scenario so the claimable and expiring states are captured, not just the state where the viewer already holds a license.
+- [x] Extend `tests/ios-licenses-native-page.test.ts`.
+- [x] Sync mobile, licenses audit, and readiness plan docs.
+
+## Slice 23 — Tab Bar Minimize on Scroll (proposed, not started)
+
+- [ ] Confirm whether the `Tab(...)` shell crash on Schedule selection is actually resolved; current source uses the modern shell and `TabRole.search`, which contradicts the 2026-06-29 rollback note.
+- [ ] If resolved, close CC-1 and add `.tabBarMinimizeBehavior(.onScrollDown)` so the Schedule list reclaims the tab-bar band while scrolling.
+- [ ] Requires physical-device retest, because the blocking evidence for this shell was a device-only UIKit assertion.
+
 ## iOS 27 Watch Items
 
 - [ ] Re-check Apple HIG and developer sessions after the June 8 Keynote and Platforms State of the Union.
@@ -256,4 +297,7 @@
 - 2026-06-06: Shipped the Scan result retry-recovery slice. Native Scan lookup failures now show Try again before Type code instead, retry the last scanned code in place, and clear the same-code dedupe guard before retrying so the recovery action is immediate. The slice keeps lookup-only scope, kiosk custody boundaries, camera permission recovery, torch/manual entry, and single-asset auto-jump behavior intact. Added `tests/ios-scan-result-retry.test.ts`.
 - 2026-06-06: Verified the Scan result retry-recovery slice with `npx vitest run tests/ios-scan-result-retry.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. XcodeBuildMCP was unavailable because `session_show_defaults` closed its transport, so the build used the shell fallback. `npx tsc --noEmit` was not needed because no shared TypeScript or API route code changed.
 - 2026-06-29: Started Slice 21 after HIG tab-bar review and prior crash evidence. The implementation keeps the stable tab shell and intentionally does not restore `TabRole.search` because the modern tab shell previously crashed on Schedule selection in this app.
+- 2026-08-19: Shipped Slice 24. Event detail was the destination of every row the Schedule pass changed, and it had no notion of an event being under way, so a NOW row opened a temporally silent screen. `ScheduleEvent.timeState` is now the single definition both read. Capturing detail through the harness also surfaced a resilience bug that predates this work: a staff working-copy 404 blanked the crew section behind "Couldn't load crew" while the header above it read "3/4 filled". Verified with the new contract test, the full Vitest suite (3406 passing; the 3 known `users-*` failures reproduce on clean `HEAD`), 45 Swift unit tests, drift/gap audits, `git diff --check`, and iPhone 16 Pro before/after capture.
+- 2026-08-19: Shipped Slice 22. Schedule was the last list still holding its controls in content while Items and Users had moved to the toolbar. Filters is now a toolbar control with the shared tint contract, the switcher takes the full width, and `ActiveControlBar` is shared from `Brand.swift` instead of private to `ItemsView`. Simulator capture found the Trade Board count badge was already broken before this slice -- the iOS 26 glass toolbar clips item content, leaving an orange half-disc with the number cut off -- so it was replaced with a filled symbol variant rather than reproduced. Verified with the full Vitest suite (3406 passing; the 3 `users-route`/`users-hidden-visibility` failures reproduce on clean `HEAD`), 45 Swift unit tests, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, an iPhone 17 Pro simulator build, and before/after screenshot capture through `ScheduleScreenshotUITests`.
+- 2026-08-19: Noted that the plan's tab-shell rollback record is stale. `AppTabView` currently uses value-based `Tab(...)` with `TabRole.search`, which the 2026-06-29 entry says was rolled back. CC-1/CC-2 should be re-confirmed on a device before `.tabBarMinimizeBehavior(.onScrollDown)` is added; opened as Slice 23 rather than shipped blind, because the blocking evidence was a device-only crash.
 - 2026-06-29: User correction accepted: the first implementation was a floating action/full-screen cover, not Apple's trailing search-tab pattern. Reworked the slice so Scan remains tab tag `3`, the system tab bar is hidden, and a custom bottom bar renders main tabs in one pill with Scan as the dedicated trailing circular tab.

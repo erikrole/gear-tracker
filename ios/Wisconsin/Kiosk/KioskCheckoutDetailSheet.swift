@@ -30,6 +30,9 @@ struct KioskCheckoutDrawerContext: Identifiable {
 
 struct KioskCheckoutDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
+    // Sheets inherit the environment, and the tip has to track connect/
+    // disconnect live rather than snapshot it when the sheet was built.
+    @Environment(KioskStore.self) private var store
     let context: KioskCheckoutDrawerContext
     let allowsEditing: Bool
     var onReturn: (() -> Void)? = nil
@@ -46,6 +49,7 @@ struct KioskCheckoutDetailSheet: View {
     @State private var activeMutation: ActiveMutation?
     @State private var pendingRemoval: KioskCheckoutDetail.ReturnItem?
     @State private var mutationMessage: KioskMutationMessage?
+    @State private var showCamera = false
 
     private enum ActiveMutation: Equatable {
         case savingDetails
@@ -63,6 +67,7 @@ struct KioskCheckoutDetailSheet: View {
             && !titleFocused
             && !isMutating
             && pendingRemoval == nil
+            && !showCamera
     }
 
     private var actorId: String? {
@@ -134,6 +139,14 @@ struct KioskCheckoutDetailSheet: View {
                 .frame(width: 1, height: 1)
                 .opacity(0)
             }
+
+            // A sheet presents above the shell, so the shell's copy of this
+            // popup would sit behind it. Each presentation context needs its
+            // own mount.
+            KioskKeyboardHint(
+                isFieldFocused: titleFocused,
+                isScannerConnected: store.scanner.hardwareConnected
+            )
         }
         .overlay(alignment: .bottom) {
             if !allowsEditing, let onScan {
@@ -148,7 +161,27 @@ struct KioskCheckoutDetailSheet: View {
             scannerCaptureEnabled = false
         }
         .onChange(of: titleFocused) { _, isFocused in
+            // Report focus so the shell's keyboard popup can arm for this
+            // field the same way it does for checkout setup.
+            store.scanner.setEditing(isFocused)
             if !isFocused {
+                armScannerCapture()
+            }
+        }
+        .onDisappear { store.scanner.setEditing(false) }
+        .sheet(isPresented: $showCamera) {
+            KioskBarcodeCameraView(
+                feedbackMessage: mutationMessage?.text,
+                feedbackTone: mutationMessage?.tone,
+                onScan: { value in Task { await addItem(scanValue: value) } },
+                onCancel: { showCamera = false }
+            )
+        }
+        .onChange(of: showCamera) { _, isShowing in
+            // The hidden HID field yielded first responder to the camera sheet;
+            // take it back explicitly rather than waiting for a tap that may
+            // never come on a mounted kiosk.
+            if !isShowing {
                 armScannerCapture()
             }
         }
@@ -173,9 +206,15 @@ struct KioskCheckoutDetailSheet: View {
         }
     }
 
-    /// Left column while editing: when is it due, what can be changed, and how
-    /// to add another item. Everything here is an input; nothing here is the
-    /// custody record itself.
+    /// Left column while editing: how to add another item, then what can be
+    /// changed about the booking. Everything here is an input; nothing here is
+    /// the custody record itself.
+    ///
+    /// Adding items leads. This sheet is reached from a row now labelled "Add
+    /// Items", and adding gear to a live checkout is the errand people bring to
+    /// the counter; retitling the booking is housekeeping. The order used to be
+    /// the other way around, so the panel that answers the question you opened
+    /// the sheet with sat below a title field and a date picker.
     private var controlColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
             // No separate DUE banner here: the edit panel's own pickers are the
@@ -183,8 +222,8 @@ struct KioskCheckoutDetailSheet: View {
             // timestamp twice, stacked, was the sheet's most obvious redundancy.
             // The urgency chip that made the banner worth reading moves into the
             // edit panel header instead.
-            editPanel
             scanToAddPanel
+            editPanel
             Spacer(minLength: 0)
         }
     }
@@ -333,46 +372,75 @@ struct KioskCheckoutDetailSheet: View {
             .padding(.horizontal, 10)
             .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
-
-            KioskKeyboardHint(isFieldFocused: titleFocused)
         }
         .padding(14)
         .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(RoundedRectangle(cornerRadius: KioskRadius.lg).stroke(KioskStroke.standard, lineWidth: 1))
     }
 
+    /// Adding gear to a live checkout, stated as an instruction with a control
+    /// beside it.
+    ///
+    /// This panel used to be a viewfinder graphic, a heading, and a readiness
+    /// badge — three pieces of decoration around a capability with no visible
+    /// control at all. It worked only if you already knew that a hand scanner
+    /// pointed at this screen would add to this booking, and it offered nothing
+    /// when the counter scanner was unplugged or in use. The camera button is
+    /// the same `KioskBarcodeCameraView` fallback the checkout, pickup, and
+    /// return flows already carry, so the one custody screen that could not
+    /// scan without hardware now can.
     private var scanToAddPanel: some View {
-        HStack(spacing: 18) {
-            KioskScanTarget(
-                tint: activeMutation == .addingItem ? KioskStatus.active : Color.kioskRedGlyph,
-                width: 116,
-                height: 72
-            )
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 16) {
+                KioskScanTarget(
+                    tint: activeMutation == .addingItem ? KioskStatus.active : Color.kioskRedGlyph,
+                    width: 96,
+                    height: 64
+                )
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Add Items")
-                    .font(KioskType.sectionTitle)
-                    .foregroundStyle(KioskText.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Add Items")
+                        .font(KioskType.sectionTitle)
+                        .foregroundStyle(KioskText.primary)
+                    Text("Scan an item to add it to this checkout.")
+                        .font(KioskType.rowDetail)
+                        .foregroundStyle(KioskText.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+            }
+
+            HStack(spacing: 12) {
                 if activeMutation == .addingItem {
                     Label("Adding scanned item...", systemImage: "arrow.triangle.2.circlepath")
                         .font(KioskType.chip)
                         .foregroundStyle(KioskStatus.active)
+                    ProgressView()
+                        .tint(KioskText.primary)
+                        .controlSize(.small)
                 } else {
                     // Same badge the scan screens use, rather than a private
                     // green Label that made "Scanner ready" a third color.
                     KioskScannerReadinessBadge(isReady: shouldListenForItemScans)
                 }
-            }
 
-            Spacer()
+                Spacer(minLength: 8)
 
-            if activeMutation == .addingItem {
-                ProgressView()
-                    .tint(KioskText.primary)
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Use Camera", systemImage: "camera.fill")
+                }
+                .font(KioskType.chip)
+                .kioskButtonRole(.secondary)
+                .controlSize(.regular)
+                .disabled(isMutating)
+                .accessibilityLabel("Scan with the iPad camera to add an item")
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.vertical, 16)
         .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.lg)
@@ -381,8 +449,7 @@ struct KioskCheckoutDetailSheet: View {
                     lineWidth: 1
                 )
         )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(activeMutation == .addingItem ? "Adding scanned item" : "Scanner ready to add items")
+        .accessibilityElement(children: .contain)
     }
 
     private var timingRow: some View {

@@ -35,7 +35,10 @@ struct KioskIdleView: View {
                         ScrollView {
                             VStack(spacing: 24) {
                                 leftPanel
-                                rosterPanel
+                                // The page itself scrolls in the compact
+                                // fallback, so there is no "one screen" for the
+                                // roster to fit into and no box to measure.
+                                rosterPanel(fitsToScreen: false)
                             }
                             .padding(28)
                         }
@@ -49,7 +52,7 @@ struct KioskIdleView: View {
                             Divider()
                                 .background(KioskSurface.placeholder)
 
-                            rosterPanel
+                            rosterPanel(fitsToScreen: true)
                                 .frame(width: rosterWidth)
                                 .padding(32)
                         }
@@ -73,10 +76,11 @@ struct KioskIdleView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 #endif
 
-                // Only capture Wiscard scans when the roster is actually the
+                // Only capture card scans when the roster is actually the
                 // active surface. While a detail sheet is open or the kiosk is
                 // asleep, unmount the hidden HID field so it can't swallow input
-                // or fight a presented view for first responder.
+                // or fight a presented view for first responder. The roster no
+                // longer advertises card scanning, but this path is unchanged.
                 if !isScannerPaused {
                     HIDScannerField { value in
                         store.scanner.receive(value)
@@ -88,7 +92,13 @@ struct KioskIdleView: View {
         }
         .task { await loadAll() }
         .onAppear { store.scanner.claim(.home) { handleIdentityScan($0) } }
-        .onDisappear { store.scanner.release(.home) }
+        .onChange(of: shouldShowSleepMode, initial: true) { _, isStandby in
+            store.isStandbyVisible = isStandby
+        }
+        .onDisappear {
+            store.scanner.release(.home)
+            store.isStandbyVisible = false
+        }
         .task(id: "refresh") {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
@@ -159,7 +169,7 @@ struct KioskIdleView: View {
         return hour >= 22 || hour < 6
     }
 
-    /// Pause Wiscard capture while a detail sheet is open or the kiosk is
+    /// Pause card capture while a detail sheet is open or the kiosk is
     /// asleep — those surfaces own the screen and the hidden field should not
     /// be grabbing keystrokes or first responder underneath them.
     private var isScannerPaused: Bool {
@@ -303,7 +313,11 @@ struct KioskIdleView: View {
             // Events used to sit here and were empty most of the time. The
             // idle screen now leads with live custody instead; event context
             // lives in checkout setup, where it is actually used.
+            //
+            // It takes the rest of the panel. The trailing `Spacer()` below
+            // used to win that space and push the list into a 210pt box.
             dashboardDetailPanel
+                .frame(maxHeight: .infinity, alignment: .top)
 
             // Quiet-day state: without it the left panel is a black void
             // below the stat tiles whenever nothing is out and no events run.
@@ -434,74 +448,118 @@ struct KioskIdleView: View {
 
     // MARK: - Roster Panel
 
-    private var rosterPanel: some View {
+    private func rosterPanel(fitsToScreen: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 14) {
-                KioskSectionIcon(systemImage: "barcode.viewfinder", size: 56)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Scan Wiscard")
-                        .font(.title2.bold())
-                        .foregroundStyle(KioskText.primary)
-                    Text("Or tap your name below")
-                        .font(.subheadline)
-                        .foregroundStyle(KioskText.tertiary)
-                }
-            }
+            // The panel says what to do and nothing else. It used to be headed
+            // by a 56pt viewfinder glyph and "Scan Wiscard", with tapping a
+            // name demoted to a grey subtitle underneath — a card-reader
+            // instruction owning the top of the one panel whose entire content
+            // is tappable people. Card scanning still works exactly as before
+            // (the hidden HID field below is untouched); it simply no longer
+            // introduces the roster.
+            Text("Tap your name")
+                .font(.title2.bold())
+                .foregroundStyle(KioskText.primary)
+                // No trailing count chip: the shell mounts the scanner status
+                // pill at this corner, and a roster that is entirely on screen
+                // already states its own size.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 150)
 
             if let feedback = identityScanFeedback {
                 KioskFeedbackBanner(tone: feedback.tone, message: feedback.message)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            if users.isEmpty && isLoading {
-                rosterSkeleton
+            if fitsToScreen {
+                GeometryReader { proxy in
+                    if users.isEmpty && isLoading {
+                        rosterSkeleton(in: proxy.size)
+                    } else {
+                        rosterList(in: proxy.size)
+                    }
+                }
             } else {
-                rosterList
+                // Unbounded height: lay out at the comfortable tile size and
+                // let the enclosing page scroll.
+                let flowing = CGSize(width: 0, height: 0)
+                if users.isEmpty && isLoading {
+                    rosterSkeleton(in: flowing)
+                } else {
+                    rosterList(in: flowing)
+                }
             }
         }
     }
 
-    /// One flat, compact alphabetical grid. No letter sections, no filter rail.
+    /// One flat alphabetical grid, sized so the whole roster is on screen.
     ///
     /// This started as a grid of 112pt photo tiles behind an A-Z chip rail,
     /// then grew pinned letter headers. Both were structure standing between
     /// someone and their own name. The roster is already sorted; finding a name
     /// in a sorted list is a scan, not a lookup, and every separator was a row
-    /// of vertical space that pushed real names off screen. Compact rows, three
-    /// across where the panel allows, is the fastest version of this.
-    private var rosterList: some View {
+    /// of vertical space that pushed real names off screen.
+    ///
+    /// The scroll view was the last thing doing that. Tiles were a fixed size,
+    /// so the roster's length decided how much of it you could see, and the
+    /// people below the fold were only reachable if you already knew the panel
+    /// scrolled. `KioskRosterMetrics` inverts that: the count and the box are
+    /// the inputs, and the tile size is what gives. It scrolls only when the
+    /// roster is genuinely too large to show at a tappable size.
+    private func rosterList(in size: CGSize) -> some View {
         let labels = disambiguatedLabels(for: users)
-        return ScrollView {
-            LazyVGrid(columns: rosterColumns, spacing: 6) {
-                ForEach(users) { user in
-                    UserRow(user: user, displayName: labels[user.id] ?? user.name) {
-                        store.deferSleepMode(for: sleepWakeDuration)
-                        store.screen = .studentHub(user)
-                    }
+        let metrics = rosterMetrics(for: users.count, in: size)
+        let grid = LazyVGrid(columns: metrics.gridColumns, spacing: KioskRosterMetrics.gap) {
+            ForEach(users) { user in
+                UserRow(
+                    user: user,
+                    displayName: labels[user.id] ?? user.name,
+                    metrics: metrics
+                ) {
+                    store.deferSleepMode(for: sleepWakeDuration)
+                    store.screen = .operatorHub(user)
                 }
             }
         }
-        .scrollIndicators(.visible)
+
+        return Group {
+            if metrics.fitsOnOneScreen {
+                grid.frame(maxHeight: .infinity, alignment: .top)
+            } else {
+                ScrollView {
+                    grid
+                }
+                .scrollIndicators(.visible)
+            }
+        }
     }
 
-    private var rosterSkeleton: some View {
-        ScrollView {
-            LazyVGrid(columns: rosterColumns, spacing: 6) {
-                ForEach(0..<18, id: \.self) { _ in
-                    KioskSkeletonBox(cornerRadius: KioskRadius.md)
-                        .frame(height: 48)
-                }
+    private func rosterSkeleton(in size: CGSize) -> some View {
+        let metrics = rosterMetrics(for: 18, in: size)
+        return LazyVGrid(columns: metrics.gridColumns, spacing: KioskRosterMetrics.gap) {
+            ForEach(0..<18, id: \.self) { _ in
+                KioskSkeletonBox(cornerRadius: KioskRadius.md)
+                    .frame(height: metrics.tileHeight)
             }
         }
-        .scrollDisabled(true)
+        .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityLabel("Loading roster")
     }
 
-    private var rosterColumns: [GridItem] {
-        if dynamicTypeSize.isAccessibilitySize {
-            return [GridItem(.flexible(minimum: 150), spacing: 6)]
+    /// At accessibility text sizes the tile can no longer be shrunk to fit —
+    /// the type is the point — so the roster returns to a single scrolling
+    /// column at a comfortable height.
+    private func rosterMetrics(for count: Int, in size: CGSize) -> KioskRosterMetrics {
+        guard !dynamicTypeSize.isAccessibilitySize else {
+            return KioskRosterMetrics(
+                columns: 1,
+                tileHeight: KioskRosterMetrics.comfortableHeight,
+                avatarSize: 40,
+                showsAvatar: true,
+                fitsOnOneScreen: false
+            )
         }
-        return [GridItem(.adaptive(minimum: 155, maximum: 240), spacing: 6)]
+        return KioskRosterMetrics.resolve(count: count, in: size)
     }
 
     private func toggleSummary(_ summary: KioskSummarySelection) {
@@ -516,7 +574,11 @@ struct KioskIdleView: View {
             case .all:
                 KioskDashboardList(title: "Due Today", emptyMessage: "Nothing due today.", isEmpty: dueTodayCheckouts.isEmpty, onClose: nil) {
                     ForEach(dueTodayCheckouts) { checkout in
-                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
+                        CheckoutRow(
+                            checkout: checkout,
+                            onTap: { openCheckout(checkout) },
+                            onReturn: { startReturn(row: checkout) }
+                        )
                     }
                 }
             case .itemsOut:
@@ -529,14 +591,22 @@ struct KioskIdleView: View {
             case .checkouts:
                 KioskDashboardList(title: "Active Checkouts", emptyMessage: "No active checkouts.", isEmpty: dashboard.checkouts.isEmpty, onClose: { toggleSummary(.checkouts) }) {
                     ForEach(dashboard.checkouts) { checkout in
-                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
+                        CheckoutRow(
+                            checkout: checkout,
+                            onTap: { openCheckout(checkout) },
+                            onReturn: { startReturn(row: checkout) }
+                        )
                     }
                 }
             case .overdue:
                 let overdueCheckouts = dashboard.checkouts.filter(\.isOverdue)
                 KioskDashboardList(title: "Overdue", emptyMessage: "No overdue checkouts.", isEmpty: overdueCheckouts.isEmpty, onClose: { toggleSummary(.overdue) }) {
                     ForEach(overdueCheckouts) { checkout in
-                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
+                        CheckoutRow(
+                            checkout: checkout,
+                            onTap: { openCheckout(checkout) },
+                            onReturn: { startReturn(row: checkout) }
+                        )
                     }
                 }
             }
@@ -566,6 +636,22 @@ struct KioskIdleView: View {
         store.deferSleepMode()
         store.resetInactivity()
         store.screen = .return(bookingId: checkout.id, userId: requesterId)
+    }
+
+    /// Return straight from a dashboard row. Builds the same drawer context the
+    /// manage sheet would have built, then hands off to the identical
+    /// `startReturn(for:)` transition — so a one-tap return and a return
+    /// started from inside the sheet are the same flow, identity gate included.
+    private func startReturn(row checkout: KioskActiveCheckout) {
+        startReturn(for: KioskCheckoutDrawerContext(
+            checkoutId: checkout.id,
+            title: checkout.title,
+            requesterId: checkout.requesterId,
+            requesterName: checkout.requesterName,
+            requesterAvatarUrl: checkout.requesterAvatarUrl,
+            endsAt: checkout.endsAt,
+            isOverdue: checkout.isOverdue
+        ))
     }
 
     private func openCheckout(_ checkout: KioskActiveCheckout) {
@@ -725,7 +811,7 @@ struct KioskIdleView: View {
                 if result.kind == "identity", let user = result.user {
                     Haptics.success()
                     identityScanFeedback = .success(user.name)
-                    store.screen = .studentHub(user)
+                    store.screen = .operatorHub(user)
                 } else if result.kind == "pending_identity" || result.kind == "action" {
                     let action = KioskFlowAction(rawValue: result.action?.rawValue ?? inferredAction(from: result.disposition)) ?? .checkout
                     let intent = KioskFlowIntent(
@@ -750,7 +836,7 @@ struct KioskIdleView: View {
                     store.deactivate()
                 } else {
                     Haptics.error()
-                    identityScanFeedback = .error((error as? APIError)?.errorDescription ?? "Could not read Wiscard")
+                    identityScanFeedback = .error((error as? APIError)?.errorDescription ?? "Could not read that scan")
                 }
             }
             isIdentifyingScan = false
@@ -875,6 +961,16 @@ private struct StatTile: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
+            // These tiles filter the list below, and nothing said so — they
+            // read as read-only KPI cards, which is what they look like on
+            // every other dashboard anyone has used.
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: isSelected ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    .font(.caption)
+                    .foregroundStyle(isSelected ? Color.kioskRed : KioskText.muted)
+                    .padding(10)
+                    .accessibilityHidden(true)
+            }
             // Selection reads brand red — this gives red a real job on the
             // idle screen instead of another white-opacity rung.
             .kioskCard(
@@ -895,6 +991,8 @@ private struct StatTile: View {
         .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label.lowercased())")
+        .accessibilityHint(isSelected ? "Selected. Tap to clear this filter" : "Tap to filter the list below")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
@@ -963,7 +1061,10 @@ private struct KioskDashboardList<Content: View>: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: 210)
+            // No fixed cap. This was pinned at 210pt while roughly 350pt of
+            // black sat directly underneath it, so three checkouts already
+            // scrolled inside a small box on a panel with room to show ten.
+            .frame(maxHeight: .infinity)
             .overlay {
                 if isEmpty {
                     Text(emptyMessage)
@@ -974,6 +1075,7 @@ private struct KioskDashboardList<Content: View>: View {
             }
         }
         .padding(12)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(KioskSurface.low, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.lg)
@@ -1132,62 +1234,84 @@ private struct ActiveItemRow: View {
 private struct CheckoutRow: View {
     let checkout: KioskActiveCheckout
     let onTap: () -> Void
+    let onReturn: () -> Void
 
     /// Status, not brand: blue while out, orange on the due day, red once late.
     private var tone: Color {
         KioskStatus.custody(isOverdue: checkout.isOverdue, dueAt: checkout.endsAt)
     }
 
-    // The row is one target: tapping it opens the manage sheet, which owns the
-    // Return action. A Return button sitting on the row alongside a chevron
-    // gave the same row two competing destinations.
+    // Two labelled destinations, not one target and a chevron.
+    //
+    // This row was previously a single tap that opened the manage sheet, on the
+    // reasoning that a Return button beside a chevron gave the row two
+    // competing destinations. The competition was real, but the fix removed the
+    // wrong half: "Due Today" is the idle screen's resting list, its entire job
+    // is naming gear that has to come back, and handing that gear back was
+    // three steps away behind an unlabelled chevron and a sheet load.
+    //
+    // The chevron is what goes. What is left is a named body action and a named
+    // Return — the same shape the student hub already uses for the same
+    // booking, so the two surfaces no longer disagree about how a return
+    // starts. Return routes through exactly the path the sheet's own Return
+    // button used, so the identity gate is unchanged.
     var body: some View {
-        Button(action: onTap) {
-            HStack {
-                // Real avatar when available; falls back to the existing initials
-                // disc on missing/failed loads. Overdue ring stays as the visual
-                // signal regardless of which path renders.
-                ZStack {
-                    Circle()
-                        .fill(checkout.isOverdue ? tone.opacity(0.3) : KioskSurface.cardRaised)
-                        .frame(width: 36, height: 36)
-                    avatarInitialsLayer
-                }
+        HStack(spacing: KioskSpacing.xs) {
+            Button(action: onTap) {
+                HStack {
+                    // Real avatar when available; falls back to the existing
+                    // initials disc on missing/failed loads. Overdue ring stays
+                    // as the visual signal regardless of which path renders.
+                    ZStack {
+                        Circle()
+                            .fill(checkout.isOverdue ? tone.opacity(0.3) : KioskSurface.cardRaised)
+                            .frame(width: 36, height: 36)
+                        avatarInitialsLayer
+                    }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(checkout.title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(KioskText.primary)
-                    Text(itemSummary)
-                        .font(.caption)
-                        .foregroundStyle(KioskText.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(checkout.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KioskText.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        Text(itemSummary)
+                            .font(.caption)
+                            .foregroundStyle(KioskText.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    Spacer(minLength: 6)
+                    Text(checkout.endsAt.kioskDueStamp())
+                        .font(KioskType.micro)
+                        .foregroundStyle(tone)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(tone.opacity(0.14), in: Capsule())
+                        .fixedSize()
                 }
-                Spacer()
-                Text(checkout.endsAt.kioskDueStamp())
-                    .font(KioskType.micro)
-                    .foregroundStyle(tone)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(tone.opacity(0.14), in: Capsule())
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(KioskText.muted)
-                    .accessibilityHidden(true)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
-            .overlay(
-                RoundedRectangle(cornerRadius: KioskRadius.sm)
-                    .stroke(KioskStroke.standard, lineWidth: 1)
-            )
+            .buttonStyle(KioskPressStyle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilitySummary)
+            .accessibilityHint("Opens checkout details")
+
+            Button("Return", action: onReturn)
+                .font(KioskType.chip)
+                .kioskButtonRole(.primary)
+                .controlSize(.regular)
+                .accessibilityLabel("Return gear from \(checkout.title)")
+                .padding(.trailing, 10)
         }
-        .buttonStyle(KioskPressStyle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilitySummary)
-        .accessibilityHint("Opens checkout details")
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.sm)
+                .stroke(KioskStroke.standard, lineWidth: 1)
+        )
     }
 
     @ViewBuilder

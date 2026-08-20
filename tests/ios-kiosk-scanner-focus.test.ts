@@ -140,7 +140,12 @@ describe("iOS kiosk scanner focus", () => {
     const sheet = source("ios/Wisconsin/Kiosk/KioskCheckoutDetailSheet.swift");
 
     expect(components).toContain("struct KioskKeyboardHint: View");
-    expect(components).toContain("Double-press the scanner button");
+    expect(components).toContain("Double-tap trigger to enable keyboard");
+    // The missing keyboard is caused by iPadOS counting an awake HID scanner
+    // as the hardware keyboard. With no scanner attached there is nothing to
+    // double-tap, so the tip must not fire — a slow software keyboard is not
+    // this problem.
+    expect(components).toContain("isFieldFocused && isScannerConnected && !keyboardVisible");
     // Only a real software keyboard counts — the hardware-keyboard assistant
     // strip posts keyboard notifications too, with a short frame.
     expect(components).toContain("UIResponder.keyboardDidShowNotification");
@@ -149,8 +154,28 @@ describe("iOS kiosk scanner focus", () => {
     // Grace period so a normally-appearing keyboard never flashes the tip.
     expect(components).toContain("try? await Task.sleep(nanoseconds: 750_000_000)");
 
-    expect(checkout).toContain("KioskKeyboardHint(isFieldFocused: focusedField.wrappedValue == .customPurpose)");
-    expect(sheet).toContain("KioskKeyboardHint(isFieldFocused: titleFocused)");
+    // The contract is that the hint tracks the booking-name field's focus.
+    // The checkout view reads that predicate in three places now (stroke tint,
+    // status line, hint), so it lives in one computed property — assert both
+    // halves rather than a single inlined expression.
+    expect(checkout).toContain("private var isFieldFocused: Bool { focusedField.wrappedValue == .customPurpose }");
+
+    // The popup is centered and screen-level, so it is mounted per presentation
+    // context and costs no layout inside any form. Anchored to the field it
+    // either covered the field's own label or pushed the due-back stamp off the
+    // bottom of the checkout step.
+    const shell = source("ios/Wisconsin/Kiosk/KioskShellView.swift");
+    expect(shell).toContain("KioskKeyboardHint(");
+    expect(shell).toContain("isFieldFocused: store.scanner.isEditing");
+    expect(shell).toContain("isScannerConnected: store.scanner.hardwareConnected");
+    expect(components).toContain(".allowsHitTesting(false)");
+    // A sheet presents above the shell, so it carries its own mount and must
+    // report focus for the shell-level gate to be meaningful anywhere else.
+    expect(sheet).toContain("KioskKeyboardHint(");
+    expect(sheet).toContain("isFieldFocused: titleFocused");
+    expect(sheet).toContain("store.scanner.setEditing(isFocused)");
+    // No field-anchored copies left behind.
+    expect(checkout).not.toContain("KioskKeyboardHint(");
   });
 
   it("keeps kiosk native text input on the system keyboard without the assistant bar", () => {

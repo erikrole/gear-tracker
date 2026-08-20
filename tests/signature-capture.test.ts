@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getAllowedRoles } from "@/lib/permissions";
 import { appendDistinctSignaturePoints, isIpadDevice, shouldRetainSignatureSaveRequestId, signatureCanvasViewport, signaturePointFromClient } from "@/lib/signatures/capture";
 import { buildSignatureDraft, isFreshSignatureDraft, signatureDraftKey, signatureDraftMatchesMember } from "@/lib/signatures/drafts";
@@ -10,7 +10,7 @@ import { buildSignatureCurve, signaturePathData } from "@/lib/signatures/geometr
 import { acceptsSignaturePointer, appendCoalescedPointerEvents } from "@/lib/signatures/pointer";
 import { captureSaveRequestSchema, DEFAULT_SIGNATURE_PEN_SETTINGS, isRequiredSignatureGroup, SIGNATURE_IMPORTED_SPORT_CODES, SIGNATURE_SPORT_REGISTRY, signatureAdHocMemberSchema, signatureAthleteProfileSchema, signatureCollectionTitle, signatureCollectionVersionSchema, signatureRosterEntrySchema } from "@/lib/signatures/types";
 import { compareSignatureRosterMembers } from "@/lib/signatures/roster";
-import { buildUWBadgersRosterUrl, isAllowedUWBadgersUrl, normalizedRosterHash, parseUWBadgersRosterHtml } from "@/lib/signatures/uwbadgers";
+import { buildUWBadgersRosterUrl, fetchUWBadgersRoster, isAllowedUWBadgersUrl, normalizedRosterHash, parseUWBadgersRosterHtml } from "@/lib/signatures/uwbadgers";
 
 describe("signature input and draft contracts", () => {
   it("recognizes iPadOS while rejecting desktop and iPhone clients", () => {
@@ -147,6 +147,11 @@ describe("signature input and draft contracts", () => {
     expect(source).toContain("strokesRef.current.length === 0 && (clearedStrokes || redoStack.length > 0)");
     expect(source).toContain("isCurrentDeviceIpad");
     expect(source).toContain("Capture can only be done on an iPad with an Apple Pencil.");
+    expect(source).toContain("/api/signatures/collections/${collectionId}/members/${memberId}");
+    expect(source).toContain("enabled: isIpad === true");
+    expect(source).toContain("Couldn’t load this signer");
+    expect(source).toContain(">Retry</Button>");
+    expect(source).toContain("invalidateSignatureCollectionCaches");
   });
 });
 
@@ -168,6 +173,17 @@ describe("UWBadgers signature roster adapter", () => {
     "<a href=\"/sports/mens-basketball/roster/alpha-player/100\">Alpha Player</a>",
   ].join("");
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function rosterResponse(): Response {
+    return new Response(html, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+
   it("builds the supported 2026-27 UWBadgers source URLs and validates the host", () => {
     expect(buildUWBadgersRosterUrl("MBB", "2025-26")).toBe("https://uwbadgers.com/sports/mens-basketball/roster/2025-26");
     expect(buildUWBadgersRosterUrl("FB", "2026-27")).toBe("https://uwbadgers.com/sports/football/roster/2026");
@@ -181,6 +197,82 @@ describe("UWBadgers signature roster adapter", () => {
     expect(() => buildUWBadgersRosterUrl("CREATIVE", "2026-27")).toThrow();
     expect(isAllowedUWBadgersUrl("https://www.uwbadgers.com/sports/mens-basketball/roster/2025-26")).toBe(true);
     expect(isAllowedUWBadgersUrl("https://example.com/roster")).toBe(false);
+  });
+
+  it("fetches a roster directly with manual redirect handling", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(rosterResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot = await fetchUWBadgersRoster("MBB", "2025-26");
+
+    expect(snapshot.entries).toHaveLength(4);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://uwbadgers.com/sports/mens-basketball/roster/2025-26",
+      expect.objectContaining({ redirect: "manual" }),
+    );
+  });
+
+  it("follows an approved host and same-roster-path redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { Location: "https://www.uwbadgers.com/sports/mens-basketball/roster/2025-26/" },
+      }))
+      .mockResolvedValueOnce(rosterResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot = await fetchUWBadgersRoster("MBB", "2025-26");
+
+    expect(snapshot.entries).toHaveLength(4);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://www.uwbadgers.com/sports/mens-basketball/roster/2025-26/");
+  });
+
+  it.each([
+    ["missing Location", null],
+    ["invalid Location", "http://[::1"],
+    ["cross-host Location", "https://example.com/sports/mens-basketball/roster/2025-26"],
+    ["internal Location", "https://127.0.0.1/sports/mens-basketball/roster/2025-26"],
+    ["out-of-boundary path", "https://uwbadgers.com/internal/roster"],
+  ])("rejects a %s without issuing a second request", async (_label, location) => {
+    const headers = location === null ? undefined : { Location: location };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 302, headers }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchUWBadgersRoster("MBB", "2025-26")).rejects.toThrow(/redirect/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("detects a redirect loop before repeating a request", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { Location: "/sports/mens-basketball/roster/2025-26/" },
+      }))
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { Location: "/sports/mens-basketball/roster/2025-26" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchUWBadgersRoster("MBB", "2025-26")).rejects.toThrow("redirect loop");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after five approved redirects without issuing a seventh request", async () => {
+    const fetchMock = vi.fn(async (request: string | URL | Request) => {
+      const current = new URL(String(request));
+      const step = Number(current.searchParams.get("redirect") ?? 0) + 1;
+      return new Response(null, {
+        status: 302,
+        headers: { Location: `${current.pathname}?redirect=${step}` },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchUWBadgersRoster("MBB", "2025-26")).rejects.toThrow("redirect limit");
+    expect(fetchMock).toHaveBeenCalledTimes(6);
   });
 
   it("deduplicates repeated card/table links by profile identity and preserves source order and role groups", () => {

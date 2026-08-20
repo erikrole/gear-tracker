@@ -51,10 +51,12 @@ struct PerformanceTestRootView: View {
             GuidesView()
         case .resourcesUsers:
             UsersView()
-        case .resourcesLicenses:
+        case .resourcesLicenses, .resourcesLicensesOpen:
             LicensesView()
         case .schedule:
             ScheduleHarnessView()
+        case .home, .homeAllClear:
+            HomeHarnessView()
         }
     }
 }
@@ -152,21 +154,29 @@ private struct PerformanceGuideView: View {
 /// so the real views, view models, and `Codable` decode paths all run unchanged
 /// against representative payloads — no signed-in session and no network.
 final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
+    /// Claims every `/api/` request in a fixture scenario, not just the mapped
+    /// paths. An unmapped call would otherwise reach the real host, 401, and
+    /// broadcast a session expiry that signs the fixture user out mid-capture.
     override class func canInit(with request: URLRequest) -> Bool {
-        body(for: request) != nil
+        guard AppRuntimeMode.usesFixtureAPI else { return false }
+        return request.url?.path.hasPrefix("/api/") == true
     }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let url = request.url, let payload = Self.body(for: request) else {
+        guard let url = request.url else {
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return
         }
 
+        // Unmapped paths answer 404, never 401: `APIError.notFound` stays local
+        // to the caller, while a 401 would tear down the harness session.
+        let mapped = Self.body(for: request)
+        let payload = mapped ?? Data(#"{"error":"Not served by the fixture harness"}"#.utf8)
         let response = HTTPURLResponse(
             url: url,
-            statusCode: 200,
+            statusCode: mapped == nil ? 404 : 200,
             httpVersion: "HTTP/1.1",
             headerFields: ["Content-Type": "application/json"]
         )!
@@ -196,8 +206,20 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
         switch path {
         case "/api/resources": return FixtureAPI.guides
         case "/api/users": return FixtureAPI.users
-        case "/api/licenses": return FixtureAPI.licenses
-        case "/api/licenses/my": return FixtureAPI.myLicense
+        case "/api/licenses":
+            return AppRuntimeMode.performanceScenario == .resourcesLicensesOpen
+                ? FixtureAPI.openLicenses
+                : FixtureAPI.licenses
+        case "/api/licenses/my":
+            return AppRuntimeMode.performanceScenario == .resourcesLicensesOpen
+                ? FixtureAPI.noLicense
+                : FixtureAPI.myLicense
+        case "/api/me": return ScheduleFixtureAPI.me
+        case "/api/dashboard":
+            return AppRuntimeMode.performanceScenario == .homeAllClear
+                ? HomeFixtureAPI.allClearDashboard
+                : HomeFixtureAPI.dashboard
+        case "/api/shift-groups": return ScheduleFixtureAPI.shiftGroups(for: request)
         case "/api/calendar-events": return ScheduleFixtureAPI.calendarEvents
         case "/api/my-shifts": return ScheduleFixtureAPI.myShifts
         default: return nil
@@ -269,6 +291,48 @@ private enum FixtureAPI {
                 "label": "Photo Mechanic Seat 1", "expiresAt": "2026-12-31T00:00:00.000Z",
                 "claimedAt": "2026-08-16T14:00:00.000Z" } }
     """)
+
+    /// Nobody holds a slot, so every claimable row shows its Claim button. Seat
+    /// 2 expires inside the 30-day window and Seat 4 has already lapsed, which
+    /// is what proves the per-row expiry line still appears once it is worth
+    /// acting on. Dates are built relative to launch so the window is exercised
+    /// whenever the capture runs, not only in a particular month.
+    static var openLicenses: Data {
+        json("""
+        { "data": [
+          { "id": "l1", "code": "PM-AAAA-1111", "label": "Photo Mechanic Seat 1", "status": "AVAILABLE",
+            "expiresAt": "\(utcMidnight(daysFromNow: 134))", "claims": [] },
+          { "id": "l2", "code": "PM-BBBB-2222", "label": "Photo Mechanic Seat 2", "status": "PARTIAL",
+            "expiresAt": "\(utcMidnight(daysFromNow: 12))",
+            "claims": [ { "id": "c2", "userId": "u4", "claimedAt": "\(utcMidnight(daysFromNow: -3))", "releasedAt": null,
+                          "user": { "id": "u4", "name": "Sam Okonkwo" } } ] },
+          { "id": "l3", "code": "PM-CCCC-3333", "label": "Photo Mechanic Seat 3", "status": "CLAIMED",
+            "expiresAt": "\(utcMidnight(daysFromNow: 134))",
+            "claims": [ { "id": "c3", "userId": "u3", "claimedAt": "\(utcMidnight(daysFromNow: -5))", "releasedAt": null,
+                          "user": { "id": "u3", "name": "Jordan Lee" } },
+                        { "id": "c4", "userId": "u5", "claimedAt": "\(utcMidnight(daysFromNow: -2))", "releasedAt": null,
+                          "user": { "id": "u5", "name": "Riley Chen" } } ] },
+          { "id": "l4", "code": "PM-DDDD-4444", "label": "Photo Mechanic Seat 4", "status": "RETIRED",
+            "expiresAt": "\(utcMidnight(daysFromNow: -201))", "claims": [] }
+        ] }
+        """)
+    }
+
+    static let noLicense = json("""
+    { "data": null }
+    """)
+
+    /// Expiries are calendar dates encoded at UTC midnight, matching the
+    /// storage contract in `src/lib/license-dates.ts`.
+    private static func utcMidnight(daysFromNow days: Int) -> String {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let day = utc.startOfDay(for: Date().addingTimeInterval(Double(days) * 86_400))
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: day)
+    }
 
     private static func json(_ literal: String) -> Data {
         Data(literal.utf8)
@@ -382,13 +446,110 @@ private enum PerformanceFixtures {
 /// past-events filter — both role-gated — are actually exercised.
 struct ScheduleHarnessView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         ScheduleView()
             .onAppear {
                 session.currentUser = ScheduleFixtures.staffUser
-                NSLog("HARNESS-DEBUG seeded role=\(session.currentUser?.role ?? "nil")")
+                // Non-zero so the Trade Board badge is actually on screen when
+                // the toolbar is being looked at.
+                appState.openTradeCount = 3
             }
+    }
+}
+
+/// Renders the real `HomeView` against a canned dashboard.
+struct HomeHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        HomeView()
+            .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// The Home dashboard payload. Sized on purpose: more gear and shifts than the
+/// queue's per-lane caps show, so truncation is visible, and a staff draft with
+/// an otherwise-empty personal queue, so the all-clear contradiction reproduces.
+enum HomeFixtureAPI {
+    private static func iso(_ minutes: Int) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: Date.now.addingTimeInterval(TimeInterval(minutes * 60)))
+    }
+
+    private static func booking(
+        _ id: String, _ title: String, _ status: String, _ kind: String,
+        startsIn: Int, endsIn: Int, items: Int, overdue: Bool = false
+    ) -> String {
+        """
+        { "id": "\(id)", "kind": "\(kind)", "title": "\(title)", "refNumber": null,
+          "eventId": null, "eventIds": [], "linkedEventId": null, "sportCode": null,
+          "requesterUserId": "fixture-staff", "requesterName": "Jordan Lee",
+          "requesterInitials": "JL", "requesterAvatarUrl": null,
+          "locationName": "Media Ops Cage", "startsAt": "\(iso(startsIn))",
+          "endsAt": "\(iso(endsIn))", "itemCount": \(items),
+          "status": "\(status)", "isOverdue": \(overdue) }
+        """
+    }
+
+    /// Nothing personal outstanding, one staff draft waiting.
+    static var allClearDashboard: Data {
+        Data("""
+        { "data": {
+          "role": "STAFF",
+          "stats": { "checkedOut": 0, "overdue": 0, "reserved": 0, "dueToday": 0 },
+          "myCheckouts": { "total": 0, "overdue": 0, "items": [] },
+          "teamCheckouts": { "total": 0, "overdue": 0, "items": [] },
+          "teamReservations": { "total": 0, "items": [] },
+          "pendingPickups": { "total": 0, "items": [] },
+          "myReservations": [], "overdueCount": 0, "overdueItems": [],
+          "myShifts": [], "upcomingEvents": [],
+          "drafts": [ { "id": "d1", "kind": "RESERVATION", "title": "Hockey B-roll kit",
+                        "itemCount": 6, "updatedAt": "\(iso(-90))" } ],
+          "flaggedItems": [], "lostBulkUnits": [], "myEventWork": []
+        } }
+        """.utf8)
+    }
+
+    static var dashboard: Data {
+        // Four overdue: one more than the old cap, which used to drop it silently.
+        let overdue = (1...4).map {
+            booking("od\($0)", "Overdue kit \($0)", "OPEN", "CHECKOUT",
+                    startsIn: -60 * 24 * $0, endsIn: -60 * $0, items: $0 + 1, overdue: true)
+        }
+        let dueToday = (1...2).map {
+            booking("dt\($0)", "Camera package \($0)", "OPEN", "CHECKOUT",
+                    startsIn: -120, endsIn: 45 * $0, items: 3)
+        }
+        // Six upcoming: three past the per-lane cap, so the overflow row has
+        // something real to report.
+        let upcoming = (1...6).map {
+            booking("up\($0)", "Field kit \($0)", "OPEN", "CHECKOUT",
+                    startsIn: 60 * 24 * $0, endsIn: 60 * 24 * $0 + 180, items: 2)
+        }
+        let checkouts = (overdue + dueToday + upcoming).joined(separator: ",")
+        return Data("""
+        { "data": {
+          "role": "STAFF",
+          "stats": { "checkedOut": 12, "overdue": 4, "reserved": 0, "dueToday": 2 },
+          "myCheckouts": { "total": 12, "overdue": 4, "items": [\(checkouts)] },
+          "teamCheckouts": { "total": 0, "overdue": 0, "items": [] },
+          "teamReservations": { "total": 0, "items": [] },
+          "pendingPickups": { "total": 0, "items": [] },
+          "myReservations": [],
+          "overdueCount": 4,
+          "overdueItems": [],
+          "myShifts": [],
+          "upcomingEvents": [],
+          "drafts": [ { "id": "d1", "kind": "RESERVATION", "title": "Hockey B-roll kit",
+                        "itemCount": 6, "updatedAt": "\(iso(-90))" } ],
+          "flaggedItems": [],
+          "lostBulkUnits": [],
+          "myEventWork": []
+        } }
+        """.utf8)
     }
 }
 
@@ -430,6 +591,15 @@ enum ScheduleFixtureAPI {
         return isoString(date)
     }
 
+    /// Minutes from launch, snapped to a 5-minute mark so the rendered clock
+    /// time still reads like a real call time.
+    private static func fromNow(_ minutes: Int) -> String {
+        let raw = Date.now.addingTimeInterval(TimeInterval(minutes * 60))
+        let snapped = raw.timeIntervalSinceReferenceDate
+        let rounded = (snapped / 300).rounded() * 300
+        return isoString(Date(timeIntervalSinceReferenceDate: rounded))
+    }
+
     /// All-day events encode a bare calendar date at UTC midnight.
     private static func allDay(_ dayOffset: Int) -> String {
         let calendar = Calendar.current
@@ -443,6 +613,19 @@ enum ScheduleFixtureAPI {
         return isoString(date)
     }
 
+    /// A foreground refresh calls `/api/me`. Without this the fixture session
+    /// 401s against the real host and signs itself out mid-screenshot.
+    static var me: Data {
+        Data("""
+        { "user": { "id": "fixture-staff", "name": "Jordan Lee",
+                    "email": "jordan.lee@wisc.edu", "role": "STAFF",
+                    "affiliation": null, "collaboratorProfile": null,
+                    "capabilities": [], "collaboratorPolicy": null,
+                    "staffingType": "ST", "avatarUrl": null,
+                    "forcePasswordChange": false } }
+        """.utf8)
+    }
+
     static var calendarEvents: Data {
         let events = """
         [
@@ -453,7 +636,7 @@ enum ScheduleFixtureAPI {
             "coverage": { "total": 6, "filled": 4, "percentage": 67 } },
           { "id": "e2", "summary": "Men's Hockey at Minnesota", "startsAt": "\(at(0, 16))",
             "endsAt": "\(at(0, 19))", "allDay": false, "status": "CONFIRMED",
-            "sportCode": "MIH", "opponent": "Minnesota", "isHome": false,
+            "sportCode": "MHKY", "opponent": "Minnesota", "isHome": false,
             "location": null, "rawLocationText": "3M Arena at Mariucci",
             "coverage": { "total": 3, "filled": 3, "percentage": 100 } },
           { "id": "e3", "summary": "Women's Basketball vs Iowa", "startsAt": "\(at(0, 19, 30))",
@@ -461,6 +644,11 @@ enum ScheduleFixtureAPI {
             "sportCode": "WBB", "opponent": "Iowa", "isHome": true,
             "location": { "id": "loc-kc", "name": "Kohl Center" },
             "coverage": { "total": 5, "filled": 2, "percentage": 40 } },
+          { "id": "e9", "summary": "Women's Soccer vs Penn State", "startsAt": "\(fromNow(-45))",
+            "endsAt": "\(fromNow(75))", "allDay": false, "status": "CONFIRMED",
+            "sportCode": "WSOC", "opponent": "Penn State", "isHome": true,
+            "location": { "id": "loc-mc", "name": "McClimon Complex" },
+            "coverage": { "total": 4, "filled": 3, "percentage": 75 } },
           { "id": "e4", "summary": "Football vs Ohio State", "startsAt": "\(at(1, 12))",
             "endsAt": "\(at(1, 15, 30))", "allDay": false, "status": "CONFIRMED",
             "sportCode": "FB", "opponent": "Ohio State", "isHome": true,
@@ -489,6 +677,93 @@ enum ScheduleFixtureAPI {
         ]
         """
         return Data("{ \"data\": \(events), \"total\": 8 }".utf8)
+    }
+
+    /// Event detail reads the crew roster from here. Keyed off the requested
+    /// `eventId` so tapping different rows does not show one canned crew.
+    static func shiftGroups(for request: URLRequest) -> Data {
+        let eventId = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "eventId" })?.value ?? "e1"
+        guard let plan = crewPlans[eventId] else {
+            return Data(#"{ "data": [], "total": 0 }"#.utf8)
+        }
+        let shifts = plan.shifts.enumerated().map { index, shift -> String in
+            let assignment = shift.worker.map { worker in
+                """
+                { "id": "a-\(eventId)-\(index)", "status": "\(shift.status)",
+                  "user": { "id": "u-\(index)", "name": "\(worker)",
+                            "primaryArea": "\(shift.area)", "avatarUrl": null,
+                            "role": "STUDENT", "staffingType": "ST" } }
+                """
+            }
+            return """
+            { "id": "s-\(eventId)-\(index)", "area": "\(shift.area)", "workerType": "ST",
+              "startsAt": "\(plan.startsAt)", "endsAt": "\(plan.endsAt)",
+              "callStartsAt": "\(plan.callStartsAt)", "callEndsAt": null, "notes": null,
+              "assignments": [\(assignment ?? "")] }
+            """
+        }.joined(separator: ",\n")
+        let filled = plan.shifts.filter { $0.worker != nil }.count
+        let total = plan.shifts.count
+        let percentage = total == 0 ? 0 : Int((Double(filled) / Double(total) * 100).rounded())
+        return Data("""
+        { "data": [ { "id": "sg-\(eventId)", "eventId": "\(eventId)", "notes": null,
+            "event": { "id": "\(eventId)", "summary": "\(plan.summary)",
+                       "startsAt": "\(plan.startsAt)", "endsAt": "\(plan.endsAt)",
+                       "sportCode": "\(plan.sportCode)", "isHome": true,
+                       "opponent": "\(plan.opponent)", "locationId": "\(plan.locationId)" },
+            "shifts": [\(shifts)],
+            "coverage": { "total": \(total), "filled": \(filled), "percentage": \(percentage) } } ],
+          "total": 1 }
+        """.utf8)
+    }
+
+    private struct CrewSlot {
+        let area: String
+        let worker: String?
+        var status: String { worker == nil ? "OPEN" : "CONFIRMED" }
+    }
+
+    private struct CrewPlan {
+        let summary: String
+        let sportCode: String
+        let opponent: String
+        let locationId: String
+        let startsAt: String
+        let endsAt: String
+        let callStartsAt: String
+        let shifts: [CrewSlot]
+    }
+
+    /// Two crews worth looking at: the event the fixture user works, and the
+    /// live one, so detail can be captured in both temporal states.
+    private static var crewPlans: [String: CrewPlan] {
+        [
+            "e1": CrewPlan(
+                summary: "Volleyball vs Nebraska", sportCode: "VB", opponent: "Nebraska",
+                locationId: "loc-fh", startsAt: at(0, 11), endsAt: at(0, 14),
+                callStartsAt: at(0, 9, 30),
+                shifts: [
+                    CrewSlot(area: "VIDEO", worker: "Jordan Lee"),
+                    CrewSlot(area: "VIDEO", worker: "Alex Rivera"),
+                    CrewSlot(area: "PHOTO", worker: "Sam Chen"),
+                    CrewSlot(area: "PHOTO", worker: nil),
+                    CrewSlot(area: "GRAPHICS", worker: "Riley Novak"),
+                    CrewSlot(area: "SOCIAL", worker: nil),
+                ]
+            ),
+            "e9": CrewPlan(
+                summary: "Women's Soccer vs Penn State", sportCode: "WSOC", opponent: "Penn State",
+                locationId: "loc-mc", startsAt: fromNow(-45), endsAt: fromNow(75),
+                callStartsAt: fromNow(-105),
+                shifts: [
+                    CrewSlot(area: "VIDEO", worker: "Priya Shah"),
+                    CrewSlot(area: "PHOTO", worker: "Marcus Webb"),
+                    CrewSlot(area: "GRAPHICS", worker: "Dana Kim"),
+                    CrewSlot(area: "SOCIAL", worker: nil),
+                ]
+            ),
+        ]
     }
 
     static var myShifts: Data {

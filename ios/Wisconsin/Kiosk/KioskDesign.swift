@@ -103,10 +103,23 @@ enum KioskLayout {
     static let activationCardWidth: CGFloat = 450
     /// Below this width (or at accessibility sizes) two-panel screens stack.
     static let compactBreakpoint: CGFloat = 880
-    /// Idle roster panel width: 42% of the screen, clamped so tiles stay
+    /// Idle roster panel width: 46% of the screen, clamped so tiles stay
     /// tappable on 11" and the grid doesn't sprawl on 13".
+    ///
+    /// Widened from 42% when the roster became fit-to-screen. Every extra point
+    /// here buys tile width, and tile width is what decides how many columns
+    /// the grid can use before names truncate — which is what decides whether
+    /// the whole roster fits without scrolling.
     static func rosterWidth(for totalWidth: CGFloat) -> CGFloat {
-        min(max(totalWidth * 0.42, 430), 560)
+        min(max(totalWidth * 0.46, 460), 620)
+    }
+
+    /// Operator-hub shifts rail. Narrower than the roster: a shift card is one
+    /// event title, a time and a button, where a roster tile has to stay a
+    /// tappable target for a named person. Bookings keep the majority of the
+    /// canvas because they are what most people open the hub for.
+    static func shiftsRailWidth(for totalWidth: CGFloat) -> CGFloat {
+        min(max(totalWidth * 0.36, 340), 480)
     }
 }
 
@@ -229,7 +242,7 @@ enum KioskType {
     /// A number that is the point of its tile (stat counts, unit numbers).
     static var metric: Font { .gothamBlack(size: 40) }
 
-    /// Section owner inside a panel ("Items", "Coming Up", "Scan Wiscard").
+    /// Section owner inside a panel ("Items", "Coming Up", "Add Items").
     static var sectionTitle: Font { .headline.weight(.bold) }
 
     /// Primary line of a row or card -- an item name, an action label.
@@ -294,6 +307,20 @@ enum KioskStatus {
         if isOverdue { return problem }
         return Calendar.current.isDateInToday(dueAt) ? attention : active
     }
+}
+
+/// Affiliation marking — who a person is, not what a piece of gear is doing.
+///
+/// A blue ring on the portrait, and nothing else. The badge used to render as
+/// text under the name (and before that in brand red, which put it in the same
+/// hue band as genuinely overdue custody). Text under a name is a line every
+/// tile has to budget height for, and it competes with the name itself; a ring
+/// costs nothing and reads at a glance across a counter.
+///
+/// The affiliation is still spoken — `UserRow` keeps it in the accessibility
+/// label — so nothing is lost for VoiceOver.
+enum KioskAffiliation {
+    static let ring = Color.statusText(.blue)
 }
 
 // MARK: - Button hierarchy

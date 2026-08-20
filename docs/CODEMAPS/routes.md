@@ -362,6 +362,7 @@
 - `/api/signatures/collections/[id]/download` -> `src/app/api/signatures/collections/[id]/download/route.ts`
 - `/api/signatures/collections/[id]/members/[memberId]/profile` -> `src/app/api/signatures/collections/[id]/members/[memberId]/profile/route.ts`
 - `/api/signatures/collections/[id]/members/[memberId]/required` -> `src/app/api/signatures/collections/[id]/members/[memberId]/required/route.ts`
+- `/api/signatures/collections/[id]/members/[memberId]` -> `src/app/api/signatures/collections/[id]/members/[memberId]/route.ts`
 - `/api/signatures/collections/[id]/reset` -> `src/app/api/signatures/collections/[id]/reset/route.ts`
 - `/api/signatures/collections/[id]/restore` -> `src/app/api/signatures/collections/[id]/restore/route.ts`
 - `/api/signatures/collections/[id]` -> `src/app/api/signatures/collections/[id]/route.ts`

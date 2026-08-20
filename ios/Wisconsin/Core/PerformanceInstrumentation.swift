@@ -16,10 +16,22 @@ enum AppRuntimeMode {
         case resourcesGuides
         case resourcesUsers
         case resourcesLicenses
+        /// Licenses with nothing claimed by the viewer and a code inside the
+        /// 30-day expiry window -- the shape that exercises the Claim
+        /// affordance and the conditional per-row expiry line.
+        case resourcesLicensesOpen
         /// The Schedule list, served canned events and shifts so the real
         /// rows, headers, and control strip can be rendered and screenshotted
         /// without a signed-in session.
         case schedule
+        /// The Home dashboard, served a canned payload so the action queue,
+        /// its truncation, and the staff follow-up section can be rendered
+        /// without a signed-in session.
+        case home
+        /// Home with nothing personal outstanding but a staff draft waiting --
+        /// the shape where "You're all set" used to render directly above a
+        /// populated Drafts card.
+        case homeAllClear
     }
 
     static var performanceScenario: PerformanceScenario? {
@@ -42,7 +54,8 @@ enum AppRuntimeMode {
     static var usesFixtureAPI: Bool {
 #if DEBUG
         switch performanceScenario {
-        case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .schedule:
+        case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .resourcesLicensesOpen,
+             .schedule, .home, .homeAllClear:
             return true
         default:
             return false

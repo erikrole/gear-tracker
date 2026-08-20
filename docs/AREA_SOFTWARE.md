@@ -4,13 +4,13 @@
 
 - Area: Shared software access
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-19
-- Status: Active in production — role-scoped and secret-lifecycle acceptance remains
+- Last Updated: 2026-08-20
+- Status: Active in production — baseline vault is live; first-class tab separation and local hardening are verified locally; role-scoped and secret-lifecycle acceptance remains
 - Route: `/licenses` (presented as **Software**)
 
 ## Direction
 
-Software is the team's small, internal access cabinet for department accounts such as Photo Mechanic, Envato Elements, APM Music, and Motion Array. It sits above the existing Photo Mechanic license pool so people have one clear place to find software access without changing the pool's two-slot custody model.
+Software is the team's small, internal access cabinet for shared department logins such as Envato Elements, APM Music, and Motion Array, plus a separate Photo Mechanic activation-license workflow. Both live at `/licenses` for route compatibility, but they are distinct URL-addressable views: **Shared logins** is the default, and **Photo Mechanic licenses** is selected with `?tab=photo-mechanic`. The two-slot custody model never becomes a shared-login credential record.
 
 The empty state names useful software examples but never seeds or invents credentials. An ADMIN or STAFF user enters the real department credentials through the management dialog.
 
@@ -36,20 +36,20 @@ Migration `0125_software_credentials` adds `SoftwareCredential` with a unique na
 | POST | `/api/software` | `software:manage` | Create a software record and encrypt both secrets |
 | PATCH | `/api/software/[id]` | `software:manage` | Update metadata/secrets or restore/archive a record |
 | DELETE | `/api/software/[id]` | `software:manage` | Archive a record through the reversible lifecycle path |
-| GET | `/api/software/[id]/secret` | `software:reveal` or `SOFTWARE_VAULT_VIEW` | Rate-limited password reveal/copy request for an audience-authorized record |
+| POST | `/api/software/[id]/secret` | `software:reveal` or `SOFTWARE_VAULT_VIEW` | Rate-limited password reveal/copy request for an audience-authorized record |
 
 All mutations use the existing authenticated audit path. Secret endpoints return only the requested password and never include it in the audit event.
 
 ## UI Contract
 
-- `SoftwareVault.tsx` is the first section of the existing `/licenses` page.
+- The `/licenses` page presents URL-backed **Shared logins** and **Photo Mechanic licenses** tabs. The default Shared logins view never renders Photo Mechanic pool controls or suggests Photo Mechanic as a shared account.
 - Each active card leads with software name/category, optional official website, account email, and a masked password row.
 - Copy Email is available from the list. Show Password and Copy Password explicitly request the secret; copy does not require rendering the password.
 - Staff/admin management controls use a dialog for add/edit and an AlertDialog for archive. Editing leaves the password blank unless it is intentionally replaced.
 - Add/edit includes a clear audience checklist for Staff, Students, and Collaborators. The selected audiences appear on each card, while collaborator policy access remains a separate admin-controlled capability.
 - Copying a masked password writes it directly to the clipboard, keeps the password masked, and briefly swaps the copy icon for a check confirmation.
 - Admin/staff archived records are separated from active records and can be restored.
-- The existing Photo Mechanic pool remains the second section and keeps its current student claim, masking, expiry, and staff/admin management behavior.
+- The Photo Mechanic tab keeps its student claim, masking, expiry, and staff/admin management behavior. It uses contextual pool actions and a mobile card/list layout so capacity, holders, expiry, and Claim/Inspect remain visible without horizontal scrolling.
 
 ## Permissions
 
@@ -62,9 +62,12 @@ All mutations use the existing authenticated audit path. Secret endpoints return
 - Configure one stable, independently generated 32-byte base64 `SOFTWARE_VAULT_KEY` per environment. Production has a Sensitive key configured; preview and development must receive separate keys before vault use there.
 - Migrations `0125_software_credentials` and `0126_software_credential_visibility` are applied and read back in production. `0126` has checksum `9a53d2962330acade5d053f7942ca9da49a71337dfd620a616d67e1792862a0d`, preserves the existing credential row, and leaves no unresolved migrations.
 - Authenticated production proof passed for the admin surface at desktop and 390×844: the real credential remained masked, showed its Staff + Students default audience, and produced no horizontal overflow. Student/collaborator role filtering and reveal/copy/archive/restore remain pending; no secret was read, copied, or fabricated during release verification.
+- The 2026-08-20 first-class tab and hardening follow-up is source, focused-test, TypeScript, lint, migration, and deploy-shaped-build verified locally only. It has not been claimed as a production deployment; authenticated browser evidence and matched `gt-ui-review` captures require an approved isolated session/fixture.
 - Key rotation is an operational re-encryption procedure, not a self-service UI. Password history remains deferred; per-record audience sharing is live.
 
 ## Change Log
+
+- 2026-08-20: Reconciled Software into two first-class URL-backed workflows on `/licenses`: Shared logins (default) and Photo Mechanic licenses (`?tab=photo-mechanic`). Contextualized Photo Mechanic actions, removed the product suggestion from shared-login copy, added mobile license cards, moved shared-login mutations and reveal auditing into serializable transactions, changed secret reveal to POST, minimized student license DTOs, and hardened CSV export/release behavior. Local gates pass; this follow-up is not represented as deployed without authenticated runtime proof.
 
 - 2026-08-19: Shipped audience-gated Software logins in commit `0b6c7931` and production deployment `dpl_C76nqguhMWnUAq8hRSPW2Kudj3Wh`; rehearsed/applied/read back migration `0126_software_credential_visibility`, preserved the real credential with the Staff + Students default, and passed authenticated desktop/narrow masking, audience-label, and responsive-layout proof without exposing the secret.
 - 2026-08-19: Shipped the encrypted Software Vault to production in commit `2548f4ce` and deployment `dpl_BuEMXuk96yzqyjj9sPTTAPEAQ2tS`; configured a production-only Sensitive key, applied/read back migration `0125_software_credentials`, and passed authenticated desktop/narrow empty-state and clean-console proof. First real-credential reveal/copy/archive/restore acceptance remains open.

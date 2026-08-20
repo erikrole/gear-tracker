@@ -46,8 +46,14 @@ describe("iOS system quality contracts", () => {
     expect(identity).toContain('Label("No people available", systemImage: "person.2.slash")');
     expect(identity).toContain('Label("No matching people", systemImage: "magnifyingglass")');
     expect(identity).toContain('Button("Clear Search")');
-    expect(identity).toContain(".accessibilityLabel(user.name)");
-    expect(identity).toContain('.accessibilityHint("Select \\(user.name)")');
+    // The roster tile itself is now the shared `UserRow` the idle screen uses —
+    // identity had a second implementation whose names hyphenated across three
+    // lines. It still has to name the person and say what selecting does.
+    expect(identity).toContain("UserRow(");
+    expect(identity).toContain('accessibilityHintText: "Select \\(user.name)"');
+    const roster = source("ios/Wisconsin/Kiosk/KioskIdleRoster.swift");
+    expect(roster).toContain("accessibilityLabel(accessibilityLabel)");
+    expect(roster).toContain("accessibilityHint(accessibilityHintText ??");
   });
 
   it("lets only the latest identity scan route the kiosk", () => {

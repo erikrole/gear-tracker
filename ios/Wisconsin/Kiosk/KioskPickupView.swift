@@ -10,6 +10,9 @@ struct KioskPickupView: View {
     @State private var detail: KioskCheckoutDetail?
     @State private var confirmedIds: Set<String> = []
     @State private var lastResult: ScanFeedback?
+    /// The item the last successful scan confirmed, held while its receipt is
+    /// on screen. Cleared on the same timer as the feedback banner.
+    @State private var lastAccepted: KioskAcceptedScan?
     @State private var feedbackDismissTask: Task<Void, Never>?
     @State private var isLoading = true
     @State private var isConfirming = false
@@ -91,6 +94,7 @@ struct KioskPickupView: View {
         KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Pickup",
+                subtitle: detail?.title,
                 onBack: { backToPerson() },
                 onCamera: { showCamera = true }
             )
@@ -101,23 +105,28 @@ struct KioskPickupView: View {
                 ProgressView().tint(KioskText.primary)
             } else {
                 VStack(spacing: 24) {
-                    KioskProgressRing(
-                        count: confirmedCount,
-                        total: totalItems,
-                        isComplete: allConfirmed,
-                        reduceMotion: reduceMotion,
-                        accessibilityText: "\(confirmedCount) of \(totalItems) items confirmed"
-                    )
-                    VStack(spacing: 6) {
-                        Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
-                            .font(KioskType.actionTitle)
-                            .foregroundStyle(allConfirmed ? KioskStatus.ok : KioskText.primary)
-                            .multilineTextAlignment(.center)
-                        if !allConfirmed {
-                            Text("Use the hand scanner, or tap Camera to scan with the iPad.")
-                                .font(KioskType.rowDetail)
-                                .foregroundStyle(KioskText.tertiary)
+                    if let lastAccepted {
+                        KioskScanAcceptedView(accepted: lastAccepted, reduceMotion: reduceMotion)
+                            .frame(minHeight: 288)
+                    } else {
+                        KioskProgressRing(
+                            count: confirmedCount,
+                            total: totalItems,
+                            isComplete: allConfirmed,
+                            reduceMotion: reduceMotion,
+                            accessibilityText: "\(confirmedCount) of \(totalItems) items confirmed"
+                        )
+                        VStack(spacing: 6) {
+                            Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
+                                .font(KioskType.actionTitle)
+                                .foregroundStyle(allConfirmed ? KioskStatus.ok : KioskText.primary)
                                 .multilineTextAlignment(.center)
+                            if !allConfirmed {
+                                Text("Use the hand scanner, or tap Camera to scan with the iPad.")
+                                    .font(KioskType.rowDetail)
+                                    .foregroundStyle(KioskText.tertiary)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                     }
 
@@ -176,11 +185,15 @@ struct KioskPickupView: View {
         return "Scan \(remaining) more item\(remaining == 1 ? "" : "s") before confirming"
     }
 
+    /// Every outstanding item, not just the battery units.
+    ///
+    /// This used to return early on `remainingBatteryCount`, so a booking of
+    /// three cameras and one battery with nothing scanned read "Scan 1 Battery
+    /// Unit" — the button named a fraction of the work and silently omitted the
+    /// three serialized assets also still needed. The battery card above
+    /// already reports the unit sub-total; the CTA's job is the whole number.
     private var confirmButtonTitle: String {
         if allConfirmed { return "Confirm Pickup" }
-        if remainingBatteryCount > 0 {
-            return "Scan \(remainingBatteryCount) Battery Unit\(remainingBatteryCount == 1 ? "" : "s")"
-        }
         let remaining = max(0, totalItems - confirmedCount)
         return "Scan \(remaining) More Item\(remaining == 1 ? "" : "s")"
     }
@@ -281,6 +294,11 @@ struct KioskPickupView: View {
                         confirmedIds.insert(item.id)
                         confirmedItemOverrides[item.id] = item
                         lastConfirmedId = item.id
+                        lastAccepted = KioskAcceptedScan(
+                            title: item.itemListPrimaryTitle,
+                            subtitle: item.itemListSecondaryTitle,
+                            progress: "\(confirmedIds.count) of \(totalItems) confirmed"
+                        )
                         showFeedback(.success(result.locationMessage ?? item.name))
                     }
                 } else {
@@ -296,6 +314,7 @@ struct KioskPickupView: View {
 
     private func showFeedback(_ feedback: ScanFeedback) {
         withAnimation { lastResult = feedback }
+        if case .success = feedback {} else { lastAccepted = nil }
         switch feedback {
         case .success:          Haptics.success()
         case .alreadyConfirmed: Haptics.warning()
@@ -309,7 +328,10 @@ struct KioskPickupView: View {
         feedbackDismissTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation { lastResult = nil }
+            withAnimation {
+                lastResult = nil
+                lastAccepted = nil
+            }
         }
     }
 
@@ -378,7 +400,7 @@ struct KioskPickupView: View {
     }
 
     private func backToPerson() {
-        if let user = store.pendingIntent?.identifiedUser { store.screen = .studentHub(user) }
+        if let user = store.pendingIntent?.identifiedUser { store.screen = .operatorHub(user) }
         else { store.screen = .idle }
     }
 }

@@ -23,7 +23,7 @@ export const createSoftwareCredentialSchema = z.object({
   accountEmail: z.string().trim().email("Enter a valid account email").max(320, "Email is too long"),
   password: z.string().min(1, "Password is required").max(500, "Password must be 500 characters or fewer"),
   visibleTo: visibleTo.default([...DEFAULT_SOFTWARE_CREDENTIAL_AUDIENCES]),
-});
+}).strict();
 
 export const updateSoftwareCredentialSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120, "Name must be 120 characters or fewer").optional(),
@@ -33,4 +33,6 @@ export const updateSoftwareCredentialSchema = z.object({
   password: z.string().min(1, "Password cannot be empty").max(500, "Password must be 500 characters or fewer").optional(),
   visibleTo: visibleTo.optional(),
   archived: z.boolean().optional(),
+}).strict().refine((body) => Object.keys(body).length > 0, {
+  message: "Choose at least one field to update",
 });

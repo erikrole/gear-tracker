@@ -89,7 +89,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/licenses`
 - APIs: `/api/licenses/[id]/claim`, `/api/licenses/[id]/history`, `/api/licenses/[id]/occupy`, `/api/licenses/[id]/release`, `/api/licenses/[id]`, `/api/licenses/bulk`, `/api/licenses/export`, `/api/licenses/my/history`, `/api/licenses/my`, `/api/licenses`
 - Services: `src/lib/services/licenses.ts`
-- Tests: `tests/ios-licenses-native-page.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`
+- Tests: `tests/ios-licenses-native-page.test.ts`, `tests/licenses-export-route.test.ts`, `tests/licenses-release-concurrency.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`
 
 ## mobile
 
@@ -175,7 +175,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SIGNATURES.md`
 - Pages: `/signatures/[id]/capture/[memberId]`, `/signatures/[id]`, `/signatures`
-- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`
+- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/members/[memberId]`, `/api/signatures/collections/[id]/reset`
 - Services: `src/lib/services/signatures.ts`
 - Tests: _none matched_
 
@@ -185,7 +185,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: _none matched_
 - APIs: `/api/software/[id]`, `/api/software/[id]/secret`, `/api/software`
 - Services: `src/lib/services/software.ts`
-- Tests: `tests/software-vault.test.ts`
+- Tests: `tests/software-api-hardening.test.ts`, `tests/software-page-first-class.test.ts`, `tests/software-vault.test.ts`
 
 ## users
 

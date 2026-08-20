@@ -105,7 +105,7 @@ Search/GlobalSearchSheet.swift         | global-search               | audit
 Search/QRScannerSheet.swift            | scan                        | audit
 Kiosk/KioskActivationView.swift        | kiosk-activation            | audit
 Kiosk/KioskIdleView.swift              | kiosk-idle                  | audit
-Kiosk/KioskStudentHubView.swift        | kiosk-student-hub           | audit
+Kiosk/KioskOperatorHubView.swift       | kiosk-operator-hub          | audit
 Kiosk/KioskIdentityView.swift          | kiosk-flow-routing          | audit
 Kiosk/KioskCheckoutView.swift          | kiosk-checkout              | audit
 Kiosk/KioskPickupView.swift            | kiosk-pickup                | audit

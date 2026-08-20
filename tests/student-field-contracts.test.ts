@@ -145,10 +145,14 @@ describe("student field mobile contracts", () => {
     expect(scheduleView).toContain("Text(\"Event Type\")");
     expect(scheduleView).toContain("ForEach(HomeAwayFilter.allCases");
     expect(scheduleView).toContain("Picker(\"Sport\"");
-    expect(scheduleView).toContain("Image(systemName: \"arrow.left.arrow.right\")");
+    // Toolbar controls are Labels, not bare Images: the title is what makes
+    // them self-describing, and it lets the system own sizing and hit area.
+    expect(scheduleView).toContain("Label(\n                            \"Trade Board\",");
+    expect(scheduleView).toContain("arrow.left.arrow.right.circle");
     expect(scheduleView).toContain("Label(\"My Availability\", systemImage: \"calendar.badge.clock\")");
     expect(scheduleView).toContain("Label(\"Shift Calendar\", systemImage: \"calendar.badge.plus\")");
-    expect(scheduleView).toContain("accessibilityLabel(activeFilterCount > 0 ? \"Filters, \\(activeFilterCount) active\" : \"Filters\")");
+    expect(scheduleView).toContain("\"Filters, \\(activeFilterCount) active\"");
+    expect(scheduleView).toContain("\"Trade Board, \\(appState.openTradeCount) open\"");
     expect(scheduleView).toContain("accessibilityLabel(\"More Schedule actions\")");
     expect(scheduleView).not.toContain("Switch to calendar view");
     expect(scheduleView).not.toContain("Switch to list view");

@@ -51,7 +51,14 @@ describe("iOS badge reward celebration", () => {
       expect(flow).toContain("appendUnique(contentsOf:");
       expect(flow).toContain("earnedBadges: earnedBadges");
     }
-    expect(success).toContain("KioskBadgeRewardCard");
+    expect(success).toContain("KioskBadgeCelebration");
     expect(success).toContain("info.earnedBadges.isEmpty ? 5 : 9");
+    // Rarity colour comes from the shared token, never a local switch. The
+    // kiosk used to re-derive it and mapped `uncommon` onto purple, which is
+    // also `legendary` — two tiers rendered identically, so the chip announcing
+    // the tier was unreadable.
+    expect(success).toContain("reward.badgeRarity.accent");
+    expect(success).not.toMatch(/case "legendary":/);
+    expect(success).not.toMatch(/case "uncommon":/);
   });
 });

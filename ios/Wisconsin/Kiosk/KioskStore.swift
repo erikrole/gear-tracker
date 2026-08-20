@@ -110,6 +110,13 @@ final class KioskStore {
     var inactivityWarningVisible: Bool = false
     var sleepDismissedUntil: Date?
 
+    /// True while the burn-in-safe standby overlay owns the screen. The shell
+    /// needs this to pull its own chrome: standby pixel-shifts everything it
+    /// draws on a 30-second cadence precisely so nothing crisp sits in one
+    /// place overnight, and a status pill parked in a corner all night is
+    /// exactly the thing that defeats it.
+    var isStandbyVisible: Bool = false
+
     /// True while a cold-launch session restore is in flight, so the shell can
     /// show a brief splash instead of flashing the activation numpad.
     var isResuming: Bool = false
@@ -379,6 +386,15 @@ final class KioskStore {
             self.clearIntent(reason: .timeout)
             self.screen = .idle
         }
+    }
+
+    /// Ends the session immediately from the inactivity warning: same
+    /// destination the timeout would reach, without the wait.
+    func finishSessionNow() {
+        inactivityWarningVisible = false
+        clearIntent(reason: .timeout)
+        screen = .idle
+        resetInactivity()
     }
 
     /// Cancels the inactivity warning when the student dismisses it.

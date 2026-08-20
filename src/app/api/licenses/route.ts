@@ -18,19 +18,28 @@ export const GET = withAuth(async (_req, { user }) => {
   const codes = isAdmin ? await listAllCodes() : await listCodes();
 
   // Strip the code string from rows the requester does not hold.
-  // Admins/staff see everything; students only see their own held code.
-  // Defense in depth — client also masks visually.
+  // Admins/staff see the management model. Students receive an explicit
+  // self-service DTO: only the license id needed to claim, pool metadata, and
+  // redacted active-slot data. Defense in depth — clients also mask visually.
   if (!isAdmin) {
-    const sanitized = codes.map((c) => {
-      const isHolder = c.claims.some((claim) => claim.userId === user.id);
+    const sanitized = codes.map((code) => {
+      const isHolder = code.claims.some((claim) => claim.userId === user.id);
       return {
-        ...c,
-        code: isHolder ? c.code : "",
-        claims: c.claims.map((claim) => (
-          claim.userId === user.id
-            ? claim
-            : { ...claim, userId: null, user: null, occupantLabel: null }
-        )),
+        id: code.id,
+        code: isHolder ? code.code : "",
+        label: code.label,
+        expiresAt: code.expiresAt,
+        status: code.status,
+        claims: code.claims.map((claim) => {
+          const isOwnClaim = claim.userId === user.id;
+          return {
+            id: claim.id,
+            userId: isOwnClaim ? claim.userId : null,
+            user: isOwnClaim ? claim.user : null,
+            occupantLabel: null,
+            claimedAt: claim.claimedAt,
+          };
+        }),
       };
     });
     return ok({ data: sanitized });

@@ -24,7 +24,10 @@ describe("iOS Schedule Dynamic Type", () => {
     );
 
     expect(dateHeader).toContain(".font(.subheadline.weight(.semibold))");
-    expect(dateHeader).toContain(".font(.caption)");
+    // The header is one line now: the date sits at .subheadline beside the day
+    // name, and .caption carries the trailing event count with tabular figures.
+    expect(dateHeader).toContain(".font(.subheadline)");
+    expect(dateHeader).toContain(".font(.caption.monospacedDigit())");
     expect(dateHeader).not.toContain(".font(.system(size:");
     expect(dateHeader).not.toContain(".font(.title2.weight(.bold))");
     expect(dateHeader).not.toContain(".frame(width: 44)");
@@ -39,8 +42,14 @@ describe("iOS Schedule Dynamic Type", () => {
       "private func calendarSame",
     );
 
-    expect(eventRow).toContain(".font(.caption.weight(.semibold))");
+    // The personal work line carries the wearer's own call time, so it sits a
+    // step up from .caption now that the row has a line to spare.
+    expect(eventRow).toContain(".font(.footnote.weight(.semibold))");
     expect(eventRow).toContain(".font(.subheadline)");
+    // Leading time gutter: semantic styles with tabular figures so the column
+    // stays aligned as Dynamic Type scales.
+    expect(eventRow).toContain(".font(.subheadline.weight(.semibold).monospacedDigit())");
+    expect(eventRow).toContain(".font(.caption.monospacedDigit())");
     expect(eventRow).not.toContain(".font(.system(size:");
     // The row's coverage chip is now the shared CoverageChip, so its tabular
     // figures live there -- same semantic style, one definition instead of two.

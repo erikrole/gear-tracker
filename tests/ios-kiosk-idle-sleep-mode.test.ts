@@ -27,7 +27,7 @@ describe("iOS kiosk idle sleep mode", () => {
     const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
     const sleepView = source("ios/Wisconsin/Kiosk/KioskSleepModeView.swift");
     const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
-    const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const operatorHub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const success = source("ios/Wisconsin/Kiosk/KioskSuccessView.swift");
 
     expect(store).toContain("var sleepDismissedUntil: Date?");
@@ -39,7 +39,7 @@ describe("iOS kiosk idle sleep mode", () => {
     expect(idle).toContain('return isLocallyIdleWindow(dashboard, standby: standby) ? "idle_window" : "active_window"');
     expect(idle).toContain('guard sleepModeReason != "active_window" else { return false }');
     expect(idle).toContain("hour >= 22 || hour < 6");
-    expect(studentHub).toContain("store.deferSleepMode()");
+    expect(operatorHub).toContain("store.deferSleepMode()");
     expect(success).toContain("store.deferSleepMode()");
     expect(sleepView).toContain("Color.white.opacity(0.64)");
     expect(sleepView).not.toContain("Color.white.opacity(0.13)");

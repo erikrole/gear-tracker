@@ -30,6 +30,29 @@ struct EventLocation: Codable, Identifiable {
     let name: String
 }
 
+// MARK: - Temporal state
+
+/// Where an event sits relative to now.
+///
+/// Shared by the Schedule list row and Event detail deliberately: the list grew
+/// a "NOW" badge and a dimmed finished state before detail had any notion of
+/// either, so tapping a live row landed on a screen that said nothing about it.
+/// One definition means the two surfaces cannot drift apart again.
+enum ScheduleEventTimeState {
+    case upcoming
+    case live
+    case past
+}
+
+extension ScheduleEvent {
+    var timeState: ScheduleEventTimeState {
+        let now = Date.now
+        if endsAt <= now { return .past }
+        if startsAt <= now { return .live }
+        return .upcoming
+    }
+}
+
 // MARK: - Multi-day spans
 
 extension ScheduleEvent {

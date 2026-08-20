@@ -19,7 +19,9 @@ describe("iOS Schedule all-day display", () => {
 
     expect(scheduleView).toContain("scheduleEventDisplayTitle(event)");
     expect(scheduleView).toContain("if event.displayAllDay { return \"All day\" }");
-    expect(scheduleView).toContain("return event.displayAllDay ? \"All day\" : eventTimeLabel");
+    // The row's time now leads the card in a gutter rather than sitting in the
+    // meta line, so the all-day substitution lives in `gutterLines`.
+    expect(scheduleView).toContain("if event.displayAllDay { return (\"All day\", nil) }");
     expect(scheduleView).not.toContain("return Self.cleanSummary(event.summary)");
 
     expect(eventDetail).toContain('if event.displayAllDay || myShift?.workerType == "FT" { return nil }');

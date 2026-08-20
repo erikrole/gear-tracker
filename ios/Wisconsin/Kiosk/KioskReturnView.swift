@@ -10,6 +10,9 @@ struct KioskReturnView: View {
     @State private var detail: KioskCheckoutDetail?
     @State private var returnedIds: Set<String> = []
     @State private var lastResult: ScanFeedback?
+    /// The item the last successful scan returned, held while its receipt is
+    /// on screen. Cleared on the same timer as the feedback banner.
+    @State private var lastAccepted: KioskAcceptedScan?
     @State private var feedbackDismissTask: Task<Void, Never>?
     @State private var isLoading = true
     @State private var isCompleting = false
@@ -71,6 +74,18 @@ struct KioskReturnView: View {
             store.scanner.claim(.return) { handleScan($0) }
             await loadDetail()
             replayPendingIntentScan()
+            #if DEBUG
+            // Capture hook: the confirmation only exists in the seconds after a
+            // real scan, which no fixture payload can produce.
+            if KioskFixtureScenario.active == .returnAccepted, let first = detail?.items.first {
+                returnedIds.insert(first.id)
+                lastAccepted = KioskAcceptedScan(
+                    title: first.itemListPrimaryTitle,
+                    subtitle: first.itemListSecondaryTitle,
+                    progress: "\(returnedIds.count) of \(totalItems) returned"
+                )
+            }
+            #endif
         }
         .onDisappear { store.scanner.release(.return) }
         .sheet(isPresented: $showCamera) {
@@ -89,6 +104,7 @@ struct KioskReturnView: View {
         KioskScanZoneColumn {
             KioskFlowHeader(
                 title: "Return",
+                subtitle: detail?.title,
                 onBack: { backToPerson() },
                 onCamera: { showCamera = true }
             )
@@ -99,31 +115,36 @@ struct KioskReturnView: View {
                 ProgressView().tint(KioskText.primary)
             } else {
                 VStack(spacing: 20) {
-                    KioskProgressRing(
-                        count: returnedCount,
-                        total: totalItems,
-                        isComplete: allReturned,
-                        reduceMotion: reduceMotion,
-                        accessibilityText: "\(returnedCount) of \(totalItems) items returned"
-                    )
+                    if let lastAccepted {
+                        KioskScanAcceptedView(accepted: lastAccepted, reduceMotion: reduceMotion)
+                            .frame(minHeight: 300)
+                    } else {
+                        KioskProgressRing(
+                            count: returnedCount,
+                            total: totalItems,
+                            isComplete: allReturned,
+                            reduceMotion: reduceMotion,
+                            accessibilityText: "\(returnedCount) of \(totalItems) items returned"
+                        )
 
-                    if let detail, detail.isOverdue {
-                        Label("Overdue", systemImage: "exclamationmark.triangle.fill")
-                            .font(KioskType.chip)
-                            .foregroundStyle(KioskStatus.problem)
-                            .accessibilityLabel("This checkout is overdue")
-                    }
+                        if let detail, detail.isOverdue {
+                            Label("Overdue", systemImage: "exclamationmark.triangle.fill")
+                                .font(KioskType.chip)
+                                .foregroundStyle(KioskStatus.problem)
+                                .accessibilityLabel("This checkout is overdue")
+                        }
 
-                    VStack(spacing: 6) {
-                        Text(allReturned ? "All items returned" : "Scan items to return them")
-                            .font(KioskType.actionTitle)
-                            .foregroundStyle(allReturned ? KioskStatus.ok : KioskText.primary)
-                            .multilineTextAlignment(.center)
-                        if !allReturned {
-                            Text("Use the hand scanner, or tap Camera to scan with the iPad.")
-                                .font(KioskType.rowDetail)
-                                .foregroundStyle(KioskText.tertiary)
+                        VStack(spacing: 6) {
+                            Text(allReturned ? "All items returned" : "Scan items to return them")
+                                .font(KioskType.actionTitle)
+                                .foregroundStyle(allReturned ? KioskStatus.ok : KioskText.primary)
                                 .multilineTextAlignment(.center)
+                            if !allReturned {
+                                Text("Use the hand scanner, or tap Camera to scan with the iPad.")
+                                    .font(KioskType.rowDetail)
+                                    .foregroundStyle(KioskText.tertiary)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                     }
 
@@ -171,15 +192,23 @@ struct KioskReturnView: View {
         )
     }
 
+    /// The CTA names what the next tap does, and while nothing is scanned it is
+    /// disabled — so it must not read "Return 0 of 6 Items", which describes an
+    /// action that returns nothing and looks like the button is broken rather
+    /// than waiting.
+    ///
+    /// It also no longer singles out battery units while empty. Any item on the
+    /// booking can be scanned first; "Scan Battery Units to Start" invented an
+    /// order that does not exist, and on a booking of three cameras and one
+    /// battery it named the smallest part of the work.
     private var returnLabel: String {
         if allReturned { return "Complete Return" }
-        if !hasReturned, hasBatteryScanStep { return "Scan Battery Units" }
+        if !hasReturned { return "Scan Items to Return" }
         return "Return \(returnedCount) of \(totalItems) Items"
     }
 
     private var completeAccessibilityLabel: String {
         if isCompleting { return "Processing return" }
-        if !hasReturned, hasBatteryScanStep { return "Scan returned battery units before completing" }
         if !hasReturned { return "Scan at least one item before returning" }
         if allReturned { return "Complete Return, all \(totalItems) items" }
         return "Return \(returnedCount) of \(totalItems) items"
@@ -275,6 +304,11 @@ struct KioskReturnView: View {
                     } else {
                         returnedIds.insert(item.id)
                         lastReturnedId = item.id
+                        lastAccepted = KioskAcceptedScan(
+                            title: item.itemListPrimaryTitle,
+                            subtitle: item.itemListSecondaryTitle,
+                            progress: "\(returnedIds.count) of \(totalItems) returned"
+                        )
                         showFeedback(.success(result.locationMessage ?? item.name))
                     }
                 } else {
@@ -289,6 +323,7 @@ struct KioskReturnView: View {
 
     private func showFeedback(_ feedback: ScanFeedback) {
         withAnimation { lastResult = feedback }
+        if case .success = feedback {} else { lastAccepted = nil }
         switch feedback {
         case .success:        Haptics.success()
         case .alreadyReturned: Haptics.warning()
@@ -302,7 +337,10 @@ struct KioskReturnView: View {
         feedbackDismissTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation { lastResult = nil }
+            withAnimation {
+                lastResult = nil
+                lastAccepted = nil
+            }
         }
     }
 
@@ -364,7 +402,7 @@ struct KioskReturnView: View {
     }
 
     private func backToPerson() {
-        if let user = store.pendingIntent?.identifiedUser { store.screen = .studentHub(user) }
+        if let user = store.pendingIntent?.identifiedUser { store.screen = .operatorHub(user) }
         else { store.screen = .idle }
     }
 }

@@ -351,7 +351,7 @@ describe("iOS API contracts — kiosk student context decoding", () => {
   it("keeps student hub decoding tolerant and avoids false network copy", () => {
     const route = source("src/app/api/kiosk/student/[userId]/route.ts");
     const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
-    const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const operatorHub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
 
     expect(route).toContain("return ok({");
     expect(route).toContain("checkouts: checkouts.map");
@@ -364,11 +364,11 @@ describe("iOS API contracts — kiosk student context decoding", () => {
     expect(models).toContain("items = try container.decodeIfPresent(LossyDecodableArray<StudentItem>.self");
     expect(models).toContain("serializedItems = try container.decodeIfPresent(LossyDecodableArray<SerializedItem>.self");
     expect(models).toContain("bulkItems = try container.decodeIfPresent(LossyDecodableArray<BulkItem>.self");
-    expect(studentHub).toContain("studentContextErrorMessage(for: error)");
-    expect(studentHub).toContain("case .networkError:");
-    expect(studentHub).toContain("case .decodingError:");
-    expect(studentHub).toContain("store.deactivate()");
-    expect(studentHub).not.toContain('self.error = "Check your connection and try again."');
+    expect(operatorHub).toContain("studentContextErrorMessage(for: error)");
+    expect(operatorHub).toContain("case .networkError:");
+    expect(operatorHub).toContain("case .decodingError:");
+    expect(operatorHub).toContain("store.deactivate()");
+    expect(operatorHub).not.toContain('self.error = "Check your connection and try again."');
   });
 });
 

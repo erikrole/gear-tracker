@@ -36,10 +36,18 @@ struct KioskHIDBurstDetector {
 
 /// Native iOS text input for kiosk forms that need the system keyboard without
 /// the iPad shortcut/suggestion assistant bar.
+///
+/// `fontSize` exists because a UIKit-backed field cannot take a SwiftUI
+/// `.font(_:)` from its call site — the size was hardcoded at 15pt, which is
+/// what a form field looks like in an iPhone app held at reading distance and
+/// not what a booking name should look like on a mounted iPad read across a
+/// counter. Call sites that want the compact size simply omit it.
 struct KioskNativeTextField: UIViewRepresentable {
     let placeholder: String
     @Binding var text: String
     @Binding var isFocused: Bool
+    var fontSize: CGFloat = 15
+    var fontWeight: UIFont.Weight = .semibold
     var onScannerBurstRejected: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> UITextField {
@@ -49,7 +57,7 @@ struct KioskNativeTextField: UIViewRepresentable {
         field.backgroundColor = .clear
         field.textColor = UIColor.label
         field.tintColor = UIColor(Color.kioskRed)
-        field.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        field.font = UIFont.systemFont(ofSize: fontSize, weight: fontWeight)
         field.returnKeyType = .done
         field.autocapitalizationType = .words
         field.autocorrectionType = .no
@@ -69,9 +77,16 @@ struct KioskNativeTextField: UIViewRepresentable {
         if uiView.text != text {
             uiView.text = text
         }
+        let resolvedFont = UIFont.systemFont(ofSize: fontSize, weight: fontWeight)
+        if uiView.font != resolvedFont {
+            uiView.font = resolvedFont
+        }
         uiView.attributedPlaceholder = NSAttributedString(
             string: placeholder,
-            attributes: [.foregroundColor: UIColor.secondaryLabel]
+            attributes: [
+                .foregroundColor: UIColor.secondaryLabel,
+                .font: resolvedFont
+            ]
         )
         uiView.inputAssistantItem.leadingBarButtonGroups = []
         uiView.inputAssistantItem.trailingBarButtonGroups = []

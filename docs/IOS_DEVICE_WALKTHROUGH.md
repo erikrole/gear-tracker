@@ -394,7 +394,7 @@ Kiosk runs as the dedicated `WisconsinKiosk` app on a dedicated iPad in landscap
 
 ### Pickup flow
 
-- [ ] Open pending pickup from student hub.
+- [ ] Open pending pickup from operator hub.
 - [ ] Scan each item; ring fills; checklist updates.
 - [ ] **In-camera feedback** + auto-scroll to last confirmed.
 - [ ] **Race guard** — scan during confirm → "Hold on — confirming pickup."

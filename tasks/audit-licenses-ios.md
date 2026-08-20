@@ -63,3 +63,20 @@ _None._
 - [x] Runtime state: active claim appears under `My License`, pool rows render availability and slot counts, and staff/admin can see unclaimed codes as allowed by the native scope.
 - [x] Return confirmation verified without confirming the mutation: destructive `Return License` action appears behind a `Return Photo Mechanic license?` confirmation with explanatory copy.
 - [x] Claim confirmation was not exercised because this live user already holds a license; native UI correctly hides claim actions while an active claim exists.
+
+## 2026-08-19 UI Pass — Redundancy and Retired Honesty
+
+Fixture-harness capture (no session, no network) showed problems the 2026-06-30 static pass and the 2026-07-03 single-state runtime recheck both missed, because both looked at one data shape.
+
+- [x] [UI polish] **The holder's license was rendered twice in full.** The My License card and the first pool row carried the same title, the same plaintext code, and the same expiry. The pool row now drops the code and expiry lines and keeps only what the card above cannot say: occupancy on that specific code.
+- [x] [UI polish] **One row carried two verdicts.** A held row showed both its open-slot pill and a separate `Yours` pill. Now a single `Yours` pill, and the status glyph is `key.fill` rather than `person.badge.plus`, which read as an invitation to add someone.
+- [x] [Hardening] **Retired codes advertised themselves as claimable.** They rendered "Code hidden until claimed" and "No one is using this code". Retired rows now collapse to one dimmed line stating the lapse date and that the code is no longer claimable, with no occupancy line and no claim affordance.
+- [x] [Gaps] **The capacity summary and the row count disagreed for staff.** `/api/licenses` returns retired codes to STAFF/ADMIN (`listAllCodes`), while `LicensePoolOverview` counts only non-retired. The header read "across 2 codes" above three rows. A section footer now names the excluded retired count.
+- [x] [UI polish] **Per-row expiry was three identical lines.** Codes share an annual expiry, so the date was chrome until it mattered. Pool rows now show it only within 30 days or once lapsed; the My License card is unconditional. Verified in the `resourcesLicensesOpen` fixture, where a 12-day code shows its orange warning and a 134-day code does not.
+- [x] [UI polish] **The per-row status wash inverted the hierarchy.** Full-bleed green/blue row backgrounds were unique to this screen, and left the retired row (`cardSurface`, effectively white) the brightest row on a grouped background. Removed; the claimed card stays the only tinted block.
+- [x] [Accessibility] **Transient notices were silent to VoiceOver and actions had no haptics.** `showNotice` posts an announcement; claim, return, and copy carry success/error haptics matching the rest of the app.
+
+### Still open
+
+- [ ] [Parity] Full native admin management (create, bulk create, renew, retire, export, unknown occupants, per-code history) remains deferred to the web control room. Unchanged by this pass.
+- [ ] Authenticated runtime proof against a live pool. This pass was captured through the DEBUG fixture harness; no live license was claimed, returned, or mutated.

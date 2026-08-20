@@ -3,14 +3,14 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-18
+- Last Updated: 2026-08-20
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export, and native iOS self-service shipped
 - Version: V2
 
 ## Direction
 Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how Photo Mechanic licenses actually work in the field — each license code activates on **two** machines, occupants drift over time, and licenses renew **annually**. Students self-serve a slot; admins manage account email, expiry, and unknown occupants.
 
-The `/licenses` route is presented as **Software** in the sidebar. The shared Software Vault is the first section on that route; this Photo Mechanic two-slot pool remains below it with its existing claim, masking, expiry, and administration rules unchanged.
+The `/licenses` route is presented as **Software** in the sidebar. Photo Mechanic is a dedicated **Photo Mechanic licenses** tab on that route, selected with `?tab=photo-mechanic`; the default **Shared logins** tab is a separate encrypted-account workflow. The two-slot pool keeps its existing claim, masking, expiry, and administration rules unchanged and never becomes a normal shared login.
 
 ## Core Rules
 1. **Two slots per license code.** Activations fill naturally; positions are not meaningful (no "slot 1 vs slot 2" semantics).
@@ -75,6 +75,8 @@ The `/licenses` route is presented as **Software** in the sidebar. The shared So
   - `BulkAddSheet.tsx` — paste many codes at once
   - `BulkRenewDialog.tsx` — admin renewal dialog for expiring/expired visible codes or all visible active codes
 
+The Photo Mechanic tab also renders a responsive mobile card/list view so capacity, holders, expiry, and Claim/Inspect actions remain visible without horizontal table scrolling.
+
 ### Visual states
 - AVAILABLE row: tinted green, `cursor-pointer` if user has no claim
 - PARTIAL row: tinted blue, `1/2` badge, claimable by anyone without a license
@@ -128,6 +130,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- 2026-08-20: Made Photo Mechanic a first-class tab on `/licenses` (`?tab=photo-mechanic`) instead of a second section below shared logins. Contextualized pool actions, added mobile cards and loading states, minimized student responses, wrapped release mutations in serializable retry logic, and made CSV export private/no-store with a safe row-count audit. Local gates pass; authenticated runtime and visual-review proof remain open.
 - 2026-08-19: Added the shared Software Vault above the Photo Mechanic pool. The sidebar and route copy now say Software, while the existing two-slot license workflow remains compatible at `/licenses`. See `docs/AREA_SOFTWARE.md` for the encrypted credential contract and rollout gates.
 - 2026-08-18: Fixed native iOS license expiry rendering a day early. Expiry values are annual calendar dates encoded at UTC midnight (`src/lib/license-dates.ts`), but iOS formatted the encoded instant in the device timezone, so anywhere west of UTC a 31 Dec license read "Expires Dec 30", and both the "Expired" copy and the amber/red urgency tone flipped a full day before the license lapsed. `LicenseExpiry.calendarDay(from:)` / `.daysUntil(_:)` now read the UTC date parts and compare whole calendar days, mirroring `licenseExpiryAsLocalDate` and `licenseDaysUntilExpiry` on the web. Claim timestamps are real instants and still render in local time. Pinned by `ios/WisconsinTests/LicenseExpiryTests.swift`.
 - 2026-08-18: **Local calendar dates for annual expiry.** Date-only renewal values such as `2027-08-18` now display as August 18 in Central/local browser time instead of shifting to August 17 through UTC-midnight conversion. Expired, expiring-soon, renewal-scope, admin-sheet, and CSV filename calculations use the same local calendar-day contract; storage encoding, claim eligibility, and notification policy are unchanged.

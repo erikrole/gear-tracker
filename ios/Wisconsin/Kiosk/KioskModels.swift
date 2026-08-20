@@ -677,7 +677,7 @@ struct KioskCheckinCompleteResult: Decodable {
 enum KioskScreen: Equatable {
     case activation
     case idle
-    case studentHub(KioskUser)
+    case operatorHub(KioskUser)
     case identity
     case checkout(user: KioskUser)
     case pickup(bookingId: String, userId: String)

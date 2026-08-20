@@ -32,6 +32,14 @@ Scope: `EventDetailSheet` + `EventDetailViewModel` + `CoveragePill` + `AreaBlock
 - [x] Event detail replaces its bare trade confirmation with the shared Post to Trade Board sheet, including optional notes and explicit assignment consequences.
 - [x] Existing role gates, shift mutation, trade mutation, and crew-row context menus remain unchanged.
 
+## 2026-08-19 Temporal Continuity and Crew Resilience
+
+- [x] `ScheduleEvent.timeState` shared with the Schedule list so both surfaces answer "is this under way" identically.
+- [x] Header eyebrow states NOW or Ended; the time line takes the live accent. Cancelled suppresses both.
+- [x] A failed staff working-copy fetch no longer blanks the loaded published roster; it degrades to a non-blocking notice with Retry.
+- [x] Covered by `tests/ios-event-detail-temporal-state.test.ts` and captured in both states by `EventDetailScreenshotUITests`.
+- [ ] [Polish] Open crew slots still offer Assign on an event that has already ended. The primary action bar is gated on `eventHasEnded`; the inline row actions are not. Deliberate for backfilling records, or a gap — needs a product call.
+
 **Surrounding context:** event detail is the schedule's primary touchpoint — students see "what's the event, what's the call time, can I request a slot," staff see "who's pending, approve/decline, add/remove shifts." Reachable from `ScheduleView` (with `myShift` populated) and `HomeView` (with `myShift` nil — prep gear button hidden). Action handlers all share a single `actionError` alert.
 
 ## P0 — blocks MVP
