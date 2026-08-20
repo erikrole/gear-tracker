@@ -1,13 +1,13 @@
 # macOS companion hardening and polish
 
-Status: ACTIVE — implementation complete; native/runtime proof pending
+Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof remain
 
 ## Scope and authority
 
 - Surface: `macos/GearOps`, displayed as Wisconsin Creative.
 - Accepted authority: D-047, `plans/062-gearops-menu-bar.md`, Dashboard and Notifications area docs.
 - Preserve: read-only custody boundary, Upstash-only post-enrollment reads, last trusted projection, passive booking alerts, existing web deep links, and unrelated dirty iOS/web work.
-- Exclude: server mutations, schema work, production deployment, installed-app replacement, signing, notarization, and APNs production proof.
+- Exclude from the implementation slice: server mutations, schema work, and production deployment. Release packaging, signing, notarization, and installation were completed later under explicit shipping authorization.
 
 ## Problems being closed
 
@@ -41,14 +41,22 @@ Status: ACTIVE — implementation complete; native/runtime proof pending
 - [x] Focused macOS companion Vitest source contracts.
 - [x] `xcrun swiftc -parse macos/GearOps/*.swift` and test sources.
 - [x] XcodeGen regeneration is reviewed and deterministic.
-- [ ] Unsigned Debug test compilation and Release build with Xcode 26.6 (both pass with the local macro sandbox workaround; XCTest execution, signing, and installed Release proof remain open).
+- [x] Unsigned Debug test compilation and Release archive with Xcode 26.6 (both pass with the local macro sandbox workaround; XCTest execution remains blocked when the runner cannot communicate with `testmanagerd`).
 - [ ] Matched `gt-ui-review` before/after page from deterministic, non-production fixtures.
 - [ ] Installed clean Release smoke: menu, Settings focus, launch approval, notifications, VoiceOver, keyboard, Reduce Motion, sleep/wake, sign-out cleanup.
-- [ ] Signed archive checks: Hardened Runtime, production APNs entitlement, no test frameworks/debug dylibs/test entitlements, strict signature, notarization, and stapling. These require separate authorization.
-- [ ] `npm run verify:docs` (blocked by pre-existing codemap drift in parallel work); [x] `git diff --check`.
+- [x] Signed archive checks: Hardened Runtime, production APNs entitlement authorized by the embedded Developer ID profile, no test frameworks/debug dylibs/test entitlements, strict signature, notarization, and stapling.
+- [ ] `npm run verify:docs` (blocked by pre-existing codemap drift in parallel work); [x] scoped `git diff --check` (the full dirty worktree still reports an unrelated iOS blank line).
 
 ## Current proof boundary
 
 - Baseline macOS source contracts passed 21/21. The hardened source/security contracts now pass 27/27, including the event-driven pending-revocation retry path.
 - The direct shared `.icon` resource was replaced with the shared compiled `AppIcon.appiconset`; Xcode reaches Swift compilation. `xcodebuild build-for-testing` passes with `OTHER_SWIFT_FLAGS=-disable-sandbox` to work around the local macro-plugin sandbox, while `xcodebuild test` remains blocked when the runner cannot communicate with `testmanagerd`.
-- The currently installed app has compiled icon resources but is a Debug/XCTest test host and is not suitable for staff distribution or final visual acceptance.
+- The shipped archive includes the explicit `AppIcon.icns`, production APNs entitlement, and Developer ID provisioning profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; the installed app is accepted by Gatekeeper and running from `/Users/role/Applications/Wisconsin Creative.app`. Full menu/Settings/VoiceOver/Reduce Motion/sleep-wake/sign-out smoke and the native XCTest runner remain unverified.
+
+## Release execution (2026-08-20)
+
+- Source commit: `193ca4f0`; tag: `macos-v1.0.0`; [GitHub release](https://github.com/erikrole/wisconsin-creative/releases/tag/macos-v1.0.0).
+- Developer ID profile: `Wisconsin Creative GearOps Developer ID 2026` (`4f4171d8-f959-4ed5-be70-7cc663253d52`), with production APNs entitlement and the installed `Developer ID Application: Erik Role (T26T3G8C7Q)` certificate.
+- Notary submission `8aece3a6-de79-447c-8920-2d1f0a105286` was accepted; stapler validation, Gatekeeper (`Notarized Developer ID`), and strict code-signature verification passed.
+- Canonical release asset: `Wisconsin-Creative-1.0.0-macos.zip`, SHA-256 `6dbc6dc28fa7f6b40c45290eb3e28bfae4fca6b246c082b536916ccf2b555f94`. The old profile-less asset was removed after its restricted APNs entitlement was killed at launch.
+- The corrected app was installed over the prior debug/profile-less copies, which were preserved under `/private/tmp`, and the signed process is running from the installed Release bundle.

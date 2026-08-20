@@ -37,7 +37,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
-- `macos-companion-hardening-polish-plan.md` - event-driven refresh, projection/session privacy hardening, native interaction/accessibility polish, and clean Release proof for Wisconsin Creative.
+- `macos-companion-hardening-polish-plan.md` - shipped Developer ID/notarized macOS 1.0.0 companion with event-driven refresh, projection/session privacy hardening, and native interaction/accessibility polish; native XCTest, full smoke, and real APNs proof remain.
 - `repository-audit-improvement-plan.md` - current whole-repository evidence-first audit, ranked repair, verification, and proof-boundary ledger.
 - `overdue-notification-hardening-plan.md` - durable five-stage checkout escalation is implemented locally; migration, responder configuration, deployment, and authenticated channel/timing proof remain.
 - `schedule-mvp-end-to-end-plan.md` - implementation and source/build verification are complete; authenticated web and native Trade Board runtime inspection remains.

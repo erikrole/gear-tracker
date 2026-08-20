@@ -135,7 +135,7 @@ Implementation: `src/lib/checkout-escalation-policy.ts`, `src/lib/services/notif
 - Local booking-change notifications use the booking title as the stackable notification title and show a localized `Status • Requester • Timestamp` body from the projection's server `updatedAt`, so delayed delivery retains the source event time instead of relying only on the Mac's delivery time.
 - Wisconsin Creative requests both alert and sound authorization while keeping sound delivery opt-in. On sign-out or identity replacement it removes pending and delivered companion booking requests so requester names, titles, and timestamps do not remain in Notification Center.
 - Account deactivation and role changes revoke that user's external companion sessions and device registrations. Credential expiry is 90 days.
-- Existing production KV/Upstash, session-secret, and APNs provider variables satisfy the server prerequisites. The macOS App ID capability, signed build, deployment, and real delivery remain rollout gates.
+- Existing production KV/Upstash, session-secret, and APNs provider variables satisfy the server prerequisites. The macOS App ID capability and Developer ID signed/notarized build shipped in `macos-v1.0.0` with profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; real APNs delivery and end-to-end notification acceptance remain rollout gates.
 
 ## Channels (V1 + Email)
 - **In-app**: `Notification` records are durable for the requester and configured operational recipients
