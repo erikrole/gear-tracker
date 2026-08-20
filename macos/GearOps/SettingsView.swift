@@ -22,14 +22,31 @@ struct GearOpsSettingsView: View {
 /// the menu covers the common path; this covers every other way the window can
 /// appear, including a re-open while the app is in the background.
 private struct SettingsWindowActivator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let probe = NSView()
-        DispatchQueue.main.async { bringForward(probe.window) }
-        return probe
+    func makeNSView(context: Context) -> SettingsWindowActivationProbe {
+        SettingsWindowActivationProbe()
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async { bringForward(nsView.window) }
+    func updateNSView(_ nsView: SettingsWindowActivationProbe, context: Context) {}
+
+    static func dismantleNSView(_ nsView: SettingsWindowActivationProbe, coordinator: ()) {}
+}
+
+/// Activates only when the settings window becomes visible. SwiftUI can update
+/// an `NSViewRepresentable` for unrelated model changes; activating from
+/// `updateNSView` made those refreshes steal focus from the user's current app.
+@MainActor
+private final class SettingsWindowActivationProbe: NSView {
+    private weak var observedWindow: NSWindow?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard observedWindow !== window else { return }
+        observedWindow = window
+
+        guard let window else { return }
+        if window.isVisible {
+            bringForward(window)
+        }
     }
 
     private func bringForward(_ window: NSWindow?) {
@@ -37,11 +54,13 @@ private struct SettingsWindowActivator: NSViewRepresentable {
         NSApplication.shared.activate()
         window.makeKeyAndOrderFront(nil)
     }
+
 }
 
 private struct GeneralSettingsTab: View {
     let model: GearOpsModel
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var loginItem = LoginItemController()
 
     var body: some View {
@@ -51,6 +70,7 @@ private struct GeneralSettingsTab: View {
             Section {
                 Toggle("Open at login", isOn: loginItemBinding)
                     .toggleStyle(.switch)
+                    .disabled(!loginItem.state.canChange)
                 if let detail = loginItem.state.detail {
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "info.circle")
@@ -91,6 +111,9 @@ private struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         .onAppear { loginItem.refresh() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { loginItem.refresh() }
+        }
     }
 
     private var loginItemBinding: Binding<Bool> {
@@ -104,6 +127,8 @@ private struct GeneralSettingsTab: View {
 private struct NotificationSettingsTab: View {
     let model: GearOpsModel
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         @Bindable var settings = model.notificationSettings
 
@@ -112,7 +137,7 @@ private struct NotificationSettingsTab: View {
                 Toggle("Booking alerts", isOn: $settings.isEnabled)
                     .toggleStyle(.switch)
             } footer: {
-                Text("Alerts are silent and open the affected booking in Gear Tracker. Wisconsin Creative never changes custody from this app.")
+                Text("Alerts are silent by default and open the affected booking in Gear Tracker. Wisconsin Creative never changes custody from this app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -163,6 +188,10 @@ private struct NotificationSettingsTab: View {
         }
         .formStyle(.grouped)
         .task { await model.refreshNotificationAuthorization() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await model.refreshNotificationAuthorization() }
+        }
     }
 
     private func binding(for category: BookingChangeCategory) -> Binding<Bool> {
@@ -213,10 +242,15 @@ private struct AccountSettingsTab: View {
 
             Section {
                 LabeledContent("Companion data") {
-                    Text(model.snapshot?.freshnessLabel() ?? "No data yet")
+                    Text(model.user == nil
+                        ? "Not signed in"
+                        : model.snapshot?.freshnessLabel() ?? "No data yet")
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Kiosks", value: model.kioskFleetCounts.summary)
+                LabeledContent(
+                    "Kiosks",
+                    value: model.user == nil ? "Not signed in" : model.kioskStatusSummary
+                )
             } header: {
                 Text("Status")
             } footer: {

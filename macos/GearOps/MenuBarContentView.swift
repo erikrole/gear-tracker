@@ -11,6 +11,7 @@ struct MenuBarContentView: View {
     let model: GearOpsModel
 
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var measuredContentHeight: CGFloat = 320
     @State private var isHoveringRefresh = false
@@ -63,7 +64,7 @@ struct MenuBarContentView: View {
                     }
                 }
                 .frame(height: resolvedContentHeight)
-                .animation(.smooth(duration: 0.22), value: resolvedContentHeight)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: resolvedContentHeight)
                 Divider()
                 footer
             }
@@ -82,7 +83,7 @@ struct MenuBarContentView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.2), value: model.openBookingTotal)
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: model.custodyCount)
             }
             Spacer()
             Button {
@@ -114,7 +115,7 @@ struct MenuBarContentView: View {
     /// Custody count plus projection freshness, so the two facts that decide
     /// whether the popover is worth trusting are visible without scrolling.
     private func headerSubtitle(at now: Date) -> String {
-        guard let count = model.openBookingTotal else { return model.healthLabel }
+        guard let count = model.custodyCount else { return model.healthLabel }
         let custody = "\(count) open booking\(count == 1 ? "" : "s")"
         guard let snapshot = model.snapshot else { return custody }
         return "\(custody) · \(snapshot.freshnessLabel(at: now))"
@@ -171,6 +172,7 @@ struct MenuBarContentView: View {
                 .background(Color.red, in: .capsule)
                 .contentTransition(.numericText())
                 .transition(.scale.combined(with: .opacity))
+                .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: overdue)
                 .accessibilityLabel("\(overdue) overdue booking\(overdue == 1 ? "" : "s")")
         }
     }
@@ -223,8 +225,8 @@ struct MenuBarContentView: View {
                 Label(model.healthLabel, systemImage: model.healthSeverity.symbol)
                     .font(.caption.weight(.semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(healthColor)
-                    .animation(.smooth(duration: 0.2), value: model.healthSeverity)
+                     .foregroundStyle(healthColor)
+                     .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: model.healthSeverity)
             }
             // Health is one grouped surface so the popover reads as two kinds
             // of content: actionable booking cards, then a status panel.
@@ -232,7 +234,7 @@ struct MenuBarContentView: View {
                 HealthRow(
                     title: "Companion data",
                     detail: apiHealthDetail(at: now),
-                    severity: apiHealthSeverity,
+                    severity: model.companionHealthSeverity,
                     // `refresh()` coalesces re-entry itself, so the row keeps its
                     // affordance instead of dropping the chevron mid-refresh.
                     action: { Task { await model.refresh() } }
@@ -240,8 +242,8 @@ struct MenuBarContentView: View {
                 rowSeparator
                 HealthRow(
                     title: model.kioskAccess == .available ? "Kiosks" : "Kiosk access",
-                    detail: kioskAccessDetail,
-                    severity: kioskAccessSeverity,
+                    detail: model.kioskStatusSummary,
+                    severity: model.kioskHealthSeverity,
                     action: model.kioskAccess == .available ? { model.openKioskDevices() } : nil
                 )
 
@@ -326,6 +328,7 @@ struct MenuBarContentView: View {
             .kerning(0.4)
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
+            .accessibilityHeading(.h2)
     }
 
     private var healthColor: Color {
@@ -336,37 +339,11 @@ struct MenuBarContentView: View {
         }
     }
 
-    private var apiHealthSeverity: GearOpsHealthSeverity {
-        if model.snapshot == nil { return .critical }
-        if model.countDataIsPartial || model.statusMessage != nil { return .attention }
-        return .healthy
-    }
-
     private func apiHealthDetail(at now: Date) -> String {
         if model.countDataIsPartial { return "Fresh totals not confirmed" }
         if model.snapshot == nil { return "Unavailable" }
         return model.snapshot.map { "Last synced " + $0.freshnessLabel(at: now).replacingOccurrences(of: "Updated ", with: "") }
             ?? "Unavailable"
-    }
-
-    private var kioskAccessSeverity: GearOpsHealthSeverity {
-        switch model.kioskAccess {
-        case .available:
-            if model.monitoredKioskDevices.contains(where: { $0.connectionState().isFault }) { return .critical }
-            return .healthy
-        case .failed: return .attention
-        case .restricted: return .attention
-        case .unknown: return .healthy
-        }
-    }
-
-    private var kioskAccessDetail: String {
-        switch model.kioskAccess {
-        case .unknown: "Not checked"
-        case .restricted: "Restricted for this account"
-        case .failed: "Could not refresh"
-        case .available: model.kioskFleetCounts.summary
-        }
     }
 }
 

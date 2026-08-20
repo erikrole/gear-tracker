@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		25EA62C3F835F4CAFCE2E018 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CCB055E340B6DA5CBA94FE3 /* AppIcon.icon */; };
+		12F954F7DF3DE2AF1D1D244E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52BE26BCA53BFA17CE2331EA /* Assets.xcassets */; };
 		3819EF82C0CDD842A4EB5663 /* GearOpsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD50E8F0C4AF83EA7C947D7C /* GearOpsClient.swift */; };
 		42F9933796384A03AFFA4E27 /* Health.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C9EB2C7AC640C2978C0DCB2 /* Health.swift */; };
 		43734FB645FE39D54CC518A6 /* GearOpsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95649353663B9CE02034E7D /* GearOpsModel.swift */; };
@@ -27,6 +27,7 @@
 		C29F47682B3F85B3B54181CB /* HealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0421500DB5559BC742DAA5 /* HealthTests.swift */; };
 		C5134C168373D9D1EA7FF135 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEDBA439628BD9AF979D094 /* AppPreferences.swift */; };
 		CB125D495C4907162C5D0FF4 /* CompanionPushBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DB213E7BC6DC532FB07619F /* CompanionPushBridge.swift */; };
+		EB5FE4858FBF1ED9608CA7F0 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4E865EC1D3FEAB5F9B4C5D4A /* AppIcon.icns */; };
 		F471188794B8B42BF9D54F7E /* BrandScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B91FAB211BD782021996F5 /* BrandScene.swift */; };
 		FCF5D1DE7E1ADC35DC743C7C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 696B6C89830D0610E053FC91 /* LoginView.swift */; };
 /* End PBXBuildFile section */
@@ -46,13 +47,14 @@
 		12328C9B02D83F0513C2CBEE /* BookingNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingNotifications.swift; sourceTree = "<group>"; };
 		13D43E7CA9B67EFFA943D416 /* BookingNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingNotificationTests.swift; sourceTree = "<group>"; };
 		1B630A1226F3437DDB20FBB6 /* WisconsinCreativeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WisconsinCreativeIcon.swift; sourceTree = "<group>"; };
-		1CCB055E340B6DA5CBA94FE3 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		243BD98D5DBF04F57C519B85 /* GearOps.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GearOps.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B15F45F6E0B4A6E05D16707 /* GearOps.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GearOps.entitlements; sourceTree = "<group>"; };
 		30468EAF0B11F845969A76D1 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		33D1C8F14EBFC0189BF52391 /* UserAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAvatarView.swift; sourceTree = "<group>"; };
 		3DB213E7BC6DC532FB07619F /* CompanionPushBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionPushBridge.swift; sourceTree = "<group>"; };
+		4E865EC1D3FEAB5F9B4C5D4A /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		509274ABE0FA7D0BD3CA1D0D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		52BE26BCA53BFA17CE2331EA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		62B91FAB211BD782021996F5 /* BrandScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandScene.swift; sourceTree = "<group>"; };
 		645A0D5508191987C2B49246 /* WisconsinCreativeIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WisconsinCreativeIconTests.swift; sourceTree = "<group>"; };
 		696B6C89830D0610E053FC91 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 		1FFF866EC7FA9D615F6D2AA7 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
+				4E865EC1D3FEAB5F9B4C5D4A /* AppIcon.icns */,
 				2B15F45F6E0B4A6E05D16707 /* GearOps.entitlements */,
 				509274ABE0FA7D0BD3CA1D0D /* Info.plist */,
 			);
@@ -83,7 +86,7 @@
 		216F329796B3A2DA70126A9F /* Wisconsin */ = {
 			isa = PBXGroup;
 			children = (
-				7CA6813A079DF44E5AC89EB5 /* AppIcons */,
+				52BE26BCA53BFA17CE2331EA /* Assets.xcassets */,
 			);
 			path = Wisconsin;
 			sourceTree = "<group>";
@@ -110,14 +113,6 @@
 				1FFF866EC7FA9D615F6D2AA7 /* Supporting */,
 			);
 			path = GearOps;
-			sourceTree = "<group>";
-		};
-		7CA6813A079DF44E5AC89EB5 /* AppIcons */ = {
-			isa = PBXGroup;
-			children = (
-				1CCB055E340B6DA5CBA94FE3 /* AppIcon.icon */,
-			);
-			path = AppIcons;
 			sourceTree = "<group>";
 		};
 		84F9B7F2B45D3FFEDDF9DB5B /* Products */ = {
@@ -247,7 +242,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				25EA62C3F835F4CAFCE2E018 /* AppIcon.icon in Resources */,
+				EB5FE4858FBF1ED9608CA7F0 /* AppIcon.icns in Resources */,
+				12F954F7DF3DE2AF1D1D244E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -309,6 +305,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = GearOps/Supporting/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

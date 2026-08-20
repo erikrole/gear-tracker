@@ -71,6 +71,59 @@ final class GearOpsModelTests: XCTestCase {
         XCTAssertEqual(model.healthSeverity, .attention)
     }
 
+    func testFailedKioskAccessIsVisibleAsAttention() async {
+        let client = MockGearOpsClient(kioskAccess: "failed")
+        let model = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+
+        await model.signIn(email: "staff@wisc.edu", password: "password")
+
+        XCTAssertEqual(model.kioskAccess, .failed)
+        XCTAssertEqual(model.kioskHealthSeverity, .attention)
+        XCTAssertEqual(model.kioskStatusSummary, "Could not refresh")
+        XCTAssertEqual(model.healthSeverity, .attention)
+    }
+
+    func testCustodyCountUsesProjectionStatistic() async {
+        let model = GearOpsModel(
+            client: MockGearOpsClient(),
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+
+        XCTAssertEqual(model.custodyCount, 12)
+        XCTAssertEqual(model.menuBarAccessibilityLabel, "Wisconsin Creative, 12 active checkouts, healthy")
+    }
+
+    func testInvalidProjectionPreservesTrustedData() async {
+        let client = MockGearOpsClient()
+        let model = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+
+        let duplicate = makeBookingActivity(id: "booking-1")
+        await client.setNextProjection(makeProjection(activities: [duplicate, duplicate], checkedOut: 99))
+        await model.refresh()
+
+        XCTAssertEqual(model.snapshot?.stats.checkedOut, 12)
+        XCTAssertEqual(model.activeBookingActivity.count, 1)
+        XCTAssertEqual(model.statusMessage, "Updates are unavailable. Showing the last confirmed data.")
+    }
+
     func testDashboardEnvelopeDecodesOperationalLanes() throws {
         let json = """
         {
@@ -278,8 +331,47 @@ final class GearOpsModelTests: XCTestCase {
         XCTAssertEqual(deletionAttempts, 2)
         XCTAssertEqual(
             model.statusMessage,
-            "Signed out locally. The saved companion credential could not be removed. Quit and try again."
+            "Signed out locally. The saved companion credential could not be removed. Try signing out again."
         )
+    }
+
+    func testFailedRemoteRevocationIsRetriedFromPendingKeychainSlot() async {
+        let client = MockGearOpsClient()
+        let credentials = InMemoryCredentialStore()
+        let model = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: credentials,
+            autoStart: false
+        )
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+        await client.setRevocationError(.network("offline"))
+
+        await model.signOut()
+
+        let stagedTokens = await credentials.loadPendingRevocations()
+        let activeToken = await credentials.loadToken()
+        XCTAssertEqual(stagedTokens, ["credential-admin@wisc.edu"])
+        XCTAssertNil(activeToken)
+
+        await client.setRevocationError(nil)
+        let retryingModel = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: credentials,
+            autoStart: true
+        )
+        _ = retryingModel
+        for _ in 0..<100 {
+            let pending = await credentials.loadPendingRevocations()
+            if pending.isEmpty { break }
+            await Task.yield()
+        }
+
+        let remaining = await credentials.loadPendingRevocations()
+        XCTAssertTrue(remaining.isEmpty)
     }
 
     func testOldRefreshSuccessCannotOverwriteNewSession() async {
@@ -380,7 +472,7 @@ final class GearOpsModelTests: XCTestCase {
         XCTAssertEqual(model.snapshot?.stats.checkedOut, 44)
     }
 
-    func testOldSignInCompletionCannotClearNewSignInGate() async {
+    func testSuspendedNotificationAuthorizationDoesNotBlockSignIn() async {
         let client = SuspendedGearOpsClient()
         let notifications = SuspendedBookingNotifier()
         let model = GearOpsModel(
@@ -391,22 +483,15 @@ final class GearOpsModelTests: XCTestCase {
             autoStart: false
         )
         await notifications.suspendNextAuthorization()
-        let oldSignIn = Task { await model.signIn(email: "first@wisc.edu", password: "password") }
+        let signIn = Task { await model.signIn(email: "first@wisc.edu", password: "password") }
+        await signIn.value
         await notifications.waitUntilAuthorizationIsPending()
 
-        await model.signOut()
-        await client.suspendNextLogin()
-        let newSignIn = Task { await model.signIn(email: "second@wisc.edu", password: "password") }
-        await client.waitUntilLoginIsPending()
-
-        await notifications.finishAuthorization()
-        await oldSignIn.value
-        XCTAssertTrue(model.isSigningIn)
-
-        await client.finishLogin()
-        await newSignIn.value
         XCTAssertFalse(model.isSigningIn)
-        XCTAssertEqual(model.user?.email, "second@wisc.edu")
+        XCTAssertEqual(model.user?.email, "first@wisc.edu")
+
+        await model.signOut()
+        await notifications.finishAuthorization()
     }
 
     func testDeviceTokenRegistersAgainAfterReEnrollment() async {
@@ -420,8 +505,10 @@ final class GearOpsModelTests: XCTestCase {
         )
         await model.receiveDeviceToken("apns-token")
         await model.signIn(email: "first@wisc.edu", password: "password")
+        await client.waitForRegistrations(count: 1)
         await model.signOut()
         await model.signIn(email: "second@wisc.edu", password: "password")
+        await client.waitForRegistrations(count: 2)
 
         let registeredCredentials = await client.registeredCredentials()
         XCTAssertEqual(
@@ -569,6 +656,8 @@ private final class ProjectionGETURLProtocol: URLProtocol, @unchecked Sendable {
 
 private actor MockGearOpsClient: GearOpsServing {
     private var projectionError: GearOpsClientError?
+    private var revocationError: GearOpsClientError?
+    private var nextProjection: CompanionProjection?
     private var activities = [makeBookingActivity()]
     private var kioskDevices: [KioskDevice] = []
     private var checkedOut = 12
@@ -582,6 +671,10 @@ private actor MockGearOpsClient: GearOpsServing {
 
     func setProjectionError(_ error: GearOpsClientError?) {
         projectionError = error
+    }
+
+    func setRevocationError(_ error: GearOpsClientError?) {
+        revocationError = error
     }
 
     func setBookingActivity(_ activity: BookingActivitySnapshot, changed: Bool) {
@@ -602,6 +695,10 @@ private actor MockGearOpsClient: GearOpsServing {
     func setKioskDevices(_ kioskDevices: [KioskDevice]) {
         self.kioskDevices = kioskDevices
         revision += 1
+    }
+
+    func setNextProjection(_ projection: CompanionProjection) {
+        nextProjection = projection
     }
 
     func login(email: String, password: String) async throws -> LoginResponse {
@@ -625,6 +722,10 @@ private actor MockGearOpsClient: GearOpsServing {
 
     func companionProjection(token: String) async throws -> CompanionProjection {
         if let projectionError { throw projectionError }
+        if let nextProjection {
+            self.nextProjection = nil
+            return nextProjection
+        }
         return makeProjection(
             activities: activities,
             kioskDevices: kioskDevices,
@@ -637,16 +738,29 @@ private actor MockGearOpsClient: GearOpsServing {
     func registerCompanionDevice(_ deviceToken: String, credential: String) async throws {
         registrations.append(credential)
     }
-    func revokeCompanion(credential: String) async {}
+    func revokeCompanion(credential: String) async throws {
+        if let revocationError { throw revocationError }
+    }
     func registeredCredentials() -> [String] { registrations }
+
+    func waitForRegistrations(count: Int) async {
+        while registrations.count < count {
+            await Task.yield()
+        }
+    }
 }
 
 private actor InMemoryCredentialStore: CompanionCredentialStoring {
     private var token: String?
+    private var pending: [String] = []
 
     func loadToken() -> String? { token }
     func saveToken(_ token: String) { self.token = token }
     func deleteToken() { token = nil }
+    func deleteToken(ifMatching token: String) { if self.token == token { self.token = nil } }
+    func stageTokenForRevocation(_ token: String) { pending.append(token) }
+    func loadPendingRevocations() -> [String] { pending }
+    func removePendingRevocation(_ token: String) { pending.removeAll { $0 == token } }
 }
 
 private enum TestCredentialError: Error {
@@ -657,6 +771,10 @@ private actor ThrowingCredentialStore: CompanionCredentialStoring {
     func loadToken() throws -> String? { throw TestCredentialError.unavailable }
     func saveToken(_ token: String) throws {}
     func deleteToken() {}
+    func deleteToken(ifMatching token: String) throws {}
+    func stageTokenForRevocation(_ token: String) throws {}
+    func loadPendingRevocations() throws -> [String] { [] }
+    func removePendingRevocation(_ token: String) throws {}
 }
 
 private actor DeleteFailingCredentialStore: CompanionCredentialStoring {
@@ -669,6 +787,13 @@ private actor DeleteFailingCredentialStore: CompanionCredentialStoring {
         attempts += 1
         throw TestCredentialError.unavailable
     }
+    func deleteToken(ifMatching token: String) throws {
+        attempts += 1
+        throw TestCredentialError.unavailable
+    }
+    func stageTokenForRevocation(_ token: String) throws {}
+    func loadPendingRevocations() throws -> [String] { [] }
+    func removePendingRevocation(_ token: String) throws {}
     func deletionAttempts() -> Int { attempts }
 }
 
@@ -782,7 +907,7 @@ private actor SuspendedGearOpsClient: GearOpsServing {
 
     func registerCompanionDevice(_ deviceToken: String, credential: String) async throws {}
 
-    func revokeCompanion(credential: String) async {
+    func revokeCompanion(credential: String) async throws {
         guard shouldSuspendRevocation else { return }
         shouldSuspendRevocation = false
         await withCheckedContinuation { continuation in
@@ -795,6 +920,7 @@ private actor NoopBookingNotifier: BookingNotificationDelivering {
     func requestAuthorization() async {}
     func authorization() async -> BookingNotificationAuthorization { .authorized }
     func deliver(_ change: BookingChange, playsSound: Bool) async {}
+    func clearPrivateNotifications() async {}
 }
 
 private actor RecordingBookingNotifier: BookingNotificationDelivering {
@@ -804,6 +930,7 @@ private actor RecordingBookingNotifier: BookingNotificationDelivering {
     func authorization() async -> BookingNotificationAuthorization { .authorized }
     func deliver(_ change: BookingChange, playsSound: Bool) async { changes.append(change) }
     func deliveredChanges() -> [BookingChange] { changes }
+    func clearPrivateNotifications() async {}
 }
 
 private actor SuspendedBookingNotifier: BookingNotificationDelivering {
@@ -836,6 +963,7 @@ private actor SuspendedBookingNotifier: BookingNotificationDelivering {
     }
 
     func deliver(_ change: BookingChange, playsSound: Bool) async {}
+    func clearPrivateNotifications() async {}
 }
 
 private func makeOpenBooking() -> OpenBooking {
@@ -873,6 +1001,7 @@ private func makeBookingActivity(
 }
 
 private func makeProjection(
+    version: Int = 1,
     activities: [BookingActivitySnapshot] = [makeBookingActivity()],
     kioskDevices: [KioskDevice] = [],
     kioskAccess: String = "available",
@@ -881,7 +1010,7 @@ private func makeProjection(
     generatedAt: Date = Date(timeIntervalSince1970: 1_800_000_000)
 ) -> CompanionProjection {
     CompanionProjection(
-        version: 1,
+        version: version,
         revision: revision,
         generatedAt: generatedAt,
         stats: GearOpsStats(checkedOut: checkedOut, overdue: 2, reserved: 8, dueToday: 4),

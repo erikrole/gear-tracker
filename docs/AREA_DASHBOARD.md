@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-17
+- Last Updated: 2026-08-20
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -183,6 +183,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+
+- 2026-08-20: **Companion reliability and privacy hardening.** Wisconsin Creative now restores once at launch and refreshes only from APNs invalidation, explicit refresh, or Mac wake; there is no network polling timer. Projection versions, bounded arrays, counts, access states, and duplicate identities are validated before installation or cache indexing, with invalid external data preserving the last trusted snapshot. Sign-out stages failed remote revocations for bounded retry, clears delivered and pending local booking alerts plus requester-photo caches, and keeps optional notification authorization/APNs registration off the projection critical path. Menu-bar custody count and health severity now share one model truth, and the signed Release configuration enables Hardened Runtime. Native runtime, APNs, signing, and clean Release distribution proof remain rollout gates.
 
 - 2026-08-19: **Menu bar settings window now appears.** The settings surface used a SwiftUI `Settings` scene, which opened its window behind every other window because an `LSUIElement` accessory app never activates itself, so the menu item looked inert. It is now an explicit `Window` scene: the menu activates the app before ordering the window in, and the window also brings itself front on appear for ⌘, and background re-open. Verified against the window server as frontmost and focused.
 - 2026-08-18: **Menu bar startup, display, and health-panel settings.** A General settings tab adds launch-at-login through `SMAppService` (surfacing the approval-pending state with a route into System Settings instead of an error), an optional menu bar booking count, and an opt-in alert sound that keeps silence as the default. System health now renders as one grouped panel whose Companion data, Kiosks, and kiosk device rows are controls that refresh or open their Gear Tracker destination, with hover feedback and button traits.

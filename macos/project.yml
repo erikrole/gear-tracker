@@ -27,11 +27,14 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - path: GearOps
-      - path: ../ios/Wisconsin/AppIcons/AppIcon.icon
+      - path: ../ios/Wisconsin/Assets.xcassets
+    resources:
+      - path: GearOps/Supporting/AppIcon.icns
     info:
       path: GearOps/Supporting/Info.plist
       properties:
         CFBundleDisplayName: "Wisconsin Creative"
+        CFBundleIconFile: "AppIcon"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: "public.app-category.utilities"
@@ -52,6 +55,9 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: T26T3G8C7Q
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: "YES"
 
   GearOpsTests:
     type: bundle.unit-test

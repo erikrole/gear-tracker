@@ -27,7 +27,7 @@ protocol GearOpsServing: Sendable {
     func login(email: String, password: String) async throws -> LoginResponse
     func companionProjection(token: String) async throws -> CompanionProjection
     func registerCompanionDevice(_ deviceToken: String, credential: String) async throws
-    func revokeCompanion(credential: String) async
+    func revokeCompanion(credential: String) async throws
 }
 
 actor GearOpsClient: GearOpsServing {
@@ -35,21 +35,26 @@ actor GearOpsClient: GearOpsServing {
 
     private let baseURL: URL
     private let session: URLSession
-    private let cookieStorage: HTTPCookieStorage
     private let decoder: JSONDecoder
 
     init(
         baseURL: URL = GearOpsClient.canonicalBaseURL,
-        sessionConfiguration: URLSessionConfiguration? = nil,
-        cookieStorage: HTTPCookieStorage = .shared
+        sessionConfiguration: URLSessionConfiguration? = nil
     ) {
         self.baseURL = baseURL
-        self.cookieStorage = cookieStorage
 
-        let configuration = sessionConfiguration ?? .default
-        configuration.httpCookieStorage = cookieStorage
-        configuration.httpShouldSetCookies = true
-        configuration.httpCookieAcceptPolicy = .always
+        let configuration = URLSessionConfiguration.ephemeral
+        if let protocolClasses = sessionConfiguration?.protocolClasses {
+            // Keep URLProtocol injection available to the native test suite
+            // without inheriting a persistent production transport.
+            configuration.protocolClasses = protocolClasses
+        }
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.urlCredentialStorage = nil
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 30
         configuration.waitsForConnectivity = false
@@ -91,13 +96,15 @@ actor GearOpsClient: GearOpsServing {
         var request = makeRequest(path: "/api/companion/devices", method: "POST")
         request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(Body(token: deviceToken))
-        let _: SuccessResponse = try await perform(request)
+        let response: SuccessResponse = try await perform(request)
+        guard response.success else { throw GearOpsClientError.invalidResponse }
     }
 
-    func revokeCompanion(credential: String) async {
+    func revokeCompanion(credential: String) async throws {
         var request = makeRequest(path: "/api/companion/devices", method: "DELETE")
         request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization")
-        _ = try? await session.data(for: request)
+        let response: SuccessResponse = try await perform(request)
+        guard response.success else { throw GearOpsClientError.invalidResponse }
     }
 
     private func makeRequest(
@@ -109,7 +116,9 @@ actor GearOpsClient: GearOpsServing {
         components.queryItems = queryItems.isEmpty ? nil : queryItems
         var request = URLRequest(url: components.url!)
         request.httpMethod = method
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         request.setValue("GearOps/1.0 macOS", forHTTPHeaderField: "User-Agent")
         request.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
         return request
@@ -151,13 +160,13 @@ actor GearOpsClient: GearOpsServing {
     private static func networkMessage(for error: Error) -> String {
         switch (error as? URLError)?.code {
         case .notConnectedToInternet, .networkConnectionLost:
-            "No internet connection. Showing the last confirmed Gear Tracker data."
+            "No internet connection. Check your connection and try again."
         case .timedOut:
-            "Gear Tracker timed out. Showing the last confirmed data."
+            "Gear Tracker timed out. Try again."
         case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-            "Gear Tracker could not be reached. Showing the last confirmed data."
+            "Gear Tracker could not be reached. Try again."
         default:
-            "Gear Tracker could not refresh. Showing the last confirmed data."
+            "Gear Tracker could not complete the request. Try again."
         }
     }
 }

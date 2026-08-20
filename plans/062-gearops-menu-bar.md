@@ -33,11 +33,11 @@ Staff currently open the web control room to answer two frequent questions: how 
 - Companion data shows elapsed projection freshness without treating quiet time as a health failure. Healthy kiosk rows show location-scoped pending-pickup and open-checkout workload; unhealthy rows retain last-heartbeat diagnostics.
 - A permission-denied kiosk read is `Restricted`, not a kiosk outage.
 - The app is read-only. All detailed work deep-links to the existing web control room.
-- The user-facing app name is Wisconsin Creative and its app identity reuses `ios/Wisconsin/AppIcons/AppIcon.icon`; GearOps remains the internal module, project, and bundle identifier.
+- The user-facing app name is Wisconsin Creative and its app identity reuses the shared `ios/Wisconsin/Assets.xcassets/AppIcon.appiconset`; GearOps remains the internal module, project, and bundle identifier.
 - In-app icon surfaces resolve the compiled `AppIcon` from the running bundle. `NSApplication.applicationIconImage` and `NSWorkspace.icon(forFile:)` are not used, because both return Apple's generic application placeholder rather than reporting failure. A missing icon falls back to the vector Block W from the shared icon source, never to a foreign placeholder.
 - The menu bar uses a compact package SF Symbol; the repository app icon appears in the popover and system-owned app surfaces. The `Sim iPad` development record is excluded from macOS health counts, severity, and rows without changing the server record.
 - Booking changes arrive through silent APNs invalidation and an Upstash-backed projection fetch. Local alerts are passive and silent, establish a no-alert baseline on enrollment, and deep-link to the affected booking.
-- Any window this app opens must activate the app first. As an `LSUIElement` accessory process it never activates itself, so a `Settings` scene opens its window behind every other window and reads as a dead menu item. `SettingsLink(preAction:)` does not exist in this SDK, so settings is an explicit `Window` scene: the menu calls `NSApplication.activate()` before `openWindow(id:)`, and the window also orders itself front on appear to cover ⌘, and background re-open.
+- Any window this app opens must activate the app first. As an `LSUIElement` accessory process it never activates itself, so a `Settings` scene opens its window behind every other window and reads as a dead menu item. `SettingsLink(preAction:)` does not exist in this SDK, so settings is an explicit `Window` scene: the menu calls `NSApplication.activate()` before `openWindow(id:)`, and a one-shot window probe covers non-menu visibility without reactivating on every SwiftUI update.
 - Launch at login is user-controlled through `SMAppService.mainApp`. A registration held in `requiresApproval` is a normal macOS outcome, not a failure, and is surfaced with a route into System Settings rather than an error.
 - The menu bar count is optional. Hiding it leaves the status symbol alone; the count remains `CHECKOUT + OPEN` when shown.
 - Booking alerts stay silent by default. Sound is an explicit per-user opt-in carried to each delivery, so the passive-by-default contract holds unless the user changes it.
@@ -114,7 +114,7 @@ Staff currently open the web control room to answer two frequent questions: how 
 - [x] Automatic launch, restore, APNs handling, and manual refresh use only external-cache routes.
 - [x] Projection failures stay visible without zeroing trusted counts.
 - [x] Permission-denied kiosk health is represented as restricted.
-- [x] macOS unit tests, source contracts, build, docs, and whitespace gates pass.
+- [ ] macOS unit tests, source contracts, build, docs, and whitespace gates pass. Source contracts, Swift parsing, build-for-testing, and whitespace pass in the 2026-08-20 follow-up; testmanagerd execution and docs verification remain open.
 - [x] Authenticated runtime proof is either completed against an isolated target or retained as an explicit gap.
 
 ## Execution result
@@ -153,3 +153,12 @@ Staff currently open the web control room to answer two frequent questions: how 
 - The app would need a production-only credential, copied session cookie, or committed secret.
 - Correctness would require changing custody lifecycle or deriving checkout state independently on macOS.
 - The macOS target would require modifying or regenerating the existing iOS project.
+
+## Follow-up execution: 2026-08-20 reliability, privacy, and release hardening
+
+- Removed the model's 60-second network loop. Launch restore is one bounded task; APNs invalidation, explicit refresh, and `NSWorkspace.didWakeNotification` are the only subsequent refresh paths.
+- Added projection and cache validation for version, bounded collection sizes, nonnegative counters/workloads, allowed access states, nonempty unique IDs, and nontrapping activity indexing. Invalid data preserves the last trusted state.
+- Hardened transport to an ephemeral, cookie-free, no-store URL session. Companion revocation now propagates failures; pending revocation credentials are stored in a device-only data-protection Keychain slot, retried at launch, and capped at 16 entries. Release enables Hardened Runtime. The broken direct `.icon` source was replaced with the shared compiled `AppIcon.appiconset` so the project reaches Swift compilation.
+- Sign-out and identity-removal paths clear local booking notifications and avatar caches. Remote revocation and optional APNs/notification setup are generation-fenced and do not block projection installation or sign-in completion.
+- Centralized custody count and companion/kiosk severity, represented failed/restricted kiosk access honestly, fixed settings focus theft, exposed login lifecycle errors and password scrubbing, made pending login approval honest, refreshed System Settings state on activation, and added reduced-motion/focus/accessibility polish. Avatar fetches require HTTPS image responses and a 2 MB byte cap.
+- Proof: `xcrun swiftc -parse macos/GearOps/*.swift` and `macos/GearOpsTests/*.swift` pass; unsigned Debug test compilation, unsigned Release build, and `xcodebuild build-for-testing` pass with `OTHER_SWIFT_FLAGS=-disable-sandbox` in this restricted environment; 27 focused macOS Vitest source/security contracts pass. `xcodebuild test` cannot establish `testmanagerd` communication under the sandbox, and clean Release signing, APNs, installed-app smoke, and matched `gt-ui-review` captures remain open.
