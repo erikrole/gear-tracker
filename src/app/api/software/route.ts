@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { requirePermission, requirePermissionOrCollaboratorCapability } from "@/lib/rbac";
-import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import {
   createSoftwareCredential,
   listSoftwareCredentials,
@@ -22,20 +22,11 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "software", "manage");
+  await enforceRateLimit(`software:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const body = createSoftwareCredentialSchema.parse(await req.json());
-  const credential = await createSoftwareCredential(body);
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "software_credential",
-    entityId: credential.id,
-    action: "create",
-    after: {
-      name: credential.name,
-      visibleTo: credential.visibleTo,
-      secretsStored: true,
-    },
+  const credential = await createSoftwareCredential(body, {
+    id: user.id,
+    role: user.role,
   });
 
   return ok({ data: credential }, 201);

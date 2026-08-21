@@ -80,6 +80,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
                   status: true,
                   dayOfWeek: true,
                   date: true,
+                  dateEndsOn: true,
+                  allDay: true,
                   startsAt: true,
                   endsAt: true,
                   label: true,

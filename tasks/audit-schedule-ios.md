@@ -6,6 +6,40 @@
 
 Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass. Reconciled against source on 2026-05-11.
 
+## 2026-08-20 Accessibility Capture Follow-up
+
+First run of the light/dark/accessibility-size matrix for List and Calendar, captured on iPhone 16 Pro (iOS 26.5) through the `GT_PERFORMANCE_SCENARIO=schedule` fixture harness. Light and dark are clean. `accessibility-extra-large` is not, and the existing Dynamic Type source contract does not catch it because it asserts which font styles the row uses, not whether the layout survives them.
+
+- [x] [P1 / Dynamic Type] **The leading time gutter clips its own value at accessibility sizes.** `.lineLimit(1)` and `.minimumScaleFactor(0.7)` sit on a hard `.frame(width: 62, alignment: .trailing)`, so past 70% scaling the text truncates: `11:00 AM` renders as `11:…` and `7:30 PM` as `7:3…`. The rail exists to make start and end times scannable, so this removes the feature exactly for the users who most need larger text.
+      `ios/Wisconsin/Views/ScheduleView.swift:2353-2355`.
+      Suggested fix: drive the gutter width with `@ScaledMetric` rather than a constant. Five files already use it, including `Components/CrewRow.swift`, so the pattern is in-tree.
+
+- [x] [P2 / Dynamic Type] **`CoverageChip` wraps its fraction across two lines.** The label carries no `lineLimit` or `fixedSize`, so `4/6` breaks into `4/` above `6`. A staffing ratio split mid-token reads as a rendering fault rather than data.
+      `ios/Wisconsin/Views/Components/CrewRow.swift:164`.
+      Suggested fix: `.lineLimit(1).fixedSize()` on the count text, so the chip grows instead of wrapping.
+
+- [x] [P3 / Dynamic Type] **Retired under D-053, not fixed.** Day header and venue truncate early. `Thu, A…`, `4 even…`, and `UW…` at the same text size. Lower severity because the day stays identifiable from position, but the per-day event count becomes unreadable precisely when the list is longest.
+      `ScheduleDateHeader` and the `EventRow` venue line in `ios/Wisconsin/Views/ScheduleView.swift`.
+
+- [x] [Coverage gap] **`tests/ios-schedule-dynamic-type.test.ts` cannot catch any of the above.** It asserts `.subheadline.weight(.semibold).monospacedDigit()` is present and `.font(.system(size:` is absent — both true while the row is visibly broken. Consider asserting that the gutter width is not a bare numeric constant, so a fixed frame around scaling text fails the contract.
+
+### Fix applied 2026-08-20
+
+The gutter width now scales with Dynamic Type (`@ScaledMetric(relativeTo: .subheadline)`, `62 * gutterScale`), matching the existing `CrewTypeLabel` treatment in the same component file, and `CoverageChip`'s ratio takes `.lineLimit(1)` plus `.fixedSize(horizontal: true, vertical: false)`. Re-captured at `accessibility-extra-large`: times read `11:00 AM`, `4:00 PM`, and `7:30 PM` in full, and ratios hold one line as `4/6`, `3/3`, `2/5`.
+
+The contract test now guards both. Verified by reverting the gutter to its fixed width and confirming the new assertion fails, then restoring it. Default text size is unchanged: `@ScaledMetric` returns its base value at the default content size, so the frame stays exactly 62pt.
+
+- [x] [P2 / Dynamic Type] **Accepted under D-053, not fixed.** The wider gutter squeezes the venue line out of the row at accessibility sizes. A consequence of the fix above rather than a pre-existing defect. The venue already truncated to `UW…` before the change and is now absent, leaving only the location glyph; titles also break harder (`Volley-` / `ball vs…`). Net legibility still improves, because the time is the value the column exists to carry and it is now complete, but the row is attempting side-by-side layout at a width that no longer supports it.
+      Suggested fix: switch `EventRow` from `HStack` to a vertical arrangement when `\.dynamicTypeSize` reports `.isAccessibilitySize`, so time, title, venue, and coverage each get full width instead of competing for it. That is a layout change rather than a constant change, which is why it is logged here rather than bundled into this slice.
+
+### Scope decision 2026-08-20
+
+The owner set the boundary after reviewing these captures: Gear Tracker serves roughly 30-60 known staff and students, none of whom are expected to run accessibility text sizes, so **D-053** makes those sizes supported-but-not-designed-for. The proposed `EventRow` vertical-stack rewrite is cancelled, and the two items above are retired rather than carried as backlog.
+
+What stays: the two fixes already shipped, because they cost nothing and are already verified; semantic fonts; VoiceOver labels; contrast; and 44pt tap targets. What stops: running the accessibility-size pass as part of routine visual review. Light and dark remain required.
+
+Reopen only on a trigger named in D-053 -- a public release, a real user complaint, or an institutional accessibility requirement.
+
 ## 2026-07-18 Collaborator Published Schedule Follow-up
 
 - [x] Published discovery is limited to current and upcoming events without weakening snapshot, hidden-event, or archive gates.
@@ -142,9 +176,10 @@ Scope: `ScheduleView` (List + Calendar modes) + `ScheduleCalendarView` + `Schedu
 ## P2 — post-MVP
 
 - [ ] [Parity] AREA_SHIFTS lists three view modes — List / Week / Calendar — iOS has only List + Calendar (no Week strip). Acceptable for V1.
-- [ ] [Parity] My Hours stat strip (`GET /api/shifts/my-hours`) not on iOS. Useful for shift-totaling but not on the V1 student bar.
-- [ ] [Parity] AREA_SHIFTS filter bar (Sport / Area / Coverage / Time / My Shifts) — iOS has only "My Shifts". Power-user surface.
+- [ ] [Parity] **Deferred — power-user parity, not a defect.** My Hours stat strip (`GET /api/shifts/my-hours`) not on iOS. Useful for shift-totaling but not on the V1 student bar.
+- [ ] [Parity] **Deferred — power-user parity, not a defect.** AREA_SHIFTS filter bar (Sport / Area / Coverage / Time / My Shifts) — iOS has only "My Shifts". Power-user surface.
 - [ ] [Parity] ShiftDetailPanel (per-event admin assignment management) not on iOS — admin-only, web-first by design.
+- [x] [Correctness] Calendar mode's day list rendered in API insertion order, not chronological order — `eventsByDay` was assigned unsorted while list groups sorted. Fixed 2026-08-19; guarded by `tests/ios-schedule-ui-cleanup.test.ts`.
 - [ ] [UI polish] Calendar prev/next month chevrons have no bounds; tapping forward past the last event date is a dead-end with no hint. Cosmetic.
 - [ ] [UI polish] Toolbar Picker `.frame(width: 150)` — only 2 segments, fine on most devices, may clip on iPhone SE in landscape with all toolbar items.
 
@@ -152,7 +187,7 @@ Scope: `ScheduleView` (List + Calendar modes) + `ScheduleCalendarView` + `Schedu
 
 AREA_MOBILE.md:
 - [x] AC-2 — schedule list supports search-equivalent (My Shifts toggle) + scope (mode picker) + row→detail.
-- [ ] AC-3 — overdue-style red treatment isn't applicable here; not relevant to this screen.
+- [x] AC-3 — **Closed 2026-08-20 as not applicable.** Overdue-style red has no meaning on Schedule; the criterion belongs to custody surfaces. It was never work, so it should not have sat in an open list.
 - [x] AC-5 — Trade Board UI exposes Post + Claim + Cancel; server gates remain authoritative; no admin-only affordance leaks to STUDENT.
 
 AREA_SHIFTS.md (iOS surface only):
@@ -161,9 +196,9 @@ AREA_SHIFTS.md (iOS surface only):
 - [x] Calendar view: month grid with coverage indicators (green/orange/secondary).
 - [x] List view: grouped by date, "My Shifts" filter present.
 - [x] Mobile: card layout + sheet-based event detail.
-- [ ] Week view: not implemented on iOS (P2 parity).
-- [ ] My Hours stat strip: not implemented on iOS (P2).
-- [ ] Filter bar (Sport/Area/Coverage/Time): not implemented on iOS (P2).
+- [ ] Week view: not implemented on iOS (P2 parity, deferred — duplicate of the parity entry above).
+- [ ] My Hours stat strip: not implemented on iOS (P2, deferred — duplicate of the parity entry above).
+- [ ] Filter bar (Sport/Area/Coverage/Time): not implemented on iOS (P2, deferred — duplicate of the parity entry above).
 
 ## Lenses checked
 - [x] Gaps

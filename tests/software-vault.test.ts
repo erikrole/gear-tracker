@@ -85,12 +85,17 @@ describe("software vault source contracts", () => {
 
   it("uses an audited, rate-limited reveal boundary", () => {
     const route = source("src/app/api/software/[id]/secret/route.ts");
+    const service = source("src/lib/services/software.ts");
 
     expect(route).toContain('requirePermissionOrCollaboratorCapability(user, "software", "reveal", "SOFTWARE_VAULT_VIEW")');
     expect(route).toContain('software:reveal:${user.id}');
-    expect(route).toContain('action: "reveal_password"');
+    expect(route).toContain("export const POST");
+    expect(route).not.toContain("export const GET");
+    expect(service).toContain('action: "reveal_password"');
+    expect(service).toContain("createAuditEntryTx(tx");
+    expect(service).toContain("Prisma.TransactionIsolationLevel.Serializable");
     expect(route).toContain('return ok({ data: { password: credential.password } });');
-    expect(route).not.toContain("after: { password:");
+    expect(service).not.toContain("after: { password:");
   });
 
   it("keeps the page masked until an explicit secret request", () => {
@@ -101,11 +106,11 @@ describe("software vault source contracts", () => {
 
     expect(sidebar).toContain('{ label: "Software", href: "/licenses"');
     expect(page).toContain('<SoftwareVault isAdmin={isAdmin} />');
-    expect(vault).toContain('fetch(`/api/software/${id}/secret`)');
+    expect(vault).toContain('fetch(`/api/software/${id}/secret`, { method: "POST" })');
     expect(vault).toContain("••••••••••••");
     expect(vault).toContain("Reveals are logged");
     expect(vault).toContain("<Checkbox");
-    expect(vault).toContain("Who can use this login?");
+    expect(vault).toContain("Who is this shared with?");
     expect(vault).toContain('key="copied"');
     expect(vault).toContain('showCopied(`${record.id}:password`)');
     expect(schema).toContain("accountEmailCiphertext");
@@ -148,5 +153,12 @@ describe("software vault audiences", () => {
     expect(created.visibleTo).toEqual(["STAFF", "STUDENT"]);
     expect(updateSoftwareCredentialSchema.parse({ archived: true })).toEqual({ archived: true });
     expect(() => updateSoftwareCredentialSchema.parse({ visibleTo: [] })).toThrow("Choose at least one audience");
+    expect(() => updateSoftwareCredentialSchema.parse({})).toThrow("Choose at least one field to update");
+    expect(() => createSoftwareCredentialSchema.parse({
+      name: "Motion Array",
+      accountEmail: "shared@example.com",
+      password: "not-a-real-secret",
+      unexpected: true,
+    })).toThrow("Unrecognized key");
   });
 });

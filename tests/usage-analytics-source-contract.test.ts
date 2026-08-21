@@ -14,14 +14,27 @@ describe("usage analytics source contract", () => {
   });
 
   it("counts normalized web and native surfaces without content fields", () => {
+    const access = source("src/lib/usage-analytics.ts");
     const web = source("src/components/ProductUsageTracker.tsx");
     const api = source("src/app/api/product-events/route.ts");
     const native = source("ios/Wisconsin/Core/APIClient.swift");
-    expect(web).toContain('eventName, platform: "web", surface');
+    const report = source("src/lib/services/app-activity-report.ts");
+    expect(web).toContain('platform: "web"');
+    expect(web).toContain("installationKey");
+    expect(web).toContain('releaseChannel: "web"');
     expect(native).toContain('platform: "ios"');
     expect(native).toContain('request(path: "/api/product-events"');
+    expect(native).toContain("CFBundleVersion");
+    expect(native).toContain("hw.machine");
+    expect(native).toContain("releaseChannel");
+    expect(native).toContain("appStoreReceiptURL");
     expect(api).not.toContain("searchQuery");
     expect(api).not.toContain("recordId");
     expect(api).not.toContain("pathname");
+    expect(api).toContain("userAppInstallation.upsert");
+    expect(api).toContain("installationHash");
+    expect(access).toContain("pseudonymousInstallationKey");
+    expect(report).toContain("IOS_LATEST_APP_BUILD");
+    expect(report).toContain("staleIosInstallations");
   });
 });

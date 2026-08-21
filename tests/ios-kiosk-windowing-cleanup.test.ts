@@ -47,7 +47,7 @@ describe("iOS kiosk windowing cleanup", () => {
     const checkout = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
     const pickup = source("ios/Wisconsin/Kiosk/KioskPickupView.swift");
     const returned = source("ios/Wisconsin/Kiosk/KioskReturnView.swift");
-    const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const hub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
 
     expect(app).toContain(".windowResizability(.contentMinSize)");
     expect(app).toContain(".frame(minWidth: 640, minHeight: 540)");

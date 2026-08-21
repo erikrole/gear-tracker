@@ -114,3 +114,53 @@
 - Deferred: Student/collaborator authenticated audience proof, first real-credential reveal/copy/archive/restore acceptance, and coordinated key rotation.
 - Blocked: Matching student and capability-enabled collaborator sessions were unavailable. The release did not read, copy, archive, or otherwise expose the real credential secret.
 - Proof artifacts: commit `0b6c7931`, deployment `dpl_C76nqguhMWnUAq8hRSPW2Kudj3Wh`, and migration checksum `9a53d2962330acade5d053f7942ca9da49a71337dfd620a616d67e1792862a0d`.
+
+## First-Class Software Separation and Hardening — 2026-08-20
+
+### Goal
+
+- Make Software a first-class destination with two explicit workflows: ordinary shared department logins and Photo Mechanic activation licenses.
+- Keep shared-login secrets, permissions, and lifecycle independent from Photo Mechanic's two-slot claim/custody model while preserving `/licenses` compatibility.
+- Harden the shared-login management path against duplicate actions, partial mutation/audit failures, naming conflicts, and stale in-memory secrets.
+
+### Source Checks
+
+- `src/app/(app)/licenses/page.tsx` now owns URL-backed Shared logins / Photo Mechanic licenses tabs, contextual Photo Mechanic actions, collaborator suppression, and retryable role loading.
+- `src/app/(app)/licenses/SoftwareVault.tsx` owns shared-login list, reveal/copy, add/edit, archive, and restore behavior; shared-login copy no longer suggests Photo Mechanic.
+- `SoftwareCredential` and `LicenseCode` are already separate Prisma models and API families. This slice must not merge them or change Photo Mechanic claim/expiry semantics.
+- The pre-hardening shared software mutations wrote the credential before the audit row, so an audit failure could leave a committed change behind; this slice moves those writes into serializable transactions and maps unique-name conflicts to a friendly 409.
+- Existing route tabs use the installed shadcn `Tabs` primitive and `useUrlState` for durable, linkable selection.
+
+### Stop Conditions
+
+- Stop if current permissions, API response shapes, production migration state, or D-052 contradict keeping the two workflows separate on the existing route.
+- Stop if hardening would require exposing account emails or passwords in audit snapshots, list payloads, source fixtures, or error messages.
+- Stop runtime claims if an authenticated session or configured development vault key is unavailable; source/build proof does not substitute for the signed-in route.
+- Preserve the unrelated active iOS and documentation changes already present in the worktree.
+
+### Slices
+
+- [x] Slice 1: Add a URL-addressable Shared logins / Photo Mechanic tab boundary, contextual actions, role-aware visibility, and explicit section copy.
+- [x] Slice 2: Polish shared-login refresh, archived-state, pending-action, secret-memory, empty, and recovery behavior.
+- [x] Slice 3: Move shared-login create/update/archive audit writes into serializable transactions and return a friendly unique-name conflict.
+- [x] Slice 4: Add focused regressions and run source, build, documentation, and authenticated-browser availability gates.
+
+### Verification
+
+- [x] Focused Software vault service, route, UI, and privacy tests (35 tests).
+- [x] `npx tsc --noEmit --pretty false`.
+- [x] Focused ESLint for changed TypeScript and TSX files.
+- [x] `npm run build:app` after confirming no Next development server occupies the configured port.
+- [x] `npm run codemap` followed by `npm run verify:docs` after route/service codemap drift.
+- [x] `git diff --check` and a final in-scope diff review.
+- [ ] `gt-ui-review` matched before/after review page using the same role, data, viewport, and scroll position (blocked: no approved isolated authenticated fixture/session is available in this run).
+- [ ] Authenticated desktop and narrow browser proof for both tabs, contextual controls, masked secrets, clean console, and clean network behavior (blocked: no approved isolated authenticated fixture/session; no production or real secret was used).
+
+### Review
+
+- Shipped: URL-backed Shared logins and Photo Mechanic licenses tabs on `/licenses`, contextual PM actions, collaborator-safe role loading/retry, mobile PM cards, shared-login pending/recovery polish, POST reveal, transactional software audits/conflict mapping, explicit student license DTOs, serializable PM release retry, and private/audited CSV export.
+- Verified: 35 focused tests across software/privacy/export/release contracts, TypeScript, scoped ESLint, Prisma validation, migration-prefix check, deploy-shaped `npm run build:app`, and `git diff --check`.
+- Deferred: Authenticated student/collaborator role proof, first real-credential reveal/copy/archive/restore acceptance, coordinated key rotation, and matched before/after `gt-ui-review` captures.
+- Blocked: Browser and visual-review gates require an approved isolated authenticated fixture/session. Repository testing configuration exposes no `PLAYWRIGHT_BASE_URL`, dedicated credentials, or `PLAYWRIGHT_TARGET_ISOLATED=1`; no production or real secret was touched.
+- Proof artifacts: `tests/software-page-first-class.test.ts`, `tests/software-api-hardening.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`, `tests/licenses-export-route.test.ts`, `tests/licenses-release-concurrency.test.ts`, `src/app/(app)/licenses/page.tsx`, `src/app/(app)/licenses/SoftwareVault.tsx`, `src/app/(app)/licenses/LicenseTable.tsx`, `src/lib/services/software.ts`, and the reconciled area/decision/gap docs.
+- Next slice or stop: Stop at the local hardening boundary until an approved isolated authenticated browser session/fixture is available; then prove both tabs at desktop and 390×844, student/collaborator filtering, secret pending/recovery, and the visual review before any rollout claim.

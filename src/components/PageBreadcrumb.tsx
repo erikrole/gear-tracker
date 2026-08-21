@@ -57,6 +57,7 @@ export default function PageBreadcrumb() {
   const { label: entityLabel } = useBreadcrumbLabel();
   const { data: currentUser } = useCurrentUser();
   const currentUserRole = currentUser?.role;
+  const canViewOwnerReport = currentUser?.canViewUsageAnalytics === true;
   const [expanded, setExpanded] = useState(false);
 
   // Reset collapse when navigating
@@ -102,7 +103,9 @@ export default function PageBreadcrumb() {
       >
         {visibleItems.map((item, i) => {
           const siblingItems = SIBLING_MAP[item.href];
-          const visibleSiblings = siblingItems ? visibleSiblingsForRole(siblingItems, currentUserRole) : [];
+          const visibleSiblings = siblingItems
+            ? visibleSiblingsForRole(siblingItems, currentUserRole, canViewOwnerReport)
+            : [];
           const hasSiblings = !item.isPage && visibleSiblings.length > 0;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
           const isHomeItem = item.href === "/";

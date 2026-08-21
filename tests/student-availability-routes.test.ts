@@ -159,6 +159,55 @@ describe("student availability routes", () => {
     }));
   });
 
+  it("persists an inclusive all-day range for a one-off day away", async () => {
+    vi.mocked(db.studentAvailabilityBlock.create).mockResolvedValue({
+      id: "block-range",
+      userId: "student-1",
+      kind: "AD_HOC",
+      intent: "CANNOT_WORK",
+      status: "APPROVED",
+      dayOfWeek: null,
+      date: new Date("2026-10-08T00:00:00.000Z"),
+      dateEndsOn: new Date("2026-10-10T00:00:00.000Z"),
+      allDay: true,
+      startsAt: "00:00",
+      endsAt: "23:59",
+      label: "Friends visiting",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+
+    const res = await createAvailability(
+      jsonRequest("/api/users/student-1/availability", "POST", {
+        kind: "AD_HOC",
+        date: "2026-10-08",
+        dateEndsOn: "2026-10-10",
+        allDay: true,
+        startsAt: "00:00",
+        endsAt: "23:59",
+        label: "Friends visiting",
+      }),
+      params({ id: "student-1" }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(db.studentAvailabilityBlock.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        date: new Date("2026-10-08T00:00:00.000Z"),
+        dateEndsOn: new Date("2026-10-10T00:00:00.000Z"),
+        allDay: true,
+        startsAt: "00:00",
+        endsAt: "23:59",
+      }),
+    });
+  });
+
   it("recomputes future active assignment conflicts after creating availability", async () => {
     const block = {
       id: "block-1",
@@ -695,6 +744,24 @@ describe("student availability routes", () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toBe("Day of week is required for weekly availability");
+  });
+
+  it("rejects a one-off range whose end comes before its start", async () => {
+    const res = await createAvailability(
+      jsonRequest("/api/users/student-1/availability", "POST", {
+        kind: "AD_HOC",
+        date: "2026-10-10",
+        dateEndsOn: "2026-10-08",
+        startsAt: "00:00",
+        endsAt: "23:59",
+      }),
+      params({ id: "student-1" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("End date must be on or after the start date");
+    expect(db.studentAvailabilityBlock.create).not.toHaveBeenCalled();
   });
 });
 

@@ -116,6 +116,7 @@ import {
   registerCompanionDevice,
   requireCompanion,
   resetCompanionRedisForTests,
+  renewCompanionSession,
   revokeCompanionSession,
   revokeCompanionUser,
   writeCompanionProjection,
@@ -182,6 +183,24 @@ describe("companion store", () => {
       role: "STAFF",
     });
     await expect(requireCompanion(requestFor(token))).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("issues a rolling credential from the external authority without touching Neon", async () => {
+    const token = await issueCompanionSession({ id: "user-1", role: "ADMIN" }, 0);
+
+    const renewed = await renewCompanionSession(requestFor(token));
+
+    expect(renewed).not.toEqual(token);
+    await expect(requireCompanion(requestFor(token))).resolves.toMatchObject({
+      userId: "user-1",
+      role: "ADMIN",
+      epoch: 0,
+    });
+    await expect(requireCompanion(requestFor(renewed))).resolves.toMatchObject({
+      userId: "user-1",
+      role: "ADMIN",
+      epoch: 0,
+    });
   });
 
   it("invalidates every prior credential before cleanup and rejects stale enrollment", async () => {

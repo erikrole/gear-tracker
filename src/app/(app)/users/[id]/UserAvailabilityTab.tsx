@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +35,8 @@ type AvailabilityBlock = {
   status?: AvailabilityStatus;
   dayOfWeek: number | null;
   date: string | null;
+  dateEndsOn?: string | null;
+  allDay?: boolean;
   startsAt: string;
   endsAt: string;
   label: string | null;
@@ -92,6 +95,27 @@ function formatDate(value: string | null): string {
   });
 }
 
+function formatDateRange(start: string | null | undefined, end: string | null | undefined): string {
+  const startValue = dateValue(start);
+  const endValue = dateValue(end);
+  if (!startValue) return "";
+  if (!endValue || endValue === startValue) return formatDate(startValue);
+  return `${formatDate(startValue)} – ${formatDate(endValue)}`;
+}
+
+function allDayDescription(intent: AvailabilityIntent): string {
+  switch (intent) {
+    case "PREFER": return "Marks the entire day as preferred when staff are choosing coverage.";
+    case "DISLIKE": return "Marks the entire day as less ideal without blocking assignment.";
+    case "TIME_OFF": return "Requests the entire day off for staff review.";
+    default: return "Use this for travel, visitors, or any day you cannot work at all.";
+  }
+}
+
+function isAllDay(block: AvailabilityBlock): boolean {
+  return block.allDay === true;
+}
+
 function isApprovedTimeOff(block: AvailabilityBlock): boolean {
   return blockIntent(block) === "TIME_OFF" && blockStatus(block) === "APPROVED";
 }
@@ -109,7 +133,11 @@ function isPreference(block: AvailabilityBlock): boolean {
 function nextDatedBlock(blocks: AvailabilityBlock[]): AvailabilityBlock | null {
   const today = localDateValue();
   const dated = blocks
-    .filter((block) => blockKind(block) === "AD_HOC" && dateValue(block.date) >= today)
+    .filter((block) => {
+      if (blockKind(block) !== "AD_HOC") return false;
+      const end = dateValue(block.dateEndsOn) || dateValue(block.date);
+      return end >= today;
+    })
     .filter((block) => !(blockIntent(block) === "TIME_OFF" && blockStatus(block) === "DENIED"))
     .sort((a, b) => dateValue(a.date).localeCompare(dateValue(b.date)) || a.startsAt.localeCompare(b.startsAt));
   return dated[0] ?? null;
@@ -148,7 +176,7 @@ function AvailabilityImpactSummary({ blocks }: { blocks: AvailabilityBlock[] }) 
   const preferenceCount = blocks.filter(isPreference).length;
   const nextBlock = nextDatedBlock(blocks);
   const nextBlockCopy = nextBlock
-    ? `${formatDate(nextBlock.date)} - ${formatTime(nextBlock.startsAt)}-${formatTime(nextBlock.endsAt)} - ${impactLabel(nextBlock)}`
+    ? `${formatDateRange(nextBlock.date, nextBlock.dateEndsOn)} - ${isAllDay(nextBlock) ? "All day" : `${formatTime(nextBlock.startsAt)}-${formatTime(nextBlock.endsAt)}`} - ${impactLabel(nextBlock)}`
     : "No upcoming dated exceptions";
 
   const summaryItems = [
@@ -206,17 +234,20 @@ function AvailabilityImpactSummary({ blocks }: { blocks: AvailabilityBlock[] }) 
 type AvailabilityFormProps = {
   userId: string;
   initial?: AvailabilityBlock | null;
+  initialKind?: AvailabilityKind;
   onSaved: (block: AvailabilityBlock) => void;
   onCancel: () => void;
   canReview: boolean;
 };
 
-function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: AvailabilityFormProps) {
+function AvailabilityForm({ userId, initial, initialKind = "WEEKLY", onSaved, onCancel, canReview }: AvailabilityFormProps) {
   const kindId = useId();
   const intentId = useId();
   const statusId = useId();
   const dayId = useId();
   const dateId = useId();
+  const dateEndId = useId();
+  const allDayId = useId();
   const startId = useId();
   const endId = useId();
   const labelId = useId();
@@ -224,11 +255,17 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
   const semesterStartId = useId();
   const semesterEndId = useId();
 
-  const [kind, setKind] = useState<AvailabilityKind>(blockKind(initial ?? ({ kind: "WEEKLY" } as AvailabilityBlock)));
+  const [kind, setKind] = useState<AvailabilityKind>(initial ? blockKind(initial) : initialKind);
   const [intent, setIntent] = useState<AvailabilityIntent>(blockIntent(initial ?? ({ intent: "CANNOT_WORK" } as AvailabilityBlock)));
   const [status, setStatus] = useState<AvailabilityStatus>(blockStatus(initial ?? ({ status: "APPROVED" } as AvailabilityBlock)));
   const [dayOfWeek, setDayOfWeek] = useState(String(initial?.dayOfWeek ?? 1));
-  const [date, setDate] = useState(dateValue(initial?.date));
+  const [date, setDate] = useState(dateValue(initial?.date) || (initialKind === "AD_HOC" ? localDateValue() : ""));
+  const [dateEndsOn, setDateEndsOn] = useState(() => {
+    const start = dateValue(initial?.date);
+    const end = dateValue(initial?.dateEndsOn);
+    return end && end !== start ? end : "";
+  });
+  const [allDay, setAllDay] = useState(initial?.allDay === true);
   const [startsAt, setStartsAt] = useState(initial?.startsAt ?? "09:00");
   const [endsAt, setEndsAt] = useState(initial?.endsAt ?? "11:00");
   const [label, setLabel] = useState(initial?.label ?? "");
@@ -240,12 +277,16 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (startsAt >= endsAt) {
+    if (!allDay && startsAt >= endsAt) {
       toast.error("Start time must be before end time");
       return;
     }
     if (kind === "AD_HOC" && !date) {
       toast.error("Choose a date for the one-time conflict");
+      return;
+    }
+    if (kind === "AD_HOC" && dateEndsOn && date > dateEndsOn) {
+      toast.error("End date must be on or after the start date");
       return;
     }
     if (semesterStartsOn && semesterEndsOn && semesterStartsOn > semesterEndsOn) {
@@ -267,12 +308,14 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
             status: intent === "TIME_OFF" && canReview ? status : undefined,
             dayOfWeek: kind === "WEEKLY" ? Number(dayOfWeek) : null,
             date: kind === "AD_HOC" ? date : null,
-            startsAt,
-            endsAt,
+            dateEndsOn: kind === "AD_HOC" ? dateEndsOn || date : null,
+            allDay: kind === "AD_HOC" && allDay,
+            startsAt: kind === "AD_HOC" && allDay ? "00:00" : startsAt,
+            endsAt: kind === "AD_HOC" && allDay ? "23:59" : endsAt,
             label: label.trim() || undefined,
-            semesterLabel: semesterLabel.trim() || undefined,
-            semesterStartsOn: semesterStartsOn || null,
-            semesterEndsOn: semesterEndsOn || null,
+            semesterLabel: kind === "WEEKLY" ? semesterLabel.trim() || undefined : undefined,
+            semesterStartsOn: kind === "WEEKLY" ? semesterStartsOn || null : null,
+            semesterEndsOn: kind === "WEEKLY" ? semesterEndsOn || null : null,
           }),
         },
       );
@@ -325,13 +368,22 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={kindId} className="text-xs">Type</Label>
-            <Select name="availability-kind" value={kind} onValueChange={(value) => setKind(value as AvailabilityKind)}>
+            <Select
+              name="availability-kind"
+              value={kind}
+              onValueChange={(value) => {
+                const next = value as AvailabilityKind;
+                setKind(next);
+                if (next === "AD_HOC" && !date) setDate(localDateValue());
+                if (next === "WEEKLY") setAllDay(false);
+              }}
+            >
               <SelectTrigger id={kindId} size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="WEEKLY">Weekly class</SelectItem>
-                <SelectItem value="AD_HOC">One-time conflict</SelectItem>
+                <SelectItem value="AD_HOC">One-time day or range</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -350,16 +402,44 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
               </Select>
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={dateId} className="text-xs">Date</Label>
-              <Input id={dateId} name="availability-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8 text-sm" required />
-            </div>
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={dateId} className="text-xs">From</Label>
+                <Input
+                  id={dateId}
+                  name="availability-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setDate(next);
+                    if (dateEndsOn && next > dateEndsOn) setDateEndsOn(next);
+                  }}
+                  className="h-8 text-sm"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={dateEndId} className="text-xs">Through <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Input id={dateEndId} name="availability-date-end" type="date" value={dateEndsOn} min={date || undefined} onChange={(e) => setDateEndsOn(e.target.value)} className="h-8 text-sm" />
+              </div>
+            </>
           )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={labelId} className="text-xs">Label</Label>
             <Input id={labelId} name="availability-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "WEEKLY" ? "COMM 201" : "Exam"} className="h-8 text-sm" maxLength={80} />
           </div>
         </div>
+
+        {kind === "AD_HOC" && (
+          <div className="flex items-start gap-3 rounded-md border bg-background px-3 py-2.5">
+            <Checkbox id={allDayId} checked={allDay} onCheckedChange={(checked) => setAllDay(checked === true)} />
+            <div className="-mt-0.5 flex flex-col gap-0.5">
+              <Label htmlFor={allDayId} className="text-sm font-medium">All day</Label>
+              <p className="text-xs text-muted-foreground">{allDayDescription(intent)}</p>
+            </div>
+          </div>
+        )}
 
         {intent === "TIME_OFF" && canReview && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
@@ -379,31 +459,46 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: Ava
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={startId} className="text-xs">Start</Label>
-            <Input id={startId} name="availability-start" type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="h-8 text-sm" required />
+        {!allDay && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={startId} className="text-xs">Start time</Label>
+              <Input id={startId} name="availability-start" type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="h-8 text-sm" required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={endId} className="text-xs">End time</Label>
+              <Input id={endId} name="availability-end" type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="h-8 text-sm" required />
+            </div>
+            {kind === "WEEKLY" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={semesterId} className="text-xs">Term label <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Input id={semesterId} name="availability-semester-label" value={semesterLabel} onChange={(e) => setSemesterLabel(e.target.value)} placeholder="Fall 2026" className="h-8 text-sm" maxLength={40} />
+              </div>
+            )}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={endId} className="text-xs">End</Label>
-            <Input id={endId} name="availability-end" type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="h-8 text-sm" required />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={semesterId} className="text-xs">Semester label</Label>
-            <Input id={semesterId} name="availability-semester-label" value={semesterLabel} onChange={(e) => setSemesterLabel(e.target.value)} placeholder="Fall 2026" className="h-8 text-sm" maxLength={40} />
-          </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={semesterStartId} className="text-xs">Semester starts</Label>
-            <Input id={semesterStartId} name="availability-semester-start" type="date" value={semesterStartsOn} onChange={(e) => setSemesterStartsOn(e.target.value)} className="h-8 text-sm" />
+        {allDay && (
+          <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            This will be saved as {intent === "TIME_OFF" ? "a full-day time-off request" : intent === "PREFER" ? "a full-day preferred window" : intent === "DISLIKE" ? "a full-day avoid window" : "unavailable all day"}{dateEndsOn ? " for the selected date range" : ""}.
+          </p>
+        )}
+
+        {kind === "WEEKLY" && (
+          <div className="grid grid-cols-1 gap-3 rounded-md border bg-background p-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <p className="text-xs font-medium">Term dates <span className="font-normal text-muted-foreground">(optional — keeps old classes from creating future warnings)</span></p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={semesterStartId} className="text-xs">Starts</Label>
+              <Input id={semesterStartId} name="availability-semester-start" type="date" value={semesterStartsOn} onChange={(e) => setSemesterStartsOn(e.target.value)} className="h-8 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={semesterEndId} className="text-xs">Ends</Label>
+              <Input id={semesterEndId} name="availability-semester-end" type="date" value={semesterEndsOn} min={semesterStartsOn || undefined} onChange={(e) => setSemesterEndsOn(e.target.value)} className="h-8 text-sm" />
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={semesterEndId} className="text-xs">Semester ends</Label>
-            <Input id={semesterEndId} name="availability-semester-end" type="date" value={semesterEndsOn} onChange={(e) => setSemesterEndsOn(e.target.value)} className="h-8 text-sm" />
-          </div>
-        </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
@@ -440,7 +535,8 @@ function BlockPill({
   const kind = blockKind(block);
   const intent = blockIntent(block);
   const status = blockStatus(block);
-  const range = `${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
+  const range = isAllDay(block) ? "All day" : `${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
+  const dateRange = kind === "AD_HOC" ? formatDateRange(block.date, block.dateEndsOn) : "";
   const semesterRange = [formatDate(block.semesterStartsOn), formatDate(block.semesterEndsOn)].filter(Boolean).join(" to ");
   const intentBadge = intent === "TIME_OFF"
     ? status === "APPROVED" ? { label: "Approved time off", variant: "green" as const }
@@ -453,6 +549,7 @@ function BlockPill({
   return (
     <div className="group flex min-w-0 items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
       <span className="font-medium tabular-nums">{range}</span>
+      {dateRange && <span className="text-muted-foreground">{dateRange}</span>}
       <Badge variant={intentBadge.variant} size="sm">{intentBadge.label}</Badge>
       {block.label && <Badge variant="secondary" size="sm">{block.label}</Badge>}
       {block.semesterLabel && <Badge variant="gray" size="sm">{block.semesterLabel}</Badge>}
@@ -492,6 +589,7 @@ export default function UserAvailabilityTab({
 }) {
   const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
+  const [newKind, setNewKind] = useState<AvailabilityKind>("WEEKLY");
   const [editing, setEditing] = useState<AvailabilityBlock | null>(null);
   const [localBlocks, setLocalBlocks] = useState<AvailabilityBlock[] | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -521,6 +619,12 @@ export default function UserAvailabilityTab({
   const weeklyBlocks = blocks.filter((block) => blockKind(block) === "WEEKLY");
   const adHocBlocks = blocks.filter((block) => blockKind(block) === "AD_HOC");
 
+  function openNewForm(kind: AvailabilityKind) {
+    setEditing(null);
+    setNewKind(kind);
+    setShowForm(true);
+  }
+
   function upsertBlock(block: AvailabilityBlock) {
     setLocalBlocks((prev) => sortBlocks([...(prev ?? fetchedBlocks ?? []).filter((b) => b.id !== block.id), block]));
     setShowForm(false);
@@ -532,7 +636,7 @@ export default function UserAvailabilityTab({
     const kind = blockKind(block);
     const scheduleLabel = kind === "WEEKLY"
       ? `${DAY_NAMES[block.dayOfWeek ?? 0]} ${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`
-      : `${formatDate(block.date)} ${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
+      : `${formatDateRange(block.date, block.dateEndsOn)} ${isAllDay(block) ? "all day" : `${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`}`;
     const confirmed = await confirm({
       title: "Remove availability?",
       message: `Remove ${block.label ? `${block.label}, ` : ""}${scheduleLabel}? This can change scheduling warnings and time-off context.`,
@@ -574,6 +678,8 @@ export default function UserAvailabilityTab({
           status,
           dayOfWeek: blockKind(block) === "WEEKLY" ? block.dayOfWeek : null,
           date: blockKind(block) === "AD_HOC" ? dateValue(block.date) : null,
+          dateEndsOn: blockKind(block) === "AD_HOC" ? dateValue(block.dateEndsOn) || dateValue(block.date) : null,
+          allDay: blockKind(block) === "AD_HOC" && isAllDay(block),
           startsAt: block.startsAt,
           endsAt: block.endsAt,
           label: block.label ?? null,
@@ -629,16 +735,22 @@ export default function UserAvailabilityTab({
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
           <div>
-            <CardTitle className="text-sm font-semibold">Availability</CardTitle>
+            <CardTitle className="text-sm font-semibold">When can’t you work?</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Unavailable times, preferences, and time off feed assignment warnings. Staff still sets the final call window.
+              Add recurring class times first, then record one-off days or ranges away. These signals guide scheduling; staff still sets the final call window.
             </p>
           </div>
           {canEdit && !showForm && !editing && (
-            <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-              <PlusIcon className="size-3.5" />
-              Add
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => openNewForm("WEEKLY")}>
+                <PlusIcon className="size-3.5" />
+                Add class time
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => openNewForm("AD_HOC")}>
+                <CalendarPlusIcon className="size-3.5" />
+                Add day away
+              </Button>
+            </div>
           )}
         </CardHeader>
 
@@ -648,6 +760,7 @@ export default function UserAvailabilityTab({
           {showForm && (
             <AvailabilityForm
               userId={userId}
+              initialKind={newKind}
               canReview={canReview}
               onSaved={upsertBlock}
               onCancel={() => setShowForm(false)}
@@ -667,7 +780,7 @@ export default function UserAvailabilityTab({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Badge variant="blue" size="sm">Weekly</Badge>
-                <h3 className="text-sm font-medium">Repeating schedule signals</h3>
+                <h3 className="text-sm font-medium">Weekly class schedule</h3>
               </div>
               <span className="text-xs text-muted-foreground">{weeklyBlocks.length} saved</span>
             </div>
@@ -711,7 +824,7 @@ export default function UserAvailabilityTab({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Badge variant="orange" size="sm">Dated</Badge>
-                <h3 className="text-sm font-medium">One-time requests and exceptions</h3>
+                <h3 className="text-sm font-medium">One-off days and ranges</h3>
               </div>
               <span className="text-xs text-muted-foreground">{adHocBlocks.length} saved</span>
             </div>
@@ -723,8 +836,8 @@ export default function UserAvailabilityTab({
               <div className="flex flex-col gap-2">
                 {adHocBlocks.map((block) => (
                   <div key={block.id} className="flex items-start gap-3">
-                    <span className="w-24 shrink-0 pt-1 text-xs font-semibold text-muted-foreground">
-                      {formatDate(block.date)}
+                    <span className="w-32 shrink-0 pt-1 text-xs font-semibold text-muted-foreground">
+                      {formatDateRange(block.date, block.dateEndsOn)}
                     </span>
                     <div className="flex flex-1 flex-wrap gap-1.5">
                       <BlockPill
@@ -747,9 +860,9 @@ export default function UserAvailabilityTab({
       </Card>
 
       {canEdit && !showForm && !editing && (
-        <Button variant="outline" className="w-fit" onClick={() => setShowForm(true)}>
+        <Button variant="outline" className="w-fit" onClick={() => openNewForm("WEEKLY")}>
           <CalendarPlusIcon className="size-4" />
-          Add availability
+          Add another class time
         </Button>
       )}
     </div>

@@ -22,12 +22,20 @@ function category(name: string, parent?: string) {
 function checkout(overrides: {
   startsAt: string;
   kitId?: string | null;
+  eventId?: string | null;
+  events?: string[];
+  sourceReservationId?: string | null;
+  shiftAssignmentId?: string | null;
   assets?: Array<{ assetId: string; family: string }>;
   bulk?: Array<{ family: string; quantity: number }>;
 }): CheckoutBadgeEvidence {
   return {
     startsAt: new Date(overrides.startsAt),
     kitId: overrides.kitId ?? null,
+    eventId: overrides.eventId ?? null,
+    events: (overrides.events ?? []).map((eventId) => ({ eventId })),
+    sourceReservationId: overrides.sourceReservationId ?? null,
+    shiftAssignmentId: overrides.shiftAssignmentId ?? null,
     serializedItems: (overrides.assets ?? []).map((item) => ({
       assetId: item.assetId,
       asset: { category: category(item.family) },
@@ -111,6 +119,92 @@ describe("checkout breadth rule counts", () => {
     expect(counts.get("category_collector")).toBe(3);
   });
 
+  it("counts event, reservation, and shift links from credited checkout rows", () => {
+    const counts = checkoutAutomaticRuleCounts([
+      checkout({
+        startsAt: "2026-08-10T18:00:00.000Z",
+        eventId: "event-1",
+        events: ["event-1", "event-2"],
+        sourceReservationId: "reservation-1",
+        shiftAssignmentId: "assignment-1",
+      }),
+      checkout({
+        startsAt: "2026-08-11T18:00:00.000Z",
+        eventId: "event-3",
+      }),
+      checkout({ startsAt: "2026-08-12T18:00:00.000Z" }),
+    ], TZ);
+
+    expect(counts.get("checkout_event_linked")).toBe(2);
+    expect(counts.get("checkout_multiple_events")).toBe(1);
+    expect(counts.get("checkout_from_reservation")).toBe(1);
+    expect(counts.get("checkout_for_shift")).toBe(1);
+  });
+
+  it("measures sustained breadth and full context instead of a raw checkout ladder", () => {
+    const counts = checkoutAutomaticRuleCounts([
+      checkout({
+        startsAt: "2026-01-12T18:00:00.000Z",
+        kitId: "kit-1",
+        eventId: "event-1",
+        events: ["event-1", "event-2"],
+        sourceReservationId: "reservation-1",
+        shiftAssignmentId: "assignment-1",
+        assets: [
+          { assetId: "a1", family: "cameras" },
+          { assetId: "a2", family: "lenses" },
+          { assetId: "a3", family: "audio" },
+          { assetId: "a4", family: "lighting" },
+          { assetId: "a5", family: "tripods" },
+          { assetId: "a6", family: "batteries" },
+          { assetId: "a7", family: "gimbal" },
+          { assetId: "a8", family: "power" },
+          { assetId: "a9", family: "cameras" },
+          { assetId: "a10", family: "lenses" },
+        ],
+        bulk: [{ family: "batteries", quantity: 5 }],
+      }),
+      checkout({
+        startsAt: "2026-01-13T18:00:00.000Z",
+        kitId: "kit-2",
+        eventId: "event-3",
+        assets: [{ assetId: "a11", family: "cameras" }],
+      }),
+      checkout({
+        startsAt: "2026-01-14T18:00:00.000Z",
+        kitId: "kit-3",
+        eventId: "event-4",
+        assets: [{ assetId: "a12", family: "lenses" }],
+      }),
+      checkout({
+        startsAt: "2026-01-15T18:00:00.000Z",
+        eventId: "event-5",
+        assets: [{ assetId: "a13", family: "audio" }],
+      }),
+      checkout({
+        startsAt: "2026-01-16T18:00:00.000Z",
+        assets: [{ assetId: "a14", family: "lighting" }],
+      }),
+      checkout({ startsAt: "2026-02-10T18:00:00.000Z", eventId: "event-6" }),
+      checkout({ startsAt: "2026-03-10T18:00:00.000Z", eventId: "event-7" }),
+      checkout({ startsAt: "2026-04-10T18:00:00.000Z", eventId: "event-8" }),
+    ], TZ);
+
+    expect(counts.get("checkout_week_burst")).toBe(5);
+    expect(counts.get("checkout_months")).toBe(4);
+    expect(counts.get("checkout_consecutive_months")).toBe(4);
+    expect(counts.get("checkout_categories_4")).toBe(1);
+    expect(counts.get("checkout_distinct_families")).toBe(8);
+    expect(counts.get("checkout_distinct_kits")).toBe(3);
+    expect(counts.get("checkout_full_rig_heavy")).toBe(1);
+    expect(counts.get("checkout_item_volume")).toBe(19);
+    expect(counts.get("checkout_mixed_inventory")).toBe(1);
+    expect(counts.get("checkout_reserved_event")).toBe(1);
+    expect(counts.get("checkout_distinct_events")).toBe(8);
+    expect(counts.get("checkout_full_context")).toBe(1);
+    expect(counts.get("checkout_for_shift_heavy")).toBe(1);
+  });
+
   it("reports zero rather than nothing for someone with no checkouts", () => {
     const counts = checkoutAutomaticRuleCounts([], TZ);
 
@@ -119,6 +213,23 @@ describe("checkout breadth rule counts", () => {
     expect(counts.get("checkout_from_kit")).toBe(0);
     expect(counts.get("checkout_same_asset")).toBe(0);
     expect(counts.get("checkout_batteries_only")).toBe(0);
+    expect(counts.get("checkout_event_linked")).toBe(0);
+    expect(counts.get("checkout_multiple_events")).toBe(0);
+    expect(counts.get("checkout_from_reservation")).toBe(0);
+    expect(counts.get("checkout_for_shift")).toBe(0);
+    expect(counts.get("checkout_week_burst")).toBe(0);
+    expect(counts.get("checkout_months")).toBe(0);
+    expect(counts.get("checkout_categories_4")).toBe(0);
+    expect(counts.get("checkout_distinct_families")).toBe(0);
+    expect(counts.get("checkout_full_rig_heavy")).toBe(0);
+    expect(counts.get("checkout_item_volume")).toBe(0);
+    expect(counts.get("checkout_mixed_inventory")).toBe(0);
+    expect(counts.get("checkout_distinct_kits")).toBe(0);
+    expect(counts.get("checkout_consecutive_months")).toBe(0);
+    expect(counts.get("checkout_reserved_event")).toBe(0);
+    expect(counts.get("checkout_distinct_events")).toBe(0);
+    expect(counts.get("checkout_full_context")).toBe(0);
+    expect(counts.get("checkout_for_shift_heavy")).toBe(0);
   });
 
   it("registers every new rule as measured so profile progress can derive it", () => {
@@ -128,6 +239,23 @@ describe("checkout breadth rule counts", () => {
       "checkout_from_kit",
       "checkout_same_asset",
       "checkout_batteries_only",
+      "checkout_event_linked",
+      "checkout_multiple_events",
+      "checkout_from_reservation",
+      "checkout_for_shift",
+      "checkout_week_burst",
+      "checkout_months",
+      "checkout_categories_4",
+      "checkout_distinct_families",
+      "checkout_full_rig_heavy",
+      "checkout_item_volume",
+      "checkout_mixed_inventory",
+      "checkout_distinct_kits",
+      "checkout_consecutive_months",
+      "checkout_reserved_event",
+      "checkout_distinct_events",
+      "checkout_full_context",
+      "checkout_for_shift_heavy",
     ]) {
       expect(automaticMeasuredRuleKeys.has(ruleKey)).toBe(true);
     }

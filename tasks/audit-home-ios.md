@@ -62,24 +62,31 @@ bulk units) is correct, logging is count-only (no PII).
       `Good evening, Erik` node plus separate `Good evening,` and `Erik` text
       nodes. `DashboardHero` now ignores child text for accessibility and
       exposes one label containing the visible date plus greeting.
-- [ ] [Polish] "Synced in 0 seconds" right after refresh — `.relative(presentation:
-      .named)` (`HomeView.swift:388-399`). Add a "just now" branch under ~10s.
-- [ ] [Polish] "You're all set" can render directly above a staff Drafts card:
-      `isAllEmpty` ignores `drafts` (`HomeView.swift:116-130`, `:160`).
-      Contradictory mood; tighten the condition.
-- [ ] [Gaps] Stat tiles are team-wide numbers (`stats.overdue` = `totalOverdue`,
-      `src/app/api/dashboard/route.ts:543-547`) sitting above an all-personal
-      queue, with no visual cue. The Attention-scope routing fix resolves most
-      of the confusion; consider student-scoped tiles later.
+- [x] [Polish] **Stale — already closed.** The Home freshness stamp was removed
+      entirely; pull-to-refresh is the freshness indicator. `.relative(presentation:)`
+      survives only on draft `updatedAt`, where a named relative date is correct.
+- [x] [Polish] **Fixed 2026-08-19.** The condition was `isAllEmpty(dash) || !hasStaffFollowUp(dash)`,
+      so an empty personal queue alone was enough to claim all-clear. Both halves are
+      now required, and the drafts-with-empty-queue shape is captured by
+      `HomeScreenshotUITests.testHomeAllClearWithStaffDraft`.
+- [x] [Gaps] **Stale — re-checked 2026-08-19 and already correct.** `scope=ios-home`
+      sets `isPersonalOnly`, so `overdue` and `dueToday` resolve to `counts.myOverdue`
+      and `counts.myDueToday`, not the team totals. Pinned by
+      `tests/ios-home-queue-honesty.test.ts` so a scope refactor cannot quietly put
+      team numbers over a personal queue.
 - [ ] [Perf] `/api/dashboard?scope=ios-home` still ships `teamCheckouts`,
       `teamReservations`, `upcomingEvents`, `overdueItems` that iOS barely uses,
       and `DashboardData.init` decodes them non-optionally
       (`DashboardModels.swift:221-238`) — payload trim opportunity, but the
       decoder must become tolerant (`decodeIfPresent`) before the server trims.
-- [ ] [Polish] Next Up groups cap at `prefix(3)` silently (`HomeView.swift:582-631`);
-      no "+N more" affordance.
-- [ ] [Polish] `TradeBoardSheet(myShifts: [], ...)` from Home (`HomeView.swift:292-298`)
-      gives the trades sheet no shift context when opened via a notification.
+- [x] [Polish] **Fixed 2026-08-19.** Overdue is no longer capped at all; the other
+      lanes end in a `QueueOverflowRow` naming what is left and which tab holds it.
+      The old behaviour could show `Overdue 4` in the stat strip above three rows.
+- [x] [Polish] **Fixed 2026-08-20.** `TradeBoardSheet(myShifts: [], ...)` from Home gave the trades sheet no shift context, so Post a Trade had nothing to offer even though the identical sheet worked when opened from Schedule.
+
+      The dashboard's own `myShifts` rows could not stand in: `DashboardShift` carries no `status` or `gear`, both of which `MyShift` requires and Post filters on, so converting would have meant inventing values. Home now loads the real list from `/api/my-shifts`.
+
+      Loaded with the sheet rather than on every Home render, because Home is the landing screen and most people never open the Trade Board. Failure is deliberately quiet: browse and claim do not need this list, and an error banner over a just-opened sheet would be worse than a Post step with nothing in it. Guarded by `tests/ios-home-trade-board-context.test.ts`.
 
 ## Acceptance criteria status (AREA_MOBILE.md)
 

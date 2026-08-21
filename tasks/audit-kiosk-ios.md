@@ -63,7 +63,7 @@ These are decisions the area should ratify before code-level fixes:
 - [ ] [UI] No search/filter on the avatar grid — fine for ≤30 students, gets unwieldy at 100+. Track per-sport rollout.
 - [ ] [Flows] No "wrong person" undo path — once checkout completes, only an admin can fix attribution from the web side. Out of scope for MVP.
 - [ ] [Hardening] No rate limit on `/api/kiosk/*` mutating routes — kiosk is trusted via `withKiosk()` but a malformed iPad in a tight loop could spam. Lower priority since one kiosk per device.
-- [ ] [UI] Activation code rotation — once a device activates, the original code is no longer useful; if cookie is wiped admin must regenerate. AREA doc should clarify the lifecycle.
+- [x] [UI] **Closed 2026-08-20 (already documented).** Activation code rotation. `docs/AREA_KIOSK.md` Trust Model item 2 already states the whole lifecycle: the code is single-use, expires 24h after issue, is cleared the moment it is redeemed, leaves already-activated kiosks signed in via the sliding 7-day session, and can be re-minted by an admin through the reset flow.
 - [ ] [UI] Idle screen polls every 30s indefinitely — minor battery cost on always-on iPad.
 - [ ] [UI] `Color.white.opacity(0.05)` etc. as background everywhere — works against dark-locked kiosk but not theme-flexible if the kiosk ever gets a light mode.
 - [ ] [UI] Manual tag entry path (the third leg of AC-6) — camera covers most no-scanner cases; a typed-tag fallback can be added when needed.
@@ -113,3 +113,32 @@ All AC-1 through AC-13 are listed as ✅ in the AREA doc. Confirming against iOS
 - Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - Camera fallback (AC-6) remains a hardware-only real-device QA check, not a source-verifiable blocker.
 - Once web kiosk is deleted, the AREA doc rewrite should add a "Trust Model" section explicitly describing physical+cookie+name-picker as the gates.
+
+## 2026-08-20 Kiosk Visual Capture Pass
+
+Eleven of the seventeen kiosk screens in `tasks/audit-all-pages-ios.md` got their first screenshot, taken on iPad Pro 13-inch (M5), iOS 26.5 through the `GT_KIOSK_SCENARIO` fixture harness. No activated iPad, no kiosk session, no network, and no synthetic taps: each scenario boots straight into its screen, which is what makes this repeatable where tap-driven capture was not.
+
+Today's operator-hub fixes are visible in the capture: sectioned `Ready to pick up` / `Out with you` / `Coming up` lanes, item names rather than bare counts, and shift context in the right column instead of a duplicate of the action list.
+
+- [x] [Harness] **Partly fixed 2026-08-20.** Fixture times are unusable for review when captured outside working hours. The scenarios offset their event and due times from the moment of capture, so a 9:05 PM run renders every fixture event at `1:05 AM` and due dates like `Aug 21, 2026 at 6:06 AM`. Layout and hierarchy still review fine, but time formatting, relative-date copy, and overdue phrasing cannot be judged from these shots.
+      Suggested fix: anchor fixture timestamps to a fixed reference date rather than `now`, so captures are byte-comparable between runs and read like a real gear-room afternoon.
+
+- [x] [Coverage] **Reduced to three on 2026-08-20.** Scenarios were added for the scanner help sheet, the kiosk event detail sheet, and the resume splash, and all three are captured. Only the three camera sheets (checkout, pickup, return) remain, and those need real hardware rather than a scenario.
+
+### Harness fix 2026-08-20
+
+`KioskFixtures.launch` claimed in its own comment to be a fixed clock and was `Date()`, which is what produced `1:05 AM` and `Aug 21, 2026 at 6:06 AM` in review shots. It now snaps to the top of the hour, and past-dated fixtures moved to a new `at(dayOffset:hour:minute:)` helper that pins them to a real wall-clock time. The overdue row now reads `Overdue · was due Wed 3:30 PM` instead of a minute-noisy relative stamp.
+
+This is a partial fix by necessity, and the comment now says so instead of overclaiming. A fully fixed clock is not available: `KioskIdleView` decides "Due Today" with `Calendar.isDateInToday` and `KioskCheckoutView` refuses a due-back that is not in the future, so pinning future-dated fixtures to a past instant would change what the screens mean rather than only what they print. Future-dated fixtures therefore still track the wall clock, and an evening capture still shows after-hours times. Capture during the working day for material that reads like a real gear room.
+
+Three new scenarios were added the same day: `scanner-help`, `event-detail`, and `resume`. Two needed a seam because their sheets are view-local state opened by a tap, and taps are the one thing that does not work reliably on a kiosk simulator. `KioskCaptureSeed` carries those two flags, compiles in every configuration, and is hard-coded `false` outside DEBUG so release builds hold no fixture behaviour.
+
+## 2026-08-20 Capture Chrome Correction
+
+The first kiosk capture pass appeared to show duplicated status: a "Scanner ready" chip in the top-right chrome next to the per-screen readiness badge that pickup, return, and checkout already own. It is not a product defect. `KioskScannerStatusPill.isVisible` returns `true` unconditionally in DEBUG to keep the flow-inspector tap target available during development; in release it returns `!store.scanner.isNominal`, so a healthy scanner shows no pill and students never see the duplicate.
+
+The captures were still wrong as review material: every kiosk screenshot carried chrome that does not ship, and anyone reviewing them would reason about a pill that is not there. `isVisible` now gives capture scenarios release behaviour — when `KioskFixtureScenario.active` is set, the DEBUG branch falls through to the same `!isNominal` rule. The inspector target is untouched for ordinary development runs.
+
+Re-captured idle, student hub, pickup, return, and scanning to confirm the chip is gone while the per-screen readiness badge remains.
+
+Worth recording as a method note: a debug build is not automatically an accurate capture. Before treating a screenshot as evidence of a product problem, check whether the element only exists under `#if DEBUG`.

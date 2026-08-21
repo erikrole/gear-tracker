@@ -163,6 +163,11 @@ struct CoverageChip: View {
                 .font(.caption.weight(.semibold))
             Text(showsLabel ? "\(coverage.filled)/\(coverage.total) filled" : "\(coverage.filled)/\(coverage.total)")
                 .font(.caption.weight(.semibold).monospacedDigit())
+                // Without this the ratio wraps mid-token at accessibility
+                // sizes -- "4/" above "6" -- which reads as a rendering fault
+                // rather than a staffing number.
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .foregroundStyle(Color.statusText(coverageTone(coverage)))
         .padding(.horizontal, 6)

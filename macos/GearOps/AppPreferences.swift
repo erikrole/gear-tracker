@@ -42,7 +42,12 @@ enum LoginItemState: Equatable, Sendable {
     case requiresApproval
     case unavailable
 
-    var isOn: Bool { self == .enabled }
+    /// Approval-pending means the login item was requested and remains
+    /// registered; rendering the switch as off invited users to register it
+    /// repeatedly instead of approving the existing request.
+    var isOn: Bool { self == .enabled || self == .requiresApproval }
+
+    var canChange: Bool { self != .unavailable }
 
     var detail: String? {
         switch self {

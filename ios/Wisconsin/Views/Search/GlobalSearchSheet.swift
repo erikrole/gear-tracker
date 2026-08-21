@@ -52,7 +52,10 @@ struct GlobalSearchSheet: View {
                         }
                     } else if isSearching && results.isEmpty {
                         searchingView
-                    } else if !results.isEmpty {
+                    } else if !results.isEmpty || results.partialResultNotice != nil {
+                        // Also when empty-but-partial: "no matches" would be a
+                        // lie if the sources that could have matched never
+                        // answered.
                         resultsList
                     } else if let searchError, !isSearching {
                         errorView(message: searchError)
@@ -119,6 +122,19 @@ struct GlobalSearchSheet: View {
         }
         .onChange(of: query) { _, newValue in
             scheduleSearch(query: newValue)
+        }
+        // Typed for the capture scenario rather than seeded as an initial
+        // value, so the debounce and the result path run exactly as they do
+        // for a real query.
+        .onAppear {
+            guard let seeded = AppRuntimeMode.CaptureSeed.searchQuery, query.isEmpty else { return }
+            query = seeded
+            // Let the debounce and the four searches finish, then drop focus so
+            // the keyboard stops covering the destinations this capture is of.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                isSearchPresented = false
+            }
         }
         .onChange(of: appState.pendingAppIntentDestination) { _, _ in
             consumePendingAppIntent()
@@ -251,6 +267,19 @@ struct GlobalSearchSheet: View {
 
     private var resultsList: some View {
         List {
+            // A partial answer says so. Search asks four places at once, and
+            // silently dropping one would under-report without the student
+            // having any way to know the list is short.
+            if let notice = results.partialResultNotice {
+                Section {
+                    Label(notice, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                        .accessibilityLabel("Partial results. \(notice)")
+                }
+            }
+
             if !results.items.isEmpty {
                 Section(header: sectionHeader("Items", count: results.items.count)) {
                     ForEach(results.items) { asset in

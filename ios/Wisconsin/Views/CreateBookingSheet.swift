@@ -211,7 +211,12 @@ struct CreateBookingSheet: View {
                 applySelfAndLocationDefaults()
                 vm.captureBaselineIfNeeded()
             }
-            .onAppear { vm.captureBaselineIfNeeded() }
+            .onAppear {
+                vm.captureBaselineIfNeeded()
+                // Opened as a transition rather than an initial value so the
+                // picker's "starts closed" source contract stays literal.
+                if AppRuntimeMode.CaptureSeed.createBookingScanner { showScanner = true }
+            }
         }
     }
 

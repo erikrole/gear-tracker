@@ -134,6 +134,12 @@ struct HomeView: View {
     @State private var pendingUserId: String?
     @State private var pendingShowTrades = false
     @State private var selectedEventWork: DashboardEventWork?
+    /// Shifts the viewer could offer for trade. Home opened the Trade Board
+    /// with an empty list, which left Post a Trade with nothing to post while
+    /// the same sheet worked from Schedule. The dashboard's own shift rows
+    /// cannot stand in: they carry no status or gear, and Post filters on
+    /// both, so this loads the real list rather than fabricating one.
+    @State private var tradeMyShifts: [MyShift] = []
     @State private var firstUsefulRenderStartedAt = Date()
     @State private var firstUsefulRenderSignpost: OSSignpostIntervalState?
     @State private var didLogFirstUsefulRender = false
@@ -195,6 +201,15 @@ struct HomeView: View {
         }
     }
 
+    /// The shifts this person could offer for trade. Failure is deliberately
+    /// quiet: the Trade Board's browse and claim paths do not need this list,
+    /// and an error banner over a sheet the user just opened would be worse
+    /// than a Post step that has nothing to offer.
+    private func loadTradeMyShifts() async {
+        guard tradeMyShifts.isEmpty, let userId = session.currentUser?.id, !userId.isEmpty else { return }
+        tradeMyShifts = (try? await APIClient.shared.myShifts(userId: userId)) ?? []
+    }
+
     private func logFirstUsefulRender(_ dash: DashboardData) {
         guard !didLogFirstUsefulRender else { return }
         didLogFirstUsefulRender = true
@@ -241,16 +256,33 @@ struct HomeView: View {
                         appState.pendingBookingsScope = BookingScope.all.rawValue
                         appState.selectedTab = 1
                     },
-                    openSchedule: { appState.selectedTab = 4 }
+                    openSchedule: {
+                        // The Shifts count is personal, so the screen it opens
+                        // is scoped to match rather than dropping the reader
+                        // into every event on the calendar.
+                        appState.pendingScheduleMyShifts = true
+                        appState.selectedTab = 4
+                    }
                 )
                 if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
                     HomeActionQueue(
                         dash: dash,
                         openBookingSummary: { navigationPath.append($0) },
                         openEventWork: { selectedEventWork = $0 },
-                        currentUserId: session.currentUser?.id
+                        currentUserId: session.currentUser?.id,
+                        openBookings: { appState.selectedTab = 1 },
+                        openSchedule: {
+                        // The Shifts count is personal, so the screen it opens
+                        // is scoped to match rather than dropping the reader
+                        // into every event on the calendar.
+                        appState.pendingScheduleMyShifts = true
+                        appState.selectedTab = 4
+                    }
                     )
-                } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
+                // Both halves, not either: "You're all set" sat directly above
+                // a populated Drafts card whenever the personal queue happened
+                // to be empty, because `isAllEmpty` alone was enough to pass.
+                } else if isAllEmpty(dash) && !hasStaffFollowUp(dash) {
                     AllClearEmptyState(openSearch: { appState.presentSearch() })
                 }
                 if dash.isStaff {
@@ -429,10 +461,14 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showTrades) {
                 TradeBoardSheet(
-                    myShifts: [],
+                    myShifts: tradeMyShifts,
                     currentUserId: session.currentUser?.id ?? "",
                     currentUserRole: session.currentUser?.role ?? ""
                 )
+                // Loaded with the sheet rather than on every Home render, so a
+                // screen most people never open costs nothing. Browsing and
+                // claiming still work if it fails; only Post needs this list.
+                .task { await loadTradeMyShifts() }
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
@@ -650,6 +686,8 @@ private struct HomeActionQueue: View {
     let openBookingSummary: (BookingSummary) -> Void
     let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
+    let openBookings: () -> Void
+    let openSchedule: () -> Void
 
     private func shiftLinked(to summary: BookingSummary) -> DashboardShift? {
         let ids = Set(summary.eventIds + [summary.linkedEventId, summary.eventId].compactMap { $0 })
@@ -741,10 +779,39 @@ private struct HomeActionQueue: View {
         let chronological = entries.sorted {
             $0.sortsAt == $1.sortsAt ? $0.id < $1.id : $0.sortsAt < $1.sortsAt
         }
-        let overdue = overdueBookings.prefix(3).map {
+        // Overdue is not capped. Every other lane can hide its tail behind a
+        // "more" row, but silently dropping the fourth overdue checkout hides
+        // the most urgent thing on the screen behind no affordance at all.
+        let overdue = overdueBookings.map {
             QueueEntry(id: "overdue-\($0.id)", sortsAt: $0.endsAt, kind: .overdue($0))
         }
         return overdue + chronological
+    }
+
+    /// What the per-lane caps above left out, so the queue can say so instead
+    /// of ending on an arbitrary third row.
+    private func hiddenCounts() -> (gear: Int, shifts: Int) {
+        let eventLinkedGearIds = Set(dash.myEventWork.flatMap { $0.gearBookings.map(\.id) })
+        var dueToday = 0
+        var upcoming = 0
+        var seenDueToday = Set<String>()
+        for summary in dash.myCheckouts.items where !summary.isOverdue {
+            if Calendar.current.isDateInToday(summary.endsAt) {
+                if seenDueToday.insert(summary.id).inserted { dueToday += 1 }
+            } else {
+                upcoming += 1
+            }
+        }
+        let pickups = currentUserId.map { id in
+            dash.pendingPickups.items.filter {
+                $0.requesterUserId == id && !eventLinkedGearIds.contains($0.id)
+            }.count
+        } ?? 0
+        let reservations = dash.myReservations.filter { !eventLinkedGearIds.contains($0.id) }.count
+        let gear = max(0, dueToday - 3) + max(0, pickups - 3)
+            + max(0, reservations - 3) + max(0, upcoming - 3)
+        let shifts = max(0, dash.myEventWork.count - 3)
+        return (gear: gear, shifts: shifts)
     }
 
     /// Mirrors `EventActionQueueRow.firstTime` so a row sorts on the same
@@ -830,14 +897,23 @@ private struct HomeActionQueue: View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
+            let hidden = hiddenCounts()
             VStack(spacing: 0) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     row(for: entry)
-                    if index < entries.count - 1 {
+                    if index < entries.count - 1 || hidden.gear + hidden.shifts > 0 {
                         // Inset to the title, so the rail and glyph column
                         // reads as one stack of kinds down the left edge.
                         Divider().padding(.leading, 46)
                     }
+                }
+                if hidden.gear + hidden.shifts > 0 {
+                    QueueOverflowRow(
+                        gear: hidden.gear,
+                        shifts: hidden.shifts,
+                        openBookings: openBookings,
+                        openSchedule: openSchedule
+                    )
                 }
             }
         }
@@ -849,6 +925,59 @@ private struct HomeActionQueue: View {
             "Next Up",
             subtitle: "Upcoming pickups, reservations, shifts, and due work."
         )
+    }
+}
+
+/// Names what the per-lane caps left out. The queue used to end on an arbitrary
+/// third row with nothing to say more existed, so a student with five shifts
+/// today saw three and no reason to look further.
+private struct QueueOverflowRow: View {
+    let gear: Int
+    let shifts: Int
+    let openBookings: () -> Void
+    let openSchedule: () -> Void
+    @State private var hapticTrigger = false
+
+    /// One kind names itself and routes to the tab that owns it. Mixed sends to
+    /// Bookings, which holds the larger share, and says so rather than implying
+    /// everything is there.
+    private var label: String {
+        if shifts == 0 { return "\(gear) more in Bookings" }
+        if gear == 0 { return shifts == 1 ? "1 more shift in Schedule" : "\(shifts) more shifts in Schedule" }
+        return "\(gear + shifts) more in Bookings and Schedule"
+    }
+
+    private var action: () -> Void {
+        gear == 0 ? openSchedule : openBookings
+    }
+
+    var body: some View {
+        Button {
+            hapticTrigger.toggle()
+            action()
+        } label: {
+            HStack(spacing: Brand.Space.sm) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30)
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, Brand.Space.sm)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: hapticTrigger)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
     }
 }
 

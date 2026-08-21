@@ -6,16 +6,16 @@
 - Area: Signatures
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-08-15
-- Status: Expanded 2026-27 roster acceptance implemented locally; physical iPad and production rollout acceptance remain open
+- Status: Expanded 2026-27 roster acceptance and local trust/scale hardening implemented; production promotion, authenticated save/delivery, and physical iPad acceptance remain open
 - Depends on: D-050
 
 ## User Outcome
 
-Authenticated staff and admins can select a canonical team/season collection, choose an imported MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, or Wrestling player/coach, open the separate Creative staff roster, or create a one-off signer with a name and sport/category. They can capture one consistent signature with Apple Pencil on iPad Safari, collect the student-athlete website profile immediately afterward, and manage the resulting transparent PNG/SVG files without exposing public media URLs.
+Authenticated staff and admins can select a canonical team/season collection, choose an imported MBB, Football, Volleyball, Men’s Hockey, Women’s Hockey, Women’s Basketball, or Wrestling player/coach, open the separate Creative Staff or Administration roster, or create a one-off signer with a name and sport/category. They can capture one consistent signature with Apple Pencil on iPad Safari, collect the student-athlete website profile immediately afterward, and manage the resulting transparent PNG/SVG files without exposing public media URLs.
 
 ## V1 Contract
 
-1. The supported team collections are Men’s Basketball (`MBB`), Football (`FB`), Volleyball (`VB`), Men’s Hockey (`MHKY`), Women’s Hockey (`WHKY`), Women’s Basketball (`WBB`), and Wrestling (`WRES`), plus a standalone Creative staff (`CREATIVE`) collection for the same season. Creative staff is never nested inside a team collection.
+1. The supported team collections are Men’s Basketball (`MBB`), Football (`FB`), Volleyball (`VB`), Men’s Hockey (`MHKY`), Women’s Hockey (`WHKY`), Women’s Basketball (`WBB`), and Wrestling (`WRES`), plus standalone Creative Staff (`CREATIVE`), Administration (`ADMIN`), and ad-hoc (`ADHOC`) collections for the same season. Creative Staff and Administration are never nested inside a team collection.
 2. Signature capture is available only on iPadOS. Unsupported web clients show a disabled `Capture on iPad` action with a tooltip explaining that an iPad and Apple Pencil are required; direct desktop visits to the capture surface are blocked. Drawing accepts pen-class pointer input only. Touch, palm, mouse, trackpad, and other non-pen pointers never add ink, while touch remains usable for buttons and navigation.
 3. Each supported team roster comes from its own allowlisted UWBadgers adapter. Football and Volleyball use the source site's starting calendar year URL segment; Men’s Hockey, Women’s Hockey, Women’s Basketball, and Wrestling use the source site's full `YYYY-YY` season segment while retaining the canonical `YYYY-YY` Gear Tracker season. Player metadata normalizes source position and academic year into one display title; wrestling weight classes remain metadata and jersey numbers remain nullable. Student-athletes always require a signature and drive the team progress bar; coaching and support staff are imported as optional secondary work, with their signed count shown separately. Mounting `/signatures` automatically invokes the versioned standalone Creative Staff reconciliation mutation; collection-list GET remains read-only. The reconciliation sources active visible full-time users identified by a Video/Photo/Graphics area or an explicit Creative/Digital Media job title into linked signature members, included by default. A same-season non-player team member links only through a unique exact normalized-name match and then shares the canonical Creative Staff capture across both rosters.
 4. Imports persist an immutable normalized snapshot. Applying a preview requires the observed collection version and never deletes members or captures.
@@ -27,6 +27,7 @@ Authenticated staff and admins can select a canonical team/season collection, ch
 10. A successful recapture retains prior private artifact revisions as authenticated version history. Explicit Remove and collection Reset delete every retained revision in their scope.
 11. Staff/admin may add a one-off signer to the season's standalone `ADHOC` collection by entering a name and sport/category; the new signer opens directly in capture.
 12. After a student-athlete signature is committed, the iPad flow requests a full birthday and hometown before returning to the roster. Instagram, TikTok, and X/Twitter handles are optional, normalized without a leading `@`, and reject URLs. Existing signed athletes can edit the same profile from the roster. Coaching staff, support staff, Creative Staff, and ad-hoc signers bypass this profile step.
+13. The collection detail response is roster-scale bounded: it returns the applied source ordering once, exposes only the current artifact plus a bounded recent revision window, and reports when older revisions are omitted. Capture bootstrap is a private one-member DTO; it does not download the full roster or hidden profile/history data.
 
 ## Data and Privacy Boundary
 
@@ -38,9 +39,15 @@ Signature members are not `StudentSportAssignment` rows. Imported members are ex
 - SVG contains only sanitized paths and no scripts, HTML, foreign objects, external references, or client-controlled metadata.
 - Unchanged imports are idempotent; source duplicates collapse by profile identity; automatic Creative Staff reconciliation is version-checked, no-op safe, and non-destructive.
 - Failed, stale, or concurrent saves preserve the committed capture and local draft.
+- Reset, remove, and delete cleanup use bounded private-artifact work; an upload that loses a delete/reset race fences and removes the files it just created.
 - Collection-card Download All offers separate authenticated private ZIPs of current committed PNG or SVG revisions with deterministic collision-safe filenames.
 - Staff/admin, admin-only, student, and collaborator authorization tests pass.
+- Capture/profile success invalidates the exact roster caches; unsupported Add/Replace actions are disabled before mutation; fetch failures offer Retry; and readiness progress exposes its determinate value and accessible name.
 - Authenticated browser smoke and physical iPad Safari proof are recorded before production rollout.
+
+## Local hardening note — 2026-08-20
+
+The local source now includes the trust, recovery, accessibility, and roster-scale follow-up recorded in `tasks/signature-capture-micro-app-plan.md`, including bounded cleanup and late-upload fencing. This note is not a production deployment claim; the deployed baseline and physical acceptance gates remain tracked under GAP-65.
 
 ## Deferred
 

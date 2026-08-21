@@ -18,6 +18,13 @@ struct WisconsinApp: App {
     init() {
         AppMetricMonitor.shared.start()
         try? Tips.configure()
+#if DEBUG
+        // Harness screenshots must be deterministic: a first-run tip popover
+        // otherwise lands over whatever surface is being captured.
+        if AppRuntimeMode.isPerformanceTesting {
+            Tips.hideAllTipsForTesting()
+        }
+#endif
     }
 
     var body: some Scene {

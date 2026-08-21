@@ -247,10 +247,16 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(searchService).toContain("var itemFamilies: [AssetFamilySearchResult] = []");
     expect(searchService).toContain("api.assets(search: q, qr: rawScan, limit: 10)");
     expect(searchService).not.toContain("qr: rawScan ?? q");
-    expect(searchService).toContain("itemsResp.bulkItems");
+    expect(searchService).toContain("itemsResp?.bulkItems");
     expect(searchService).toContain("let isDirectScan = rawScan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false");
-    expect(searchService).toContain("let visibleItems = isDirectScan ? itemsResp.data : itemsResp.data.filter(Self.isSearchVisibleAsset)");
-    expect(searchService).toContain("let visibleFamilies = isDirectScan ? itemsResp.bulkItems : itemsResp.bulkItems.filter(Self.isSearchVisibleFamily)");
+    // The guarantee is that a direct scan bypasses the accessory filter while a
+    // typed search applies it. The sources are read through optionals now that
+    // each search source is awaited independently, so the filtering happens on
+    // the unwrapped locals rather than on the response directly.
+    expect(searchService).toContain("let rawItems = itemsResp?.data ?? []");
+    expect(searchService).toContain("let rawFamilies = itemsResp?.bulkItems ?? []");
+    expect(searchService).toContain("let visibleItems = isDirectScan ? rawItems : rawItems.filter(Self.isSearchVisibleAsset)");
+    expect(searchService).toContain("let visibleFamilies = isDirectScan ? rawFamilies : rawFamilies.filter(Self.isSearchVisibleFamily)");
     expect(searchService).toContain("private static func isHiddenAttachmentCategory(_ title: String?) -> Bool");
     expect(searchService).toContain("normalized == \"accessories\"");
     expect(searchService).toContain("normalized.hasSuffix(\"/accessories\")");
@@ -351,7 +357,7 @@ describe("iOS API contracts — kiosk student context decoding", () => {
   it("keeps student hub decoding tolerant and avoids false network copy", () => {
     const route = source("src/app/api/kiosk/student/[userId]/route.ts");
     const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
-    const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const operatorHub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
 
     expect(route).toContain("return ok({");
     expect(route).toContain("checkouts: checkouts.map");
@@ -364,11 +370,11 @@ describe("iOS API contracts — kiosk student context decoding", () => {
     expect(models).toContain("items = try container.decodeIfPresent(LossyDecodableArray<StudentItem>.self");
     expect(models).toContain("serializedItems = try container.decodeIfPresent(LossyDecodableArray<SerializedItem>.self");
     expect(models).toContain("bulkItems = try container.decodeIfPresent(LossyDecodableArray<BulkItem>.self");
-    expect(studentHub).toContain("studentContextErrorMessage(for: error)");
-    expect(studentHub).toContain("case .networkError:");
-    expect(studentHub).toContain("case .decodingError:");
-    expect(studentHub).toContain("store.deactivate()");
-    expect(studentHub).not.toContain('self.error = "Check your connection and try again."');
+    expect(operatorHub).toContain("studentContextErrorMessage(for: error)");
+    expect(operatorHub).toContain("case .networkError:");
+    expect(operatorHub).toContain("case .decodingError:");
+    expect(operatorHub).toContain("store.deactivate()");
+    expect(operatorHub).not.toContain('self.error = "Check your connection and try again."');
   });
 });
 
@@ -459,6 +465,16 @@ describe("iOS API contracts — nullable columns stay optional in Swift", () => 
 
     expect(schema).toMatch(/dayOfWeek\s+Int\?\s+@map\("day_of_week"\)/);
     expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let dayOfWeek: Int\?/);
+  });
+
+  it("keeps one-off range and all-day fields rollout-safe", () => {
+    const schema = source("prisma/schema.prisma");
+    const models = source("ios/Wisconsin/Models/ScheduleModels.swift");
+
+    expect(schema).toMatch(/dateEndsOn\s+DateTime\?\s+@map\("date_ends_on"\)/);
+    expect(schema).toMatch(/allDay\s+Boolean\s+@default\(false\)\s+@map\("all_day"\)/);
+    expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let dateEndsOn: String\?/);
+    expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let allDay: Bool\?/);
   });
 });
 

@@ -32,6 +32,14 @@ const HIDDEN_BADGE_KEYS = new Set([
   "buzzer_beater",
   "take_thirteen",
   "holiday_hours",
+  "oops_damaged",
+  "oops_missing",
+  "running_late",
+  "due_date_dancer",
+  "calendar_tetris",
+  "midnight_oil",
+  "weekend_warrior",
+  "leap_day",
 ]);
 
 const LEGENDARY_BADGE_KEYS = new Set([

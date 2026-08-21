@@ -15,20 +15,38 @@ private let avatarSession: URLSession = {
     configuration.waitsForConnectivity = false
     configuration.timeoutIntervalForRequest = 15
     configuration.timeoutIntervalForResource = 30
+    configuration.httpCookieStorage = nil
+    configuration.httpShouldSetCookies = false
+    configuration.urlCredentialStorage = nil
+    configuration.httpMaximumConnectionsPerHost = 4
     return URLSession(configuration: configuration)
 }()
 
 private enum AvatarImageProcessor {
+    private static let maxResponseBytes = 2_000_000
+
     @concurrent
     static func thumbnail(url: URL, maxPixels: CGFloat) async -> CGImage? {
         var request = URLRequest(url: url)
         request.cachePolicy = .returnCacheDataElseLoad
 
-        guard let (data, response) = try? await avatarSession.data(for: request),
+        guard let (bytes, response) = try? await avatarSession.bytes(for: request),
               !Task.isCancelled,
               let http = response as? HTTPURLResponse,
               (200...299).contains(http.statusCode),
-              data.count <= 10_000_000 else {
+              response.url?.scheme?.lowercased() == "https",
+              response.mimeType?.lowercased().hasPrefix("image/") == true else {
+            return nil
+        }
+
+        var data = Data()
+        data.reserveCapacity(min(maxResponseBytes, 128_000))
+        do {
+            for try await byte in bytes {
+                guard data.count < maxResponseBytes, !Task.isCancelled else { return nil }
+                data.append(byte)
+            }
+        } catch {
             return nil
         }
 
@@ -66,6 +84,24 @@ private final class AvatarImageCache {
         let cost = Int(pixelSize * pixelSize * 4)
         images.setObject(image, forKey: key as NSString, cost: cost)
     }
+
+    func removeAll() {
+        images.removeAllObjects()
+    }
+}
+
+/// Clears both decoded and on-disk requester photos when an account signs out.
+/// The projection cache already leaves with the session; image bytes must follow
+/// it rather than surviving as a separate private-data residue.
+@MainActor
+enum GearOpsAvatarCache {
+    private(set) static var generation: UInt64 = 0
+
+    static func removeAll() {
+        generation &+= 1
+        avatarURLCache.removeAllCachedResponses()
+        AvatarImageCache.shared.removeAll()
+    }
 }
 
 private struct CachedAvatarThumbnail: View {
@@ -73,6 +109,7 @@ private struct CachedAvatarThumbnail: View {
     let size: CGFloat
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var image: NSImage?
 
     private var cacheKey: String { "\(url.absoluteString)@\(Int(size * displayScale))" }
@@ -89,6 +126,7 @@ private struct CachedAvatarThumbnail: View {
             }
         }
         .task(id: cacheKey) {
+            let generation = GearOpsAvatarCache.generation
             if let cached = AvatarImageCache.shared.image(for: cacheKey) {
                 image = cached
                 return
@@ -97,15 +135,17 @@ private struct CachedAvatarThumbnail: View {
             image = nil
             let pixels = max(1, size * displayScale)
             guard let cgImage = await AvatarImageProcessor.thumbnail(url: url, maxPixels: pixels),
-                  !Task.isCancelled else {
+                  !Task.isCancelled,
+                  generation == GearOpsAvatarCache.generation else {
                 return
             }
 
             let thumbnail = NSImage(cgImage: cgImage, size: NSSize(width: size, height: size))
+            guard generation == GearOpsAvatarCache.generation else { return }
             AvatarImageCache.shared.store(thumbnail, for: cacheKey, pixelSize: pixels)
             image = thumbnail
         }
-        .animation(.easeOut(duration: 0.12), value: image != nil)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: image != nil)
     }
 }
 
@@ -157,7 +197,7 @@ struct UserAvatarView: View {
               !avatarUrl.isEmpty,
               let url = URL(string: avatarUrl),
               let scheme = url.scheme?.lowercased(),
-              scheme == "https" || scheme == "http" else {
+              scheme == "https" else {
             return nil
         }
         return url

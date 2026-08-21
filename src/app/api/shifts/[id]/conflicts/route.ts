@@ -39,6 +39,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
           status: true,
           dayOfWeek: true,
           date: true,
+          dateEndsOn: true,
+          allDay: true,
           startsAt: true,
           endsAt: true,
           label: true,

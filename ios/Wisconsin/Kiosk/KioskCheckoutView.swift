@@ -49,10 +49,16 @@ struct KioskCheckoutView: View {
     @State private var checkoutContextReady = false
     @State private var scannerCaptureEnabled = true
     @State private var scannerHasFocus = false
-    @State private var showScannerHelp = false
+    // Seeded open for the `scanner-help` capture scenario, which has no other
+    // way in: the sheet is local state opened by a tap, and taps are exactly
+    // what is unreliable on a kiosk simulator. Always false in release.
+    @State private var showScannerHelp = KioskCaptureSeed.scannerHelp
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
     @State private var pendingScanIdentities: Set<String> = []
+    /// The item the last successful scan added, held while its confirmation is
+    /// on the stage. Cleared on the same timer as the feedback banner.
+    @State private var lastAccepted: KioskAcceptedScan?
     @State private var dueBackAt = KioskCheckoutDefaults.defaultDueBackDate()
     @State private var availabilityResult = KioskCheckoutAvailabilityResult()
     @State private var isCheckingAvailability = false
@@ -124,7 +130,7 @@ struct KioskCheckoutView: View {
                 store.clearCart(for: userId)
                 store.clearCheckoutDraft(for: userId)
                 Haptics.warning()
-                store.screen = .studentHub(user)
+                store.screen = .operatorHub(user)
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -172,6 +178,21 @@ struct KioskCheckoutView: View {
             store.scanner.claim(.checkout) { handleScan($0) }
             await loadCheckoutEvents()
             applySelectedEventDueTime()
+            #if DEBUG
+            // Capture hook: the scan stage is only reachable after the details
+            // step is satisfied, which no fixture can express through the API.
+            if KioskFixtureScenario.active == .scanning { checkoutContextReady = true }
+            if KioskFixtureScenario.active == .scanAccepted {
+                checkoutContextReady = true
+                // The confirmation only exists in the seconds after a real
+                // scan, which no fixture payload can produce.
+                lastAccepted = KioskAcceptedScan(
+                    title: "BAT-004",
+                    subtitle: "V-Mount Battery #4",
+                    progress: "\(scannedItems.count) items scanned"
+                )
+            }
+            #endif
         }
         .onChange(of: selectedEventId) { _, _ in
             applySelectedEventDueTime()
@@ -237,7 +258,7 @@ struct KioskCheckoutView: View {
                 backAccessibilityLabel: "Back to roster",
                 onBack: {
                     if scannedItems.isEmpty {
-                        store.screen = .studentHub(user)
+                        store.screen = .operatorHub(user)
                     } else {
                         showBackConfirm = true
                     }
@@ -265,13 +286,24 @@ struct KioskCheckoutView: View {
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
-            KioskCompletionButton(
-                title: "Continue to Scan",
-                isEnabled: hasCheckoutContext && hasValidReturnTime,
-                isBusy: false,
-                accessibilityLabel: startScanningAccessibilityLabel,
-                action: startScanning
-            )
+            VStack(spacing: KioskSpacing.xs) {
+                if let blockingRequirement {
+                    Label(blockingRequirement, systemImage: "exclamationmark.circle.fill")
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskStatus.attention)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityHidden(true)
+                }
+
+                KioskCompletionButton(
+                    title: "Continue to Scan",
+                    isEnabled: hasCheckoutContext && hasValidReturnTime,
+                    isBusy: false,
+                    accessibilityLabel: startScanningAccessibilityLabel,
+                    action: startScanning
+                )
+            }
             .frame(maxWidth: KioskCheckoutSetupLayout.maxWidth)
             .frame(maxWidth: .infinity)
             .padding(.top, KioskSpacing.md)
@@ -312,7 +344,7 @@ struct KioskCheckoutView: View {
                     : "Back to roster, will prompt to discard \(scannedItems.count) items",
                 onBack: {
                     if scannedItems.isEmpty {
-                        store.screen = .studentHub(user)
+                        store.screen = .operatorHub(user)
                     } else {
                         showBackConfirm = true
                     }
@@ -340,6 +372,7 @@ struct KioskCheckoutView: View {
                 isReady: scannerHasFocus,
                 lastScanAt: lastScanAt,
                 feedbackTint: lastResult.map { _ in scannerBorderColor },
+                accepted: lastAccepted,
                 onCamera: { showCamera = true },
                 onHelp: { showScannerHelp = true }
             )
@@ -407,7 +440,9 @@ struct KioskCheckoutView: View {
                 Spacer()
                 Text("\(scannedItems.count)")
                     .font(.title3.bold())
-                    .foregroundStyle(scannedItems.isEmpty ? .secondary : Color.kioskRed)
+                    // A count is not an action and not a problem. Brand red
+                    // here made a running tally look like a warning.
+                    .foregroundStyle(scannedItems.isEmpty ? .secondary : KioskText.primary)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: scannedItems.count)
                     .monospacedDigit()
@@ -486,17 +521,29 @@ struct KioskCheckoutView: View {
         dueBackAt > Date().addingTimeInterval(60)
     }
 
-    private var startScanningAccessibilityLabel: String {
+    /// What is stopping this step from continuing, in the words the screen
+    /// uses. `nil` means nothing is.
+    ///
+    /// Both the visible hint and the VoiceOver label read from this, so they
+    /// cannot drift apart — and the button no longer just greys out and leaves
+    /// the reason to be guessed. The spoken label also said "Start Scanning"
+    /// while the button read "Continue to Scan".
+    private var blockingRequirement: String? {
         if isLinkedToEvent, selectedEvent == nil {
-            return "Start Scanning unavailable, select an event"
+            return "Choose an event to link, or unlink to name this checkout yourself."
         }
         if !isLinkedToEvent, trimmedCustomPurpose.isEmpty {
-            return "Start Scanning unavailable, enter checkout details"
+            return "Enter a booking name, or link an event."
         }
         if !hasValidReturnTime {
-            return "Start Scanning unavailable, choose a return time later than pickup"
+            return "Choose a return date and time later than now."
         }
-        return "Start scanning items"
+        return nil
+    }
+
+    private var startScanningAccessibilityLabel: String {
+        guard let blockingRequirement else { return "Continue to scan items" }
+        return "Continue to Scan unavailable. \(blockingRequirement)"
     }
 
     private var selectedEvent: KioskCheckoutEvent? {
@@ -575,7 +622,7 @@ struct KioskCheckoutView: View {
                     // in either order and must never overwrite one another.
                     var updated = store.cart(for: userId)
                     if !updated.contains(where: { $0.id == item.id }) {
-                        updated.append(KioskCartItem(
+                        let cartItem = KioskCartItem(
                             id: item.id,
                             name: item.name,
                             tagName: item.tagName,
@@ -583,12 +630,18 @@ struct KioskCheckoutView: View {
                             imageUrl: item.imageUrl,
                             bulkSkuId: item.bulkSkuId,
                             unitNumber: item.unitNumber
-                        ))
+                        )
+                        updated.append(cartItem)
                         store.setCart(updated, for: userId)
                         await refreshAvailability(for: updated)
                         if result.locationMismatch == true {
                             showFeedback(.warning(result.locationMessage ?? "\(item.name) added, location checked"))
                         } else {
+                            lastAccepted = KioskAcceptedScan(
+                                title: cartItem.itemListPrimaryTitle,
+                                subtitle: cartItem.itemListSecondaryTitle,
+                                progress: "\(updated.count) item\(updated.count == 1 ? "" : "s") scanned"
+                            )
                             showFeedback(.success(result.locationMessage ?? item.name))
                         }
                     } else {
@@ -642,6 +695,7 @@ struct KioskCheckoutView: View {
         feedbackDismissTask = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled else { return }
+            lastAccepted = nil
             withAnimation { lastResult = nil }
         }
     }
@@ -1098,7 +1152,7 @@ private struct KioskCheckoutSetupHero: View {
 
     var body: some View {
         HStack(spacing: 18) {
-            KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 64)
+            KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 54)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("STEP 1 OF 2 · CHECKOUT DETAILS")
@@ -1117,7 +1171,8 @@ private struct KioskCheckoutSetupHero: View {
 
             Spacer()
         }
-        .padding(24)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: KioskStroke.standard)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(user.name), \(locationName ?? "kiosk location")")
@@ -1210,62 +1265,82 @@ private struct KioskCheckoutContextWindow: View {
     let focusedField: Binding<KioskCheckoutFocusedField?>
     let onScannerBurstRejected: () -> Void
 
+    private var isFieldFocused: Bool { focusedField.wrappedValue == .customPurpose }
+
+    private var trimmedPurpose: String {
+        customPurpose.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         KioskCheckoutWindow(title: "What's this for?") {
             VStack(alignment: .leading, spacing: 12) {
-                bookingNameControl
-
-                // When an event is linked, say so here rather than leaving the
-                // booking-name field silently irrelevant. The event list lives
-                // in its own column now, so this is the only place on the
-                // details side that reflects the link.
+                // Linking an event *answers* this question, so the linked event
+                // replaces the field rather than sitting under it. While an
+                // event is linked the booking title comes from the event and
+                // `completeCheckout` sends `customPurpose: nil` — so the field
+                // shown here previously accepted typing that was discarded on
+                // completion, and `onChange(of: isLinkedToEvent)` wiped it
+                // anyway. An input that cannot affect the record it appears to
+                // edit is worse than no input.
                 if isLinkedToEvent, let selectedEvent {
-                    HStack(spacing: 10) {
-                        Image(systemName: "calendar.badge.checkmark")
-                            .foregroundStyle(KioskStatus.scheduled)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(selectedEvent.title)
-                                .font(KioskType.chip)
-                                .foregroundStyle(KioskText.primary)
-                                .lineLimit(1)
-                            Text(KioskCheckoutEventFormat.subtitle(selectedEvent))
-                                .font(KioskType.micro)
-                                .foregroundStyle(KioskText.tertiary)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 8)
-                        Button("Unlink") {
-                            selectedEventId = nil
-                            isLinkedToEvent = false
-                        }
-                        .font(KioskType.micro)
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
-                    }
-                    .padding(12)
-                    .background(KioskStatus.scheduled.opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: KioskRadius.md)
-                            .stroke(KioskStatus.scheduled.opacity(0.35), lineWidth: 1)
-                    )
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Linked to \(selectedEvent.title)")
+                    linkedEventAnswer(selectedEvent)
+                } else {
+                    bookingNameControl
                 }
             }
         }
     }
 
+    private func linkedEventAnswer(_ event: KioskCheckoutEvent) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            fieldLabel("Booking name", requirement: .suppliedByEvent)
+
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.checkmark")
+                    .font(.title3)
+                    .foregroundStyle(KioskStatus.scheduled)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.title)
+                        .font(.gothamBold(size: 20))
+                        .foregroundStyle(KioskText.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                    Text(KioskCheckoutEventFormat.subtitle(event))
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskText.tertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Button("Unlink") {
+                    selectedEventId = nil
+                    isLinkedToEvent = false
+                }
+                .font(KioskType.chip)
+                .buttonStyle(.glass)
+                .controlSize(.regular)
+                .accessibilityLabel("Unlink \(event.title) and name this checkout instead")
+            }
+            .padding(14)
+            .frame(minHeight: 72)
+            .background(KioskStatus.scheduled.opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.md)
+                    .stroke(KioskStatus.scheduled.opacity(0.45), lineWidth: 1)
+            )
+            .accessibilityElement(children: .contain)
+
+            statusLine(
+                icon: "checkmark.circle.fill",
+                text: "This checkout will be titled after the event.",
+                tone: KioskStatus.scheduled
+            )
+        }
+    }
+
     private var bookingNameControl: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                Text("Booking name")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(KioskText.secondary)
-                Text("*")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.kioskRed)
-            }
+            fieldLabel("Booking name", requirement: .required)
 
             KioskNativeTextField(
                 placeholder: "Event, practice, shoot, or purpose",
@@ -1274,18 +1349,91 @@ private struct KioskCheckoutContextWindow: View {
                     get: { focusedField.wrappedValue == .customPurpose },
                     set: { focusedField.wrappedValue = $0 ? .customPurpose : nil }
                 ),
+                // The booking name is read back across a counter, not held at
+                // reading distance. 15pt was the UIKit default this bridge
+                // shipped with; it made the one thing a student types the
+                // smallest text in the window.
+                fontSize: 20,
+                fontWeight: .semibold,
                 onScannerBurstRejected: onScannerBurstRejected
             )
             .padding(.horizontal, 16)
-            .frame(height: 68)
+            .frame(height: 72)
             .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(
                 RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(customPurpose.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? KioskStroke.standard : Color.kioskRed.opacity(0.7), lineWidth: 1)
+                    .stroke(fieldStroke, lineWidth: isFieldFocused || !trimmedPurpose.isEmpty ? 2 : 1)
             )
 
-            KioskKeyboardHint(isFieldFocused: focusedField.wrappedValue == .customPurpose)
+            // The field used to state its requirement once, as a red asterisk,
+            // and then say nothing ever again — so "why is Continue still
+            // grey?" had no answer on screen.
+            if trimmedPurpose.isEmpty {
+                statusLine(
+                    icon: "info.circle.fill",
+                    text: "Name it so staff can find this checkout later — or link an event.",
+                    tone: KioskText.tertiary
+                )
+            } else {
+                statusLine(icon: "checkmark.circle.fill", text: "Looks good.", tone: KioskStatus.ok)
+            }
         }
+    }
+
+    /// Focused is brand red (you are editing it), filled is the OK tone (this
+    /// requirement is met), empty is a plain hairline. The field previously
+    /// went red as soon as it had *any* content, spending the brand accent on
+    /// a resting state.
+    private var fieldStroke: Color {
+        if isFieldFocused { return Color.kioskRed }
+        if !trimmedPurpose.isEmpty { return KioskStatus.ok.opacity(0.6) }
+        return KioskStroke.standard
+    }
+
+    private enum FieldRequirement {
+        case required
+        case suppliedByEvent
+    }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String, requirement: FieldRequirement) -> some View {
+        HStack(spacing: 6) {
+            Text(text.uppercased())
+                .font(KioskType.overline)
+                .tracking(1.2)
+                .foregroundStyle(KioskText.muted)
+            switch requirement {
+            case .required:
+                Text("REQUIRED")
+                    .font(KioskType.micro)
+                    .foregroundStyle(Color.kioskRedGlyph)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.kioskRedGlyph.opacity(0.16), in: Capsule())
+            case .suppliedByEvent:
+                Text("FROM EVENT")
+                    .font(KioskType.micro)
+                    .foregroundStyle(KioskStatus.scheduled)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(KioskStatus.scheduled.opacity(0.16), in: Capsule())
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statusLine(icon: String, text: String, tone: Color) -> some View {
+        Label {
+            Text(text)
+                .font(KioskType.chip)
+                .foregroundStyle(tone)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(tone)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1426,19 +1574,40 @@ private struct KioskCheckoutReturnDatePicker: View {
 
             // The committed answer, restated in full so it is legible from
             // across the counter and unambiguous about which day it lands on.
-            Text(dueBackAt.kioskDueStamp())
-                .font(.gothamBold(size: 20))
-                .foregroundStyle(KioskText.primary)
-                .contentTransition(.numericText())
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .accessibilityLabel("Due back \(dueBackAt.formatted(date: .complete, time: .shortened))")
+            //
+            // It now sits in its own band rather than floating as loose text
+            // under two system controls. The two `.compact` pickers are small
+            // grey chips by construction; with the answer set in the same
+            // visual weight as everything around it, the window stated the due
+            // date three times and emphasised it zero times.
+            VStack(alignment: .leading, spacing: 4) {
+                // No "DUE BACK" overline: the card is titled "When's it back?",
+                // so the band repeating the label spent vertical space this
+                // step does not have — and this is a step that must fit on one
+                // screen, because its CTA is pinned to the bottom of it.
+                Text(dueBackAt.kioskDueStamp())
+                    .font(.gothamBold(size: 22))
+                    .foregroundStyle(KioskText.primary)
+                    .contentTransition(.numericText())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
 
-            if let eventEnd, abs(eventEnd.timeIntervalSince(dueBackAt)) < 60 {
-                Label("Matches the linked event's end time", systemImage: "calendar.badge.checkmark")
-                    .font(KioskType.chip)
-                    .foregroundStyle(KioskStatus.scheduled)
+                if let eventEnd, abs(eventEnd.timeIntervalSince(dueBackAt)) < 60 {
+                    Label("Matches the linked event's end time", systemImage: "calendar.badge.checkmark")
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskStatus.scheduled)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.md)
+                    .stroke(KioskStroke.hairline, lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Due back \(dueBackAt.formatted(date: .complete, time: .shortened))")
         }
     }
 
@@ -1447,19 +1616,25 @@ private struct KioskCheckoutReturnDatePicker: View {
         @ViewBuilder picker: () -> Picker
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Text(label.uppercased())
                     .font(KioskType.overline)
                     .tracking(1.2)
                     .foregroundStyle(KioskText.muted)
-                Text("*")
-                    .font(KioskType.overline)
-                    .foregroundStyle(KioskStatus.problem)
+                // A bare red asterisk is a convention from dense web forms and
+                // means nothing at counter distance. The word does.
+                Text("REQUIRED")
+                    .font(KioskType.micro)
+                    .foregroundStyle(Color.kioskRedGlyph)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.kioskRedGlyph.opacity(0.16), in: Capsule())
             }
             picker()
                 .datePickerStyle(.compact)
                 .labelsHidden()
                 .tint(Color.kioskRed)
+                .controlSize(.large)
         }
     }
 

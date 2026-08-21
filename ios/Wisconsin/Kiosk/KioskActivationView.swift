@@ -8,6 +8,8 @@ struct KioskActivationView: View {
     @State private var code = ""
     @State private var error: String?
     @State private var isLoading = false
+    /// True once the operator has explicitly asked for the software keyboard.
+    @State private var wasKeyboardChosen = false
     @FocusState private var isCodeFieldFocused: Bool
 
     var body: some View {
@@ -17,11 +19,19 @@ struct KioskActivationView: View {
                 .kioskScreenPadding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .onTapGesture { focusCodeField() }
-        .onAppear { focusCodeField() }
-        .onChange(of: isLoading) { _, loading in
-            if !loading { focusCodeField() }
+        // No auto-focus, and no focus-on-tap.
+        //
+        // Focusing the hidden field raises the software keyboard, and during a
+        // first activation there is usually no scanner paired yet to suppress
+        // it — so the screen opened by covering its own numpad and pushing the
+        // code slots off the top edge. The numpad exists precisely so the
+        // keyboard is not needed; the "Keyboard" button is there for anyone who
+        // wants it, and a hardware scanner types into the field regardless of
+        // whether SwiftUI thinks it is focused.
+        .onChange(of: isLoading) { wasLoading, loading in
+            // Only restore focus after a failed attempt if the operator had
+            // chosen the keyboard in the first place.
+            if wasLoading, !loading, wasKeyboardChosen { focusCodeField() }
         }
         .overlay(alignment: .center) {
             Group {
@@ -169,6 +179,7 @@ struct KioskActivationView: View {
             .disabled(isLoading)
 
             Button {
+                wasKeyboardChosen = true
                 focusCodeField()
             } label: {
                 Label("Keyboard", systemImage: "keyboard")

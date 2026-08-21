@@ -12,7 +12,7 @@ describe("iOS kiosk reservation pickup contract", () => {
     const detailRoute = source("src/app/api/kiosk/checkout/[id]/route.ts");
     const scanRoute = source("src/app/api/kiosk/pickup/[id]/scan/route.ts");
     const confirmRoute = source("src/app/api/kiosk/pickup/[id]/confirm/route.ts");
-    const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const operatorHub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const apiClient = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
     const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
 
@@ -23,10 +23,10 @@ describe("iOS kiosk reservation pickup contract", () => {
     expect(confirmRoute).toContain("sourceReservationId: sourceReservation.id");
 
     expect(models).toContain("struct KioskPendingPickup: Decodable, Identifiable");
-    expect(studentHub).toContain("startPickup(id: pickup.id, title: pickup.title, startsAt: pickup.startsAt)");
-    expect(studentHub).toContain("startPickup(id: res.id, title: res.title, startsAt: res.startsAt)");
-    expect(studentHub).toContain("source: .reservation");
-    expect(studentHub).toContain('accessibilityHint("Start pickup now")');
+    expect(operatorHub).toContain("startPickup(id: pickup.id, title: pickup.title, startsAt: pickup.startsAt)");
+    expect(operatorHub).toContain("startPickup(id: res.id, title: res.title, startsAt: res.startsAt)");
+    expect(operatorHub).toContain("source: .reservation");
+    expect(operatorHub).toContain('accessibilityHint("Start pickup now")');
     expect(apiClient).toContain("func kioskCheckoutDetail(id: String)");
     expect(apiClient).toContain("func kioskPickupScan(bookingId: String, scanValue: String)");
     expect(apiClient).toContain("func kioskPickupConfirm(bookingId: String, actorId: String)");

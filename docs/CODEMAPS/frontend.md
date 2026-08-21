@@ -50,6 +50,7 @@
 | `/schedule` | `src/app/(app)/schedule/page.tsx` |
 | `/search` | `src/app/(app)/search/page.tsx` |
 | `/settings/allowed-emails` | `src/app/(app)/settings/allowed-emails/page.tsx` |
+| `/settings/app-activity` | `src/app/(app)/settings/app-activity/page.tsx` |
 | `/settings/appearance` | `src/app/(app)/settings/appearance/page.tsx` |
 | `/settings/audit` | `src/app/(app)/settings/audit/page.tsx` |
 | `/settings/bookings` | `src/app/(app)/settings/bookings/page.tsx` |
@@ -98,6 +99,7 @@
 | `/` | `src/app/(app)/layout.tsx` |
 | `/reports` | `src/app/(app)/reports/layout.tsx` |
 | `/reports/usage` | `src/app/(app)/reports/usage/layout.tsx` |
+| `/settings/app-activity` | `src/app/(app)/settings/app-activity/layout.tsx` |
 | `/settings` | `src/app/(app)/settings/layout.tsx` |
 | `/about` | `src/app/(public)/about/layout.tsx` |
 | `/` | `src/app/layout.tsx` |
@@ -110,7 +112,7 @@
 | `src/components/TradeBoard.tsx` | 1247 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 996 |
 | `src/components/EquipmentPicker.tsx` | 879 |
-| `src/components/AppShell.tsx` | 860 |
+| `src/components/AppShell.tsx` | 865 |
 | `src/components/ShiftDetailPanel.tsx` | 799 |
 | `src/components/ChooseImageModal.tsx` | 770 |
 | `src/components/profile-completion/ProfileCompletionWizard.tsx` | 759 |
@@ -129,8 +131,8 @@
 | `src/components/FormCombobox.tsx` | 329 |
 | `src/components/resources/MarkdownReader.tsx` | 305 |
 | `src/components/public-showroom/showroom-blocks.tsx` | 290 |
+| `src/components/PageBreadcrumb.tsx` | 286 |
 | `src/components/booking-details/BookingSheetOverview.tsx` | 284 |
-| `src/components/PageBreadcrumb.tsx` | 283 |
 | `src/components/booking-details/TransferOwnerDialog.tsx` | 269 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
@@ -144,7 +146,7 @@
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 226 |
 | `src/hooks/use-booking-change-sync.ts` | 167 |
-| `src/hooks/use-current-user.ts` | 39 |
+| `src/hooks/use-current-user.ts` | 47 |
 | `src/hooks/use-dashboard-data.ts` | 232 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
 | `src/hooks/use-fetch.ts` | 113 |

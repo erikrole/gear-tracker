@@ -33,10 +33,11 @@ describe("iOS native Licenses page", () => {
     expect(models).toContain("claims = try container.decodeIfPresent([LicenseCodeClaim].self, forKey: .claims) ?? []");
 
     expect(route).toContain('const isAdmin = user.role === "ADMIN" || user.role === "STAFF"');
-    expect(route).toContain("const isHolder = c.claims.some((claim) => claim.userId === user.id)");
-    expect(route).toContain('code: isHolder ? c.code : ""');
+    expect(route).toContain("const isHolder = code.claims.some((claim) => claim.userId === user.id)");
+    expect(route).toContain('code: isHolder ? code.code : ""');
     expect(route).toContain("claim.userId === user.id");
-    expect(route).toContain("user: null");
+    // Another student's claim never carries a user object to the client.
+    expect(route).toContain("user: isOwnClaim ? claim.user : null");
   });
 
   it("wires Licenses to native Settings and regular-width sidebar destinations", () => {
@@ -124,6 +125,79 @@ describe("iOS native Licenses page", () => {
     expect(view).toMatch(/Button\("Claim License"\)[\s\S]*?\.tint\(Color\.statusText\(\.green\)\)/);
     expect(poolRow).toMatch(/Button\("Claim"\)[\s\S]*?\.buttonStyle\(\.borderedProminent\)[\s\S]*?\.buttonBorderShape\(\.capsule\)[\s\S]*?\.controlSize\(\.small\)[\s\S]*?\.tint\(Color\.statusText\(\.green\)\)/);
     expect(poolRow).not.toContain('Label("Claim", systemImage: "plus.circle")');
+  });
+
+  it("does not repeat the holder's own code and expiry in the pool row", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+    const poolRow = view.slice(view.indexOf("private struct LicensePoolRow"));
+
+    // The My License card above already shows the code, larger and selectable.
+    expect(poolRow).toContain("private var showsCodeLine: Bool");
+    expect(poolRow).toContain("!isRetired && !isCurrentHolder");
+    expect(poolRow).toContain("if showsCodeLine {");
+
+    // One verdict per row: a row you hold says "Yours", not "Yours" plus a
+    // competing open-slot count.
+    expect(poolRow).toContain('StatusPill(label: isCurrentHolder ? "Yours" : availabilityLabel,');
+    expect(poolRow).toContain("tone: isCurrentHolder ? .blue : statusTone)");
+    expect(poolRow).toContain('if isCurrentHolder { return "key.fill" }');
+  });
+
+  it("shows a pool row's expiry only once it is worth acting on", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+    const poolRow = view.slice(view.indexOf("private struct LicensePoolRow"));
+
+    expect(poolRow).toContain("private var showsExpiry: Bool");
+    expect(poolRow).toContain("guard !isRetired, !isCurrentHolder else { return false }");
+    expect(poolRow).toContain("return daysLeft <= 30");
+    expect(poolRow).toContain("if showsExpiry {");
+    // The active-license card still states expiry unconditionally.
+    expect(view).toContain('Label(expirySummary(activeClaim.expiresAt), systemImage: "calendar")');
+  });
+
+  it("does not present a retired code as claimable", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+    const poolRow = view.slice(view.indexOf("private struct LicensePoolRow"));
+
+    expect(poolRow).toContain("private var isRetired: Bool");
+    expect(poolRow).toContain("code.status == .retired");
+    // Occupancy and the Claim button live behind the not-retired branch, so a
+    // retired row never says "No one is using this code" or offers a claim.
+    expect(poolRow).toContain("if !isRetired {");
+    expect(poolRow).toContain("private var retiredSummary: String");
+    expect(poolRow).toContain('return "\\(expirySummary(code.expiresAt)) · No longer claimable"');
+    expect(poolRow).toContain("opacity(isRetired ? 0.7 : 1)");
+  });
+
+  it("reconciles the capacity summary with the rows actually listed", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+
+    // Staff and admin receive retired codes the summary deliberately excludes.
+    expect(view).toContain("private var retiredCount: Int");
+    expect(view).toContain("vm.codes.filter { $0.status == .retired }.count");
+    expect(view).toContain("The summary above counts live codes only.");
+  });
+
+  it("drops the per-row status wash so the claimed card stays the only tinted block", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+
+    expect(view).not.toContain("listRowBackground(rowBackground)");
+    expect(view).not.toContain("private var rowBackground: Color");
+    // The active-license card keeps its tint; it is the one thing that is yours.
+    expect(view).toContain(".listRowBackground(Color.statusBackground(.blue))");
+  });
+
+  it("gives consequential license actions haptics and announces transient notices", () => {
+    const view = source("ios/Wisconsin/Views/LicensesView.swift");
+
+    expect(view).toContain("UIAccessibility.post(notification: .announcement, argument: message)");
+    const claim = view.slice(view.indexOf("func claim("), view.indexOf("func releaseActiveClaim()"));
+    expect(claim).toContain("Haptics.success()");
+    expect(claim).toContain("Haptics.error()");
+    const release = view.slice(view.indexOf("func releaseActiveClaim()"), view.indexOf("func copyActiveCode()"));
+    expect(release).toContain("Haptics.success()");
+    expect(release).toContain("Haptics.error()");
+    expect(view.slice(view.indexOf("func copyActiveCode()"))).toContain("Haptics.success()");
   });
 
   it("keeps admin management on web while exposing self-service to every role", () => {

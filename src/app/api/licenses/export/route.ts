@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { listAllCodes } from "@/lib/services/licenses";
 import { csvField } from "@/lib/csv";
+import { createAuditEntry } from "@/lib/audit";
 
 const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
 
@@ -43,9 +44,19 @@ export const GET = withAuth(async (_req, { user }) => {
   const body = [header, ...rows].join("\n");
   const filename = `licenses-${new Date().toISOString().slice(0, 10)}.csv`;
 
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "license_code",
+    entityId: "all",
+    action: "export",
+    after: { rowCount: codes.length },
+  });
+
   return new NextResponse(body, {
     status: 200,
     headers: {
+      "Cache-Control": "private, no-store",
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },

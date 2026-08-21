@@ -15,6 +15,7 @@ const PUBLIC_HANDLER_ROUTES: Record<string, string[]> = {
   "src/app/api/auth/reset-password/route.ts": ["POST"],
   "src/app/api/companion/devices/route.ts": ["POST", "DELETE"],
   "src/app/api/companion/projection/route.ts": ["GET"],
+  "src/app/api/companion/session/route.ts": ["POST"],
   "src/app/api/kiosk/activate/route.ts": ["POST"],
   "src/app/api/seed/route.ts": ["POST"],
   "src/app/api/shifts/ics/[token]/route.ts": ["GET"],
@@ -56,6 +57,13 @@ const PUBLIC_ROUTE_SAFETY: Record<string, RegExp[]> = {
   ],
   "src/app/api/companion/projection/route.ts": [
     /\brequireCompanion\s*\(/,
+    /\b(?:checkRateLimit|enforceRateLimit)\s*\(/,
+    /\bgetClientIp\s*\(/,
+  ],
+  // Renewal authenticates through renewCompanionSession, which calls
+  // requireCompanion itself before issuing a replacement token.
+  "src/app/api/companion/session/route.ts": [
+    /\brenewCompanionSession\s*\(/,
     /\b(?:checkRateLimit|enforceRateLimit)\s*\(/,
     /\bgetClientIp\s*\(/,
   ],

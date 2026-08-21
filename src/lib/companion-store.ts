@@ -142,6 +142,19 @@ export async function issueCompanionSession(user: {
   return encode(payload);
 }
 
+/**
+ * Renew an authenticated companion lease without waking Neon. The caller's
+ * current credential remains valid until the client has durably stored the
+ * replacement and explicitly revokes the old session.
+ */
+export async function renewCompanionSession(req: Request): Promise<string> {
+  const payload = await requireCompanion(req);
+  return issueCompanionSession(
+    { id: payload.userId, role: payload.role },
+    payload.epoch,
+  );
+}
+
 export async function getCompanionUserEpoch(userId: string): Promise<number> {
   return await getCompanionRedis().get<number>(`${USER_EPOCH_PREFIX}${userId}`) ?? 0;
 }

@@ -41,7 +41,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: _none matched_
 - APIs: `/api/dashboard`, `/api/dashboard/stats`, `/api/kiosk/dashboard`
 - Services: `src/lib/services/dashboard-counts.ts`
-- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-event-title.test.ts`, `tests/dashboard-fast-count-truth.test.ts`, `tests/dashboard-motion-source.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/kiosk-dashboard-route.test.ts`
+- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-event-title.test.ts`, `tests/dashboard-fast-count-truth.test.ts`, `tests/dashboard-motion-source.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/dashboard-ui-polish.test.ts`
 
 ## events
 
@@ -89,7 +89,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/licenses`
 - APIs: `/api/licenses/[id]/claim`, `/api/licenses/[id]/history`, `/api/licenses/[id]/occupy`, `/api/licenses/[id]/release`, `/api/licenses/[id]`, `/api/licenses/bulk`, `/api/licenses/export`, `/api/licenses/my/history`, `/api/licenses/my`, `/api/licenses`
 - Services: `src/lib/services/licenses.ts`
-- Tests: `tests/ios-licenses-native-page.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`
+- Tests: `tests/ios-licenses-native-page.test.ts`, `tests/licenses-export-route.test.ts`, `tests/licenses-release-concurrency.test.ts`, `tests/licenses-ui-privacy-contract.test.ts`
 
 ## mobile
 
@@ -153,13 +153,13 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/search`
 - APIs: `/api/assets/picker-search`, `/api/image-search`
 - Services: _none matched_
-- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/resource-search.test.ts`, `tests/search-input-focus-stability.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`, `tests/search-result-title.test.ts`
+- Tests: `tests/api-image-search.test.ts`, `tests/app-shell-search-source.test.ts`, `tests/image-search.test.ts`, `tests/ios-search-partial-results.test.ts`, `tests/resource-search.test.ts`, `tests/search-input-focus-stability.test.ts`, `tests/search-page-source.test.ts`, `tests/search-pages.test.ts`
 
 ## settings
 
 - Doc: `docs/AREA_SETTINGS.md`
-- Pages: `/settings/allowed-emails`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`, `/settings/collaborator-access`
-- APIs: `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/non-game-schedule`, `/api/settings/reservation-rules`
+- Pages: `/settings/allowed-emails`, `/settings/app-activity`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`
+- APIs: `/api/settings/app-activity`, `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/non-game-schedule`, `/api/settings/reservation-rules`
 - Services: _none matched_
 - Tests: `tests/ios-settings-detail-menus.test.ts`, `tests/ios-settings-first-class.test.ts`, `tests/settings-allowed-emails-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`, `tests/settings-audit-filters.test.ts`, `tests/settings-audit-pagination.test.ts`, `tests/settings-calendar-sources-load-state.test.ts`, `tests/settings-kiosk-devices-location-state.test.ts`
 
@@ -169,13 +169,13 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/bulk-assignment/apply`, `/api/schedule/bulk-assignment/preview`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`
 - Services: `src/lib/services/bulk-schedule-assignment.ts`, `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`
-- Tests: `tests/badge-shift-breadth.test.ts`, `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`
+- Tests: `tests/badge-shift-breadth.test.ts`, `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-home-shifts-deep-link.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`
 
 ## signatures
 
 - Doc: `docs/AREA_SIGNATURES.md`
 - Pages: `/signatures/[id]/capture/[memberId]`, `/signatures/[id]`, `/signatures`
-- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/reset`, `/api/signatures/collections/[id]/restore`
+- APIs: `/api/signatures/artifacts/[revisionId]/[kind]`, `/api/signatures/cleanup`, `/api/signatures/collections/[id]/archive`, `/api/signatures/collections/[id]/capture/[memberId]`, `/api/signatures/collections/[id]/creative-staff`, `/api/signatures/collections/[id]/download`, `/api/signatures/collections/[id]/members/[memberId]/profile`, `/api/signatures/collections/[id]/members/[memberId]/required`, `/api/signatures/collections/[id]/members/[memberId]`, `/api/signatures/collections/[id]/reset`
 - Services: `src/lib/services/signatures.ts`
 - Tests: _none matched_
 
@@ -185,7 +185,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: _none matched_
 - APIs: `/api/software/[id]`, `/api/software/[id]/secret`, `/api/software`
 - Services: `src/lib/services/software.ts`
-- Tests: `tests/software-vault.test.ts`
+- Tests: `tests/software-api-hardening.test.ts`, `tests/software-page-first-class.test.ts`, `tests/software-vault.test.ts`
 
 ## users
 

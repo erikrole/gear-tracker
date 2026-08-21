@@ -27,7 +27,7 @@ _None._
 
 ## P2 - post-MVP
 - [ ] [Parity] Full native resource authoring, verification, file/image management, Contacts references, and sport-assignment reference tools. Deferred to the web Resources control room.
-- [ ] [Audit] Runtime visual pass on iPhone and iPad after the next simulator run window.
+- [x] [Audit] **Completed 2026-08-20.** Runtime visual pass on both form factors. Guides, Users, and Licenses captured on iPhone 16 Pro (iOS 26.5) and iPad Pro 13-inch (M5, iOS 26.5) through `GT_PERFORMANCE_SCENARIO=resourcesGuides|resourcesUsers|resourcesLicenses`. Both layouts render correctly: the iPad widens rows rather than stretching phone chrome, and role, status, and category treatments survive the width change. No defects found.
 
 ## Lenses checked
 - [x] Gaps

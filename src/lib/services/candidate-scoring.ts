@@ -361,6 +361,8 @@ export async function loadCandidateScoringUsersForRange(args: {
           status: true,
           dayOfWeek: true,
           date: true,
+          dateEndsOn: true,
+          allDay: true,
           startsAt: true,
           endsAt: true,
           label: true,

@@ -10,6 +10,11 @@ enum KioskAccessState: String, Codable, Equatable, Sendable {
 }
 
 private struct GearOpsCachedState: Codable {
+    private static let maxOpenBookings = 1_000
+    private static let maxBookingActivity = 2_000
+    private static let maxKioskDevices = 256
+    private static let maxCount = 1_000_000
+
     let user: GearOpsUser
     let snapshot: GearOpsSnapshot?
     let openBookings: [OpenBooking]?
@@ -17,6 +22,40 @@ private struct GearOpsCachedState: Codable {
     let activeBookingActivity: [BookingActivitySnapshot]?
     let kioskDevices: [KioskDevice]?
     let kioskAccess: KioskAccessState?
+
+    var isTrustworthy: Bool {
+        guard !user.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              openBookingTotal.map({ $0 >= 0 }) ?? true,
+              openBookings.map({ $0.count <= Self.maxOpenBookings }) ?? true,
+              activeBookingActivity.map({ $0.count <= Self.maxBookingActivity }) ?? true,
+              kioskDevices.map({ $0.count <= Self.maxKioskDevices }) ?? true,
+              openBookings.map({ Self.hasUniqueNonemptyIDs($0.map(\.id)) }) ?? true,
+              activeBookingActivity.map({ Self.hasUniqueNonemptyIDs($0.map(\.id)) }) ?? true,
+              kioskDevices.map({ Self.hasUniqueNonemptyIDs($0.map(\.id)) }) ?? true,
+              kioskDevices?.allSatisfy({
+                  $0.pendingPickupCount >= 0 && $0.pendingPickupCount <= Self.maxCount
+                      && $0.openCheckoutCount >= 0 && $0.openCheckoutCount <= Self.maxCount
+              }) ?? true else {
+            return false
+        }
+
+        guard let snapshot else { return true }
+        return snapshot.stats.checkedOut >= 0
+            && snapshot.stats.checkedOut <= Self.maxCount
+            && snapshot.stats.overdue >= 0
+            && snapshot.stats.overdue <= Self.maxCount
+            && snapshot.stats.reserved >= 0
+            && snapshot.stats.reserved <= Self.maxCount
+            && snapshot.stats.dueToday >= 0
+            && snapshot.stats.dueToday <= Self.maxCount
+            && snapshot.pendingPickupTotal >= 0
+            && snapshot.pendingPickupTotal <= Self.maxCount
+    }
+
+    private static func hasUniqueNonemptyIDs(_ ids: [String]) -> Bool {
+        ids.allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && Set(ids).count == ids.count
+    }
 }
 
 @MainActor
@@ -37,7 +76,8 @@ final class GearOpsModel {
     private var installedProjection: CompanionProjection?
     private var refreshQueued = false
     private var pushTask: Task<Void, Never>?
-    private var automaticRefreshTask: Task<Void, Never>?
+    private var startupTask: Task<Void, Never>?
+    private var supplementaryTask: Task<Void, Never>?
     private var knownBookingActivity: [String: BookingActivitySnapshot] = [:]
 
     var user: GearOpsUser?
@@ -72,7 +112,8 @@ final class GearOpsModel {
         self.appPreferences = appPreferences ?? AppPreferencesStore(defaults: defaults)
 
         if let data = defaults.data(forKey: Self.cacheKey),
-           let cached = try? JSONDecoder().decode(GearOpsCachedState.self, from: data) {
+           let cached = try? JSONDecoder().decode(GearOpsCachedState.self, from: data),
+           cached.isTrustworthy {
             user = cached.user
             snapshot = cached.snapshot
             openBookings = cached.openBookings ?? []
@@ -82,8 +123,12 @@ final class GearOpsModel {
             kioskDevices = cached.kioskDevices ?? []
             kioskAccess = cached.kioskAccess ?? .unknown
             knownBookingActivity = Dictionary(
-                uniqueKeysWithValues: activeBookingActivity.map { ($0.id, $0) }
+                activeBookingActivity.map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
             )
+        } else if defaults.data(forKey: Self.cacheKey) != nil {
+            // A corrupt or stale cache must not create a launch crash loop.
+            defaults.removeObject(forKey: Self.cacheKey)
         }
 
         if autoStart {
@@ -104,18 +149,52 @@ final class GearOpsModel {
     }
 
     var menuBarAccessibilityLabel: String {
-        guard let count = openBookingTotal else {
+        guard let count = custodyCount else {
             return user == nil ? "Wisconsin Creative, signed out" : "Wisconsin Creative, status unavailable"
         }
         return "Wisconsin Creative, \(count) active checkout\(count == 1 ? "" : "s"), \(healthLabel.lowercased())"
     }
 
-    var healthSeverity: GearOpsHealthSeverity {
-        if user != nil, snapshot == nil, statusMessage != nil { return .critical }
-        if monitoredKioskDevices.contains(where: { $0.connectionState().isFault }) { return .critical }
-        if user != nil, kioskAccess == .restricted { return .attention }
+    /// The projection's checked-out statistic is the single physical-custody
+    /// truth shared by the menu bar, popover header, and VoiceOver label.
+    var custodyCount: Int? { snapshot?.stats.checkedOut }
+
+    var companionHealthSeverity: GearOpsHealthSeverity {
+        guard user != nil else { return .healthy }
+        if snapshot == nil { return .critical }
         if countDataIsPartial || statusMessage != nil { return .attention }
         return .healthy
+    }
+
+    var kioskHealthSeverity: GearOpsHealthSeverity {
+        guard user != nil else { return .healthy }
+        switch kioskAccess {
+        case .failed, .restricted:
+            return .attention
+        case .available:
+            return monitoredKioskDevices.contains(where: { $0.connectionState().isFault })
+                ? .critical
+                : .healthy
+        case .unknown:
+            return .healthy
+        }
+    }
+
+    var healthSeverity: GearOpsHealthSeverity {
+        max(companionHealthSeverity, kioskHealthSeverity)
+    }
+
+    var kioskStatusSummary: String {
+        switch kioskAccess {
+        case .available:
+            kioskFleetCounts.summary
+        case .restricted:
+            "Restricted for this account"
+        case .failed:
+            "Could not refresh"
+        case .unknown:
+            "Not checked"
+        }
     }
 
     var healthLabel: String {
@@ -172,17 +251,16 @@ final class GearOpsModel {
                 guard generation == sessionGeneration, user != nil else { return }
                 sessionGeneration &+= 1
                 clearAuthenticatedState()
+                await clearPrivateArtifacts()
                 statusMessage = "Sign in to enable automatic updates."
                 return
             }
             guard generation == sessionGeneration, user != nil else { return }
             companionToken = token
             registeredDeviceCredential = nil
-            await bookingNotifications.requestAuthorization()
-            guard sessionIsCurrent(generation: generation, token: token) else { return }
-            await registerCurrentDeviceToken(expectedGeneration: generation)
-            guard sessionIsCurrent(generation: generation, token: token) else { return }
             await refresh()
+            guard sessionIsCurrent(generation: generation, token: token) else { return }
+            scheduleSupplementarySetup(expectedGeneration: generation, token: token)
         } catch {
             guard generation == sessionGeneration, user != nil else { return }
             companionToken = nil
@@ -201,16 +279,27 @@ final class GearOpsModel {
             }
         }
 
+        var issuedToken: String?
         do {
             let response = try await client.login(email: email, password: password)
-            guard generation == sessionGeneration else { return }
+            issuedToken = response.companionToken
+            guard generation == sessionGeneration else {
+                await discardIssuedCredential(response.companionToken)
+                return
+            }
             guard !response.user.forcePasswordChange else {
                 clearAuthenticatedState()
+                await clearPrivateArtifacts()
+                await discardIssuedCredential(response.companionToken)
                 statusMessage = "Open Gear Tracker in your browser to change your password."
                 return
             }
+            try response.companionProjection.validate()
             try await credentialStore.saveToken(response.companionToken)
-            guard generation == sessionGeneration else { return }
+            guard generation == sessionGeneration else {
+                await discardIssuedCredential(response.companionToken)
+                return
+            }
             user = response.user
             companionToken = response.companionToken
             registeredDeviceCredential = nil
@@ -219,11 +308,15 @@ final class GearOpsModel {
                 deliverNotifications: false,
                 expectedGeneration: generation
             )
-            guard sessionIsCurrent(generation: generation, token: response.companionToken) else { return }
-            await bookingNotifications.requestAuthorization()
-            guard sessionIsCurrent(generation: generation, token: response.companionToken) else { return }
-            await registerCurrentDeviceToken(expectedGeneration: generation)
+            guard sessionIsCurrent(generation: generation, token: response.companionToken) else {
+                await discardIssuedCredential(response.companionToken)
+                return
+            }
+            scheduleSupplementarySetup(expectedGeneration: generation, token: response.companionToken)
         } catch {
+            if let issuedToken {
+                await discardIssuedCredential(issuedToken)
+            }
             guard generation == sessionGeneration else { return }
             statusMessage = error.localizedDescription
         }
@@ -238,31 +331,42 @@ final class GearOpsModel {
         isRefreshing = false
         refreshQueued = false
         clearAuthenticatedState()
+        await clearPrivateArtifacts()
         statusMessage = message
         var credentialRemovalFailed = false
-        do {
-            try await credentialStore.deleteToken()
-        } catch {
-            credentialRemovalFailed = true
-        }
-
+        var serverCleanupPending = false
         if let tokenToRevoke {
-            await client.revokeCompanion(credential: tokenToRevoke)
-        }
+            let staged = (try? await credentialStore.stageTokenForRevocation(tokenToRevoke)) != nil
+            if staged {
+                do {
+                    try await credentialStore.deleteToken(ifMatching: tokenToRevoke)
+                } catch {
+                    credentialRemovalFailed = true
+                }
+            }
 
-        if credentialRemovalFailed {
-            do {
-                try await credentialStore.deleteToken()
-                credentialRemovalFailed = false
-            } catch {
-                // Keep local operational data cleared and surface that secure
-                // credential removal still needs attention.
+            if await revokeCredential(tokenToRevoke) {
+                try? await credentialStore.removePendingRevocation(tokenToRevoke)
+                do {
+                    try await credentialStore.deleteToken(ifMatching: tokenToRevoke)
+                } catch {
+                    credentialRemovalFailed = true
+                }
+            } else if staged {
+                serverCleanupPending = true
+            } else {
+                credentialRemovalFailed = true
             }
         }
         isSigningOut = false
         if credentialRemovalFailed {
             let prefix = message.map { "\($0) " } ?? "Signed out locally. "
-            statusMessage = prefix + "The saved companion credential could not be removed. Quit and try again."
+            statusMessage = prefix + "The saved companion credential could not be removed. Try signing out again."
+        } else if serverCleanupPending {
+            let prefix = message.map { "\($0) " } ?? "Signed out. "
+            statusMessage = prefix + "Server session cleanup will retry when Wisconsin Creative opens."
+        } else {
+            statusMessage = message
         }
     }
 
@@ -282,33 +386,49 @@ final class GearOpsModel {
             }
         }
 
+        var requestToken = companionToken
         repeat {
             refreshQueued = false
+            requestToken = self.companionToken ?? requestToken
             do {
-                let projection = try await client.companionProjection(token: companionToken)
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                do {
+                    requestToken = try await renewCredential(
+                        token: requestToken,
+                        expectedGeneration: generation
+                    )
+                } catch GearOpsClientError.unauthorized {
+                    throw GearOpsClientError.unauthorized
+                } catch {
+                    // Renewal is best-effort while the current credential is
+                    // still valid. Keep using it through a network or Keychain
+                    // interruption instead of turning a refresh failure into a
+                    // sign-out.
+                }
+
+                let projection = try await client.companionProjection(token: requestToken)
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
+                try projection.validate()
 
                 if installedProjection == projection {
                     statusMessage = nil
-                    await registerCurrentDeviceToken(expectedGeneration: generation)
                 } else {
                     await install(
                         projection,
                         deliverNotifications: true,
                         expectedGeneration: generation
                     )
-                    guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
-                    await registerCurrentDeviceToken(expectedGeneration: generation)
+                    guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 }
+                scheduleSupplementarySetup(expectedGeneration: generation, token: requestToken)
             } catch GearOpsClientError.unauthorized {
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 await signOut(message: "Companion enrollment expired. Sign in again.")
                 return
             } catch {
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 statusMessage = "Updates are unavailable. Showing the last confirmed data."
             }
-        } while refreshQueued && sessionIsCurrent(generation: generation, token: companionToken)
+        } while refreshQueued && sessionIsCurrent(generation: generation, token: requestToken)
     }
 
     func openDashboard() {
@@ -341,6 +461,10 @@ final class GearOpsModel {
         notificationAuthorization = await bookingNotifications.authorization()
     }
 
+    func clearStatusMessage() {
+        statusMessage = nil
+    }
+
     func openSystemNotificationSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") else { return }
         open(url: url)
@@ -367,32 +491,25 @@ final class GearOpsModel {
                 case .deviceToken(let token):
                     await self?.receiveDeviceToken(token)
                 case .projectionChanged:
-                    await self?.refresh()
+                    guard let self else { continue }
+                    await self.retryPendingRevocations()
+                    if self.companionToken == nil {
+                        await self.restoreSession()
+                    } else {
+                        await self.refresh()
+                    }
                 }
             }
         }
     }
 
-    /// APNs is the fast path. This bounded poll is the reliability backstop for
-    /// unsigned development builds, missed pushes, and transient registration
-    /// failures. It reads only the external projection cache.
+    /// Launch and wake restore the last trusted enrollment once. APNs and an
+    /// explicit refresh remain the normal invalidation paths; this deliberately
+    /// contains no timer or polling loop.
     private func startAutomaticRefresh() {
-        automaticRefreshTask = Task { [weak self] in
+        startupTask = Task { [weak self] in
+            await self?.retryPendingRevocations()
             await self?.restoreSession()
-
-            while !Task.isCancelled {
-                do {
-                    try await Task.sleep(for: .seconds(60))
-                } catch {
-                    return
-                }
-                guard !Task.isCancelled else { return }
-                if let self, self.user != nil, self.companionToken == nil {
-                    await self.restoreSession()
-                } else {
-                    await self?.refresh()
-                }
-            }
         }
     }
 
@@ -420,12 +537,97 @@ final class GearOpsModel {
         }
     }
 
+    private func scheduleSupplementarySetup(expectedGeneration: UInt64, token: String) {
+        supplementaryTask?.cancel()
+        supplementaryTask = Task { [weak self] in
+            guard let self else { return }
+            await self.registerCurrentDeviceToken(expectedGeneration: expectedGeneration)
+            guard self.sessionIsCurrent(generation: expectedGeneration, token: token) else { return }
+            await self.bookingNotifications.requestAuthorization()
+            guard self.sessionIsCurrent(generation: expectedGeneration, token: token) else { return }
+            await self.registerCurrentDeviceToken(expectedGeneration: expectedGeneration)
+        }
+    }
+
+    /// Rotate a still-valid companion credential before reading the external
+    /// projection. The old credential remains valid on the server until the
+    /// replacement is durable in Keychain, so a failed save never strands the
+    /// account. Old-session cleanup uses the same durable retry path as sign-out.
+    private func renewCredential(token: String, expectedGeneration: UInt64) async throws -> String {
+        let renewedToken = try await client.renewCompanion(token: token)
+        guard !renewedToken.isEmpty else { throw GearOpsClientError.invalidResponse }
+        guard sessionIsCurrent(generation: expectedGeneration, token: token) else {
+            await discardIssuedCredential(renewedToken)
+            throw CancellationError()
+        }
+        guard renewedToken != token else { return token }
+
+        do {
+            try await credentialStore.saveToken(renewedToken)
+        } catch {
+            await discardIssuedCredential(renewedToken)
+            throw error
+        }
+
+        guard sessionIsCurrent(generation: expectedGeneration, token: token) else {
+            await discardIssuedCredential(renewedToken)
+            throw CancellationError()
+        }
+        companionToken = renewedToken
+        await discardIssuedCredential(token)
+        return renewedToken
+    }
+
+    private func revokeCredential(_ token: String) async -> Bool {
+        do {
+            try await client.revokeCompanion(credential: token)
+            return true
+        } catch GearOpsClientError.unauthorized {
+            // A 401 means the server has already invalidated the credential.
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func discardIssuedCredential(_ token: String) async {
+        if await revokeCredential(token) {
+            try? await credentialStore.deleteToken(ifMatching: token)
+            try? await credentialStore.removePendingRevocation(token)
+            return
+        }
+
+        if (try? await credentialStore.stageTokenForRevocation(token)) != nil {
+            try? await credentialStore.deleteToken(ifMatching: token)
+        }
+    }
+
+    private func retryPendingRevocations() async {
+        guard let pending = try? await credentialStore.loadPendingRevocations() else { return }
+        for token in pending {
+            guard !Task.isCancelled else { return }
+            if await revokeCredential(token) {
+                try? await credentialStore.removePendingRevocation(token)
+                try? await credentialStore.deleteToken(ifMatching: token)
+            }
+        }
+    }
+
+    private func clearPrivateArtifacts() async {
+        await bookingNotifications.clearPrivateNotifications()
+        GearOpsAvatarCache.removeAll()
+    }
+
     private func install(
         _ projection: CompanionProjection,
         deliverNotifications: Bool,
         expectedGeneration: UInt64
     ) async {
         guard expectedGeneration == sessionGeneration else { return }
+        guard (try? projection.validate()) != nil else {
+            statusMessage = "Updates are unavailable. Showing the last confirmed data."
+            return
+        }
         let previousActivity = knownBookingActivity
         let sortedActivity = projection.bookingActivity.sorted(using: KeyPathComparator(\.startsAt))
 
@@ -444,7 +646,10 @@ final class GearOpsModel {
         countDataIsPartial = false
         statusMessage = nil
 
-        knownBookingActivity = Dictionary(uniqueKeysWithValues: sortedActivity.map { ($0.id, $0) })
+        knownBookingActivity = Dictionary(
+            sortedActivity.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         persistCache()
 
         if deliverNotifications {
@@ -480,6 +685,7 @@ final class GearOpsModel {
     }
 
     private func clearAuthenticatedState() {
+        supplementaryTask?.cancel()
         companionToken = nil
         user = nil
         snapshot = nil

@@ -145,10 +145,14 @@ describe("student field mobile contracts", () => {
     expect(scheduleView).toContain("Text(\"Event Type\")");
     expect(scheduleView).toContain("ForEach(HomeAwayFilter.allCases");
     expect(scheduleView).toContain("Picker(\"Sport\"");
-    expect(scheduleView).toContain("Image(systemName: \"arrow.left.arrow.right\")");
+    // Toolbar controls are Labels, not bare Images: the title is what makes
+    // them self-describing, and it lets the system own sizing and hit area.
+    expect(scheduleView).toContain("Label(\n                            \"Trade Board\",");
+    expect(scheduleView).toContain("arrow.left.arrow.right.circle");
     expect(scheduleView).toContain("Label(\"My Availability\", systemImage: \"calendar.badge.clock\")");
     expect(scheduleView).toContain("Label(\"Shift Calendar\", systemImage: \"calendar.badge.plus\")");
-    expect(scheduleView).toContain("accessibilityLabel(activeFilterCount > 0 ? \"Filters, \\(activeFilterCount) active\" : \"Filters\")");
+    expect(scheduleView).toContain("\"Filters, \\(activeFilterCount) active\"");
+    expect(scheduleView).toContain("\"Trade Board, \\(appState.openTradeCount) open\"");
     expect(scheduleView).toContain("accessibilityLabel(\"More Schedule actions\")");
     expect(scheduleView).not.toContain("Switch to calendar view");
     expect(scheduleView).not.toContain("Switch to list view");
@@ -352,6 +356,7 @@ describe("student field mobile contracts", () => {
     const models = source("ios/Wisconsin/Models/Models.swift");
     const scheduleModels = source("ios/Wisconsin/Models/ScheduleModels.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const webAvailability = source("src/app/(app)/users/[id]/UserAvailabilityTab.tsx");
     const meRoute = source("src/app/api/me/route.ts");
     const auth = source("src/lib/auth.ts");
     const userPage = source("src/app/(app)/users/[id]/page.tsx");
@@ -374,6 +379,8 @@ describe("student field mobile contracts", () => {
     expect(scheduleModels).toContain("let intent: String?");
     expect(scheduleModels).toContain("let status: String?");
     expect(scheduleModels).toContain("let date: String?");
+    expect(scheduleModels).toContain("let dateEndsOn: String?");
+    expect(scheduleModels).toContain("let allDay: Bool?");
     expect(scheduleModels).toContain("let reviewNote: String?");
     expect(availability).toContain("AvailabilityEditorIntent");
     expect(availability).toContain("case prefer = \"PREFER\"");
@@ -383,10 +390,12 @@ describe("student field mobile contracts", () => {
     expect(availability).toContain("case adHoc = \"AD_HOC\"");
     expect(availability).toContain("AvailabilityWeekStrip");
     expect(availability).toContain("Your schedule signals");
-    expect(availability).toContain("Typical week");
-    expect(availability).toContain("One-time exceptions");
+    expect(availability).toContain("Weekly class schedule");
+    expect(availability).toContain("One-off days and ranges");
     expect(availability).toContain("Pending staff review");
-    expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(availability).toContain("Label(\"Add availability\", systemImage: \"plus\")");
+    expect(availability).toContain("Multiple days");
+    expect(availability).toContain("All day");
     expect(availability).toContain("Edit Availability");
     expect(availability).toContain("stride(from: 0, through: 23 * 60 + 45, by: 15)");
     expect(apiClient).toContain("kind: String = \"WEEKLY\"");
@@ -395,8 +404,13 @@ describe("student field mobile contracts", () => {
     expect(apiClient).toContain("kind: kind");
     expect(apiClient).toContain("intent: intent");
     expect(apiClient).toContain("date: kind == \"AD_HOC\" ? date : nil");
+    expect(apiClient).toContain("dateEndsOn: kind == \"AD_HOC\" ? dateEndsOn ?? date : nil");
+    expect(apiClient).toContain("allDay: kind == \"AD_HOC\" && allDay");
     expect(apiClient).toContain("func updateAvailabilityBlock(");
     expect(apiClient).toContain("method: \"PATCH\"");
+    expect(webAvailability).toContain("One-time day or range");
+    expect(webAvailability).toContain("dateEndsOn");
+    expect(webAvailability).toContain("allDay");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {

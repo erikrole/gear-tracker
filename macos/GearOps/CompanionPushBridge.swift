@@ -27,6 +27,16 @@ final class CompanionPushBridge: Sendable {
 final class GearOpsAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.registerForRemoteNotifications()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     func application(
@@ -50,6 +60,13 @@ final class GearOpsAppDelegate: NSObject, NSApplicationDelegate {
         didReceiveRemoteNotification userInfo: [String: Any]
     ) {
         guard userInfo["companionProjectionVersion"] != nil else { return }
+        CompanionPushBridge.shared.send(.projectionChanged)
+    }
+
+    /// A wake is the bounded reliability backstop for an APNs invalidation
+    /// throttled while the Mac slept. It replaces background timer polling and
+    /// still reads only the accepted external projection route.
+    @objc private func workspaceDidWake(_ notification: Notification) {
         CompanionPushBridge.shared.send(.projectionChanged)
     }
 }

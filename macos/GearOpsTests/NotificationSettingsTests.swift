@@ -171,7 +171,9 @@ final class AppPreferencesTests: XCTestCase {
 
     func testLoginItemStateMapsApprovalAndAbsenceDistinctly() {
         XCTAssertTrue(LoginItemState.enabled.isOn)
-        XCTAssertFalse(LoginItemState.requiresApproval.isOn)
+        XCTAssertTrue(LoginItemState.requiresApproval.isOn)
+        XCTAssertTrue(LoginItemState.requiresApproval.canChange)
+        XCTAssertFalse(LoginItemState.unavailable.canChange)
         XCTAssertNil(LoginItemState.enabled.detail)
         XCTAssertNil(LoginItemState.disabled.detail)
         XCTAssertNotNil(LoginItemState.requiresApproval.detail)

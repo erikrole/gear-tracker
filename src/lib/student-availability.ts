@@ -12,6 +12,8 @@ export type AvailabilityBlockLike = {
   status?: AvailabilityStatus | string | null;
   dayOfWeek?: number | null;
   date?: Date | string | null;
+  dateEndsOn?: Date | string | null;
+  allDay?: boolean | null;
   startsAt: string;
   endsAt: string;
   label?: string | null;
@@ -110,32 +112,47 @@ function blockStatus(block: AvailabilityBlockLike): AvailabilityStatus {
 function formatConflictNote(block: AvailabilityBlockLike, intent = blockIntent(block), status = blockStatus(block)): string {
   const label = block.label?.trim();
   const range = `${block.startsAt}-${block.endsAt}`;
+  const dateStart = dateOnly(block.date);
+  const dateEnd = dateOnly(block.dateEndsOn) ?? dateStart;
+  const hasDateRange = Boolean(dateStart && dateEnd && dateStart !== dateEnd);
+  const detail = block.allDay
+    ? hasDateRange ? `all day, ${dateStart} to ${dateEnd}` : `all day, ${dateStart ?? "this date"}`
+    : hasDateRange ? `${range}, ${dateStart} to ${dateEnd}` : range;
   if (intent === "PREFER") {
-    return label ? `Prefers ${label} (${range})` : `Prefers this window ${range}`;
+    return label ? `Prefers ${label} (${detail})` : `Prefers this window ${detail}`;
   }
   if (intent === "DISLIKE") {
-    return label ? `Dislikes ${label} (${range})` : `Dislikes this window ${range}`;
+    return label ? `Dislikes ${label} (${detail})` : `Dislikes this window ${detail}`;
   }
   if (intent === "TIME_OFF") {
     if (status === "APPROVED") {
-      return label ? `Approved time off: ${label} (${range})` : `Approved time off ${range}`;
+      return label ? `Approved time off: ${label} (${detail})` : `Approved time off ${detail}`;
     }
     if (status === "PENDING") {
-      return label ? `Pending time off: ${label} (${range})` : `Pending time off ${range}`;
+      return label ? `Pending time off: ${label} (${detail})` : `Pending time off ${detail}`;
     }
-    return label ? `Denied time off: ${label} (${range})` : `Denied time off ${range}`;
+    return label ? `Denied time off: ${label} (${detail})` : `Denied time off ${detail}`;
   }
   const fallback = block.kind === "AD_HOC" ? "conflict" : "class";
-  return label ? `Conflicts with ${label} (${range})` : `Conflicts with ${fallback} ${range}`;
+  return label ? `Conflicts with ${label} (${detail})` : `Conflicts with ${fallback} ${detail}`;
 }
 
 function overlapsAvailabilityBlock(block: AvailabilityBlockLike, start: ReturnType<typeof toLocalParts>, end: ReturnType<typeof toLocalParts>) {
-  if (!timeOverlaps(start.hhmm, end.hhmm, block.startsAt, block.endsAt)) return false;
-
   if (block.kind === "AD_HOC") {
-    return dateOnly(block.date) === start.date;
+    const blockStart = dateOnly(block.date);
+    const blockEnd = dateOnly(block.dateEndsOn) ?? blockStart;
+    if (!blockStart || !blockEnd) return false;
+
+    // A dated range is inclusive. All-day ranges intentionally ignore the
+    // stored canonical 00:00–23:59 wall-clock values so a full-day trip still
+    // conflicts with any call window on any covered date.
+    const datesOverlap = start.date <= blockEnd && end.date >= blockStart;
+    if (!datesOverlap) return false;
+    if (block.allDay) return true;
+    return timeOverlaps(start.hhmm, end.hhmm, block.startsAt, block.endsAt);
   }
 
+  if (!timeOverlaps(start.hhmm, end.hhmm, block.startsAt, block.endsAt)) return false;
   if (block.dayOfWeek !== start.dayOfWeek) return false;
   return isWithinDateBounds(start.date, block);
 }

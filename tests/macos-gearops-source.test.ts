@@ -20,8 +20,10 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(app).toContain(".menuBarExtraStyle(.window)");
     expect(app).toContain("Image(systemName: model.menuBarSymbol)");
     expect(project).toContain("PRODUCT_NAME: Wisconsin Creative");
-    expect(project).toContain("../ios/Wisconsin/AppIcons/AppIcon.icon");
+    expect(project).toContain("../ios/Wisconsin/Assets.xcassets");
+    expect(project).toContain("GearOps/Supporting/AppIcon.icns");
     expect(project).toContain("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon");
+    expect(plist).toMatch(/<key>CFBundleIconFile<\/key>\s*<string>AppIcon<\/string>/);
     expect(plist).toMatch(/<key>LSUIElement<\/key>\s*<true\/>/);
   });
 
@@ -63,8 +65,6 @@ describe("GearOps macOS menu bar contracts", () => {
 
     expect(model).toContain("$0.connectionState().isFault");
     expect(model).not.toContain("$0.connectionState() == .stale");
-    expect(view).toContain("$0.connectionState().isFault");
-    expect(view).not.toContain("$0.connectionState() == .stale");
     expect(view).toContain("case .stale: .secondary");
     expect(view).not.toContain("case .stale: .orange");
 
@@ -109,10 +109,12 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(menu.indexOf("NSApplication.shared.activate()"))
       .toBeLessThan(menu.indexOf("openWindow(id: GearOpsWindow.settings)"));
 
-    // The window also orders itself in, covering ⌘, and re-open while the app
-    // is in the background.
-    expect(view).toContain("struct SettingsWindowActivator: NSViewRepresentable");
+    // Visibility is the activation boundary. Updating settings while the user
+    // is in another app must not repeatedly steal focus.
+    expect(view).toContain("private struct SettingsWindowActivator: NSViewRepresentable");
+    expect(view).toContain("private final class SettingsWindowActivationProbe: NSView");
     expect(view).toContain("window.makeKeyAndOrderFront(nil)");
+    expect(view).not.toContain("func updateNSView(_ nsView: SettingsWindowActivator");
     expect(view).toContain("formStyle(.grouped)");
     expect(view).toContain("model.openSystemNotificationSettings()");
   });
@@ -130,6 +132,8 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(prefs).toContain("try service.register()");
     expect(prefs).toContain("try service.unregister()");
     expect(prefs).toContain("case .requiresApproval: .requiresApproval");
+    expect(prefs).toContain("var isOn: Bool { self == .enabled || self == .requiresApproval }");
+    expect(prefs).toContain("var canChange: Bool { self != .unavailable }");
     expect(prefs).toContain("SMAppService.openSystemSettingsLoginItems()");
 
     expect(view).toContain('Toggle("Open at login"');
@@ -141,6 +145,7 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(settings).toContain("playsSound = false");
     expect(notifications).toContain("content.sound = playsSound ? .default : nil");
     expect(view).toContain('Toggle("Play a sound"');
+    expect(view).toContain("@Environment(\\.scenePhase)");
   });
 
   it("groups system health into one panel with actionable rows", () => {
@@ -234,11 +239,32 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(model).toContain("try await credentialStore.loadToken()");
     expect(model).toContain("client.companionProjection(");
     expect(model).not.toContain("fromSource");
-    expect(model).toContain("Task.sleep(for: .seconds(60))");
+    expect(model).not.toContain("Task.sleep(for: .seconds(60))");
+    expect(model).toContain("no timer or polling loop");
+    expect(model).toContain("retryPendingRevocations()");
     expect(model).toContain("await self?.restoreSession()");
     expect(model).not.toContain("startPolling");
     expect(model).not.toContain('method: "PATCH"');
     expect(source("macos/GearOps/MenuBarContentView.swift")).toContain("await model.refresh()");
+  });
+
+  it("renews the companion lease without waking Neon or losing the old credential", () => {
+    const client = source("macos/GearOps/GearOpsClient.swift");
+    const model = source("macos/GearOps/GearOpsModel.swift");
+    const route = source("src/app/api/companion/session/route.ts");
+    const store = source("src/lib/companion-store.ts");
+
+    expect(client).toContain("func renewCompanion(token: String) async throws -> String");
+    expect(client).toContain('makeRequest(path: "/api/companion/session", method: "POST")');
+    expect(model).toContain("requestToken = try await renewCredential(");
+    expect(model).toContain("try await credentialStore.saveToken(renewedToken)");
+    expect(model).toContain("await discardIssuedCredential(token)");
+    expect(model).toContain("Renewal is best-effort while the current credential is");
+    expect(route).toContain("renewCompanionSession(req)");
+    expect(route).toContain("companion:session:ip:");
+    expect(route).not.toContain("@/lib/db");
+    expect(store).toContain("export async function renewCompanionSession(req: Request)");
+    expect(store).toContain("return issueCompanionSession(");
   });
 
   it("keeps every automatic companion read outside Neon", () => {
@@ -395,6 +421,9 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(model).toContain("CompanionPushBridge.shared.events");
     expect(model).toContain("case .projectionChanged:");
     expect(model).toContain("startAutomaticRefresh()");
+    expect(model).toContain("await self.retryPendingRevocations()");
+    expect(model).toContain("clearPrivateNotifications()");
+    expect(notifications).toContain("options: [.alert, .sound]");
     expect(model).toContain("knownBookingActivity");
   });
 
@@ -412,6 +441,7 @@ describe("GearOps macOS menu bar contracts", () => {
   it("preserves cached truth and exact kiosk heartbeat thresholds", () => {
     const model = source("macos/GearOps/GearOpsModel.swift");
     const health = source("macos/GearOps/Health.swift");
+    const models = source("macos/GearOps/Models.swift");
 
     expect(model).toContain("persistCache()");
     expect(model).toContain("Failure preserves the last trusted");
@@ -420,5 +450,31 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(health).toContain("if age <= 24 * 60 * 60 { return .stale }");
     expect(health).toContain('.caseInsensitiveCompare("Sim iPad")');
     expect(model).toContain(".filter(\\.isIncludedInMonitoring)");
+    expect(model).toContain("cached.isTrustworthy");
+    expect(model).toContain("try projection.validate()");
+    expect(model).toContain("uniquingKeysWith:");
+    expect(models).toContain("guard version == 1");
+    expect(models).toContain("openBookings.count <= 1_000");
+  });
+
+  it("keeps signed-out surfaces private and failure states visible", () => {
+    const model = source("macos/GearOps/GearOpsModel.swift");
+    const login = source("macos/GearOps/LoginView.swift");
+    const menu = source("macos/GearOps/GearOpsApp.swift");
+    const avatar = source("macos/GearOps/UserAvatarView.swift");
+
+    expect(model).toContain("stageTokenForRevocation(tokenToRevoke)");
+    expect(model).toContain("retryPendingRevocations()");
+    expect(model).toContain("clearPrivateNotifications()");
+    expect(model).toContain("GearOpsAvatarCache.removeAll()");
+    expect(model).toContain("var custodyCount: Int? { snapshot?.stats.checkedOut }");
+    expect(menu).toContain("model.custodyCount");
+
+    expect(login).toContain("identityError ?? model.statusMessage");
+    expect(login).toContain("password = \"\"");
+    expect(login).toContain("showPassword = false");
+    expect(login).toContain("accessibilityAddTraits(.updatesFrequently)");
+    expect(avatar).toContain('scheme == "https"');
+    expect(avatar).toContain("maxResponseBytes = 2_000_000");
   });
 });

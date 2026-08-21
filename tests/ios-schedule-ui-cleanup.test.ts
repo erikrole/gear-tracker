@@ -39,11 +39,18 @@ describe("iOS Schedule UI cleanup", () => {
     expect(scheduleView).toContain("Picker(\"Sport\", selection: sportSelection)");
     expect(scheduleView).toContain("activeFilterSummary");
     expect(scheduleView).not.toContain("FilterChip(");
-    expect(controlStrip).toContain(".buttonStyle(.plain)");
-    expect(controlStrip).toContain(".foregroundStyle(Color.primary)");
-    expect(controlStrip).toContain(".background(Color.cardSurfaceRaised, in: Capsule())");
+    // Filters is a list control, so it lives in the navigation toolbar with
+    // the same tint contract Items and Users use, not in a hand-rolled capsule
+    // sharing a content row with the view switcher.
+    expect(controlStrip).toContain("Picker(\"Schedule view\", selection: $viewMode)");
+    expect(controlStrip).toContain(".pickerStyle(.segmented)");
+    expect(controlStrip).toContain("ActiveControlBar(summary: activeFilterSummary, clear: clearScheduleFilters)");
     expect(controlStrip).toContain(".padding(.bottom, Brand.Space.xs)");
+    expect(controlStrip).not.toContain("Capsule()");
+    expect(controlStrip).not.toContain(".buttonStyle(.plain)");
     expect(controlStrip).not.toContain(".buttonStyle(.bordered)");
+    expect(scheduleView).toContain(".listControlTint(isActive: activeFilterCount > 0)");
+    expect(scheduleView).toContain("ToolbarSpacer(.fixed, placement: .topBarTrailing)");
     expect(filterSheet).toContain("ToolbarItem(placement: .cancellationAction)");
     expect(filterSheet).toContain("Button(\"Clear\") { onClear() }");
     expect(filterSheet).toContain("Text(showResultsTitle)");
@@ -64,10 +71,16 @@ describe("iOS Schedule UI cleanup", () => {
     expect(scheduleView.match(/contentMargins\(\.bottom, 96, for: \.scrollContent\)/g)?.length).toBeGreaterThanOrEqual(2);
     expect(eventRow).toContain("StatusRail(color: barColor)");
     expect(eventRow).toContain("Text(eventTypeLabel)");
-    expect(eventRow).toContain("Label(venueName, systemImage: \"mappin.and.ellipse\")");
+    // Venue shares the meta line with the home/away word now that the time has
+    // moved to the gutter, so it is an inline icon + text rather than a Label.
+    expect(eventRow).toContain("Image(systemName: \"mappin.and.ellipse\")");
+    expect(eventRow).toContain("Text(venueName)");
     expect(eventRow).toContain("personalWorkLine(myShift)");
     expect(eventRow).toContain("parts.append(shift.gear.gearLabel)");
-    expect(eventRow).toContain("myShift == nil ? Color.cardSurface : Color.statusBackground(.blue).opacity(0.34)");
+    // Row background/stroke are computed properties now, because the live
+    // ("NOW") state also claims the stroke. The my-shift tint is unchanged.
+    expect(eventRow).toContain("Color.statusBackground(.blue).opacity(0.34)");
+    expect(eventRow).toContain("return Color.cardSurface");
     expect(eventRow).toContain(".foregroundStyle(Color.statusText(.blue))");
     expect(eventRow).toContain("if showsCrewCoverage, let cov = event.coverage");
   });
@@ -78,6 +91,10 @@ describe("iOS Schedule UI cleanup", () => {
     expect(scheduleView.match(/EventRow\(/g)?.length).toBeGreaterThanOrEqual(2);
     expect(scheduleView).toContain("showsCrewCoverage: showsCrewCoverage");
     expect(scheduleView).toContain("coverageChip(cov)");
+    // Both day indexes sort chronologically. Calendar mode reads `eventsByDay`,
+    // which was rendering in API insertion order while the list groups sorted --
+    // a day could read 11:00 AM, 4:00 PM, 7:30 PM, 5:50 PM.
+    expect(scheduleView).toContain("eventsByDay = allByDay.mapValues { $0.sorted { $0.startsAt < $1.startsAt } }");
     expect(scheduleView).toContain("dots.contains(where: \\.isShift)");
     // Calendar dots and agenda rails must speak the same venue vocabulary.
     // They used to assert it by each spelling out green/orange/grey inline,

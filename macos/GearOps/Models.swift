@@ -223,6 +223,8 @@ struct BookingChangesEnvelope: Decodable, Sendable {
 }
 
 struct CompanionProjection: Codable, Equatable, Sendable {
+    private static let maxCount = 1_000_000
+
     let version: Int
     let revision: Int?
     let generatedAt: Date
@@ -232,6 +234,43 @@ struct CompanionProjection: Codable, Equatable, Sendable {
     let bookingActivity: [BookingActivitySnapshot]
     let kioskDevices: [KioskDevice]
     let kioskAccess: String
+
+    /// The external cache is trusted only after its structural invariants are
+    /// checked. Duplicate identities are especially dangerous in SwiftUI and
+    /// previously trapped the process when activity was indexed with
+    /// `Dictionary(uniqueKeysWithValues:)`.
+    func validate() throws {
+        guard version == 1,
+              revision.map({ $0 >= 0 }) ?? true,
+              openBookings.count <= 1_000,
+              bookingActivity.count <= 2_000,
+              kioskDevices.count <= 256,
+              stats.checkedOut >= 0,
+              stats.checkedOut <= Self.maxCount,
+              stats.overdue >= 0,
+              stats.overdue <= Self.maxCount,
+              stats.reserved >= 0,
+              stats.reserved <= Self.maxCount,
+              stats.dueToday >= 0,
+              stats.dueToday <= Self.maxCount,
+              pendingPickupTotal >= 0,
+              pendingPickupTotal <= Self.maxCount,
+              Self.hasUniqueNonemptyIDs(openBookings.map(\.id)),
+              Self.hasUniqueNonemptyIDs(bookingActivity.map(\.id)),
+              Self.hasUniqueNonemptyIDs(kioskDevices.map(\.id)),
+              kioskDevices.allSatisfy({
+                  $0.pendingPickupCount >= 0 && $0.pendingPickupCount <= Self.maxCount
+                      && $0.openCheckoutCount >= 0 && $0.openCheckoutCount <= Self.maxCount
+              }),
+              kioskAccess == "available" || kioskAccess == "restricted" || kioskAccess == "failed" else {
+            throw GearOpsClientError.invalidResponse
+        }
+    }
+
+    private static func hasUniqueNonemptyIDs(_ ids: [String]) -> Bool {
+        ids.allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && Set(ids).count == ids.count
+    }
 }
 
 struct CompanionProjectionEnvelope: Decodable, Sendable {
@@ -242,6 +281,10 @@ struct LoginResponse: Decodable, Sendable {
     let user: GearOpsUser
     let companionToken: String
     let companionProjection: CompanionProjection
+}
+
+struct CompanionSessionResponse: Decodable, Sendable {
+    let companionToken: String
 }
 
 struct MeResponse: Decodable, Sendable {

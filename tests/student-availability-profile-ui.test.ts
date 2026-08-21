@@ -25,8 +25,8 @@ describe("student availability profile UI", () => {
   it("keeps the profile buckets broad enough for weekly and dated availability signals", () => {
     const tab = source("src/app/(app)/users/[id]/UserAvailabilityTab.tsx");
 
-    expect(tab).toContain("Repeating schedule signals");
-    expect(tab).toContain("One-time requests and exceptions");
+    expect(tab).toContain("Weekly class schedule");
+    expect(tab).toContain("One-off days and ranges");
     expect(tab).toContain("No repeating class, preference, or weekly time-off signals.");
     expect(tab).toContain("No dated conflicts, preferences, or time-off requests.");
     expect(tab).toContain("Next dated exception:");

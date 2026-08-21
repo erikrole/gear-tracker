@@ -4,7 +4,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Area: AREA_SHIFTS / AREA_USERS
 - Status: Shipped
-- Last Updated: 2026-06-30
+- Last Updated: 2026-08-21
 
 ## Problem
 
@@ -12,7 +12,7 @@ Staff need to know when students are predictably unavailable before assigning sh
 
 ## V1 Scope
 
-Student-scheduling-class users and staff can maintain weekly recurring unavailability blocks on the user profile Availability tab. A block records day of week, local start time, local end time, and an optional label such as a class name.
+Student-scheduling-class users and staff can maintain recurring class unavailability blocks and one-off days away on the user profile Availability tab. A block records a weekday or inclusive date range, local start/end time when timed, an all-day flag when appropriate, and an optional label such as a class name.
 
 This is intentionally an availability-warning system. It does not prevent staff/admin overrides, because operations may still need to assign a conflicted student after direct confirmation.
 
@@ -24,7 +24,9 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - Staff-role users can manage their own blocks when their Scheduling class is Student.
 - Staff and admins can view and manage blocks for any Student-scheduling-class user.
 - `GET /api/users/[id]/availability` returns the user's blocks.
-- `POST /api/users/[id]/availability` creates a block after validating weekday and start/end time order.
+- `POST /api/users/[id]/availability` creates a block after validating weekday/date shape, date-range order, and start/end time order.
+- Ad hoc blocks preserve legacy single-date timed rows while also supporting inclusive `dateEndsOn` ranges and `allDay` time-away rows.
+- The shared conflict helper treats all-day rows as overlapping any call window on any covered date, while timed ranges still use local wall-clock overlap.
 - `DELETE /api/users/[id]/availability/[blockId]` removes a block after ownership validation.
 - Assignment pickers call `GET /api/shifts/[id]/conflicts` and show conflict indicators for overlapping blocks.
 - Auto-assign and trade-swap flows carry conflict flags/notes forward instead of silently ignoring class conflicts.
@@ -91,6 +93,13 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - Approved time off approved after assignment now surfaces as a persisted Schedule conflict instead of staying invisible until the assignment is touched.
 - Changed or deleted availability clears stale `hasConflict` and `conflictNote` values from affected future active assignments.
 
+## Shipped Follow-Up (2026-08-21 Availability Experience)
+
+- Web and native iOS now lead with recurring class schedules as the common cannot-work path, with clearer weekly and one-off sections and distinct add actions.
+- One-off entries can cover one date or an inclusive `From`/`Through` range, with an explicit `All day` option for travel, visitors, and other full-day unavailability.
+- Native iOS adds optional class-term bounds alongside the existing 15-minute time controls and keeps new range/all-day response fields optional for rollout safety.
+- The additive schema/API contract preserves legacy single-date and timed rows; no availability policy changes were introduced for advisory signals or approved time off.
+
 ## Acceptance Criteria
 
 - [x] AC-1: A student can add a recurring weekly unavailability block for themselves.
@@ -107,6 +116,7 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - [x] AC-12: Open Work and Trade Board rows surface availability blockers, advisory context, and preferred windows before claim, request, or approval actions.
 - [x] AC-13: Native iOS My Availability can display and create weekly, one-time, preference, dislike, and time-off signals without breaking older payloads.
 - [x] AC-14: Availability mutations refresh persisted future assignment conflict state so Schedule queues, exports, and assignment review do not show stale conflicts.
+- [x] AC-15: Web and native iOS can add recurring class windows plus one-off single-date, inclusive-range, and all-day cannot-work entries without breaking legacy availability rows.
 
 ## Out Of Scope
 

@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Pencil,
   Plus,
+  RefreshCw,
   ShieldCheck,
 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
@@ -48,11 +49,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { formatRelativeTime } from "@/lib/format";
 import type { SoftwareCredentialAudience, SoftwareCredentialSummary } from "./types";
 
-const SUGGESTED_SOFTWARE = ["Photo Mechanic", "Envato Elements", "APM Music", "Motion Array"];
+const SUGGESTED_SOFTWARE = ["Envato Elements", "APM Music", "Motion Array"];
 const DEFAULT_VISIBLE_TO: SoftwareCredentialAudience[] = ["STAFF", "STUDENT"];
 const AUDIENCE_OPTIONS: Array<{
   value: SoftwareCredentialAudience;
@@ -123,6 +126,7 @@ function SoftwareCredentialDialog({
   const [visibleTo, setVisibleTo] = useState<SoftwareCredentialAudience[]>(DEFAULT_VISIBLE_TO);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -145,6 +149,8 @@ function SoftwareCredentialDialog({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setErrorMessage(null);
 
@@ -164,14 +170,15 @@ function SoftwareCredentialDialog({
         body: JSON.stringify(body),
       });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not save software account"));
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not save shared login"));
 
-      toast.success(editing ? "Software account updated" : "Software account added");
+      toast.success(editing ? "Shared login updated" : "Shared login added");
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not save software account");
+      setErrorMessage(error instanceof Error ? error.message : "Could not save shared login");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -180,7 +187,7 @@ function SoftwareCredentialDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[min(760px,calc(100vh-2rem))] overflow-y-auto">
         <DialogHeader className="block space-y-1">
-          <DialogTitle>{editing ? "Edit software account" : "Add software account"}</DialogTitle>
+          <DialogTitle>{editing ? "Edit shared login" : "Add shared login"}</DialogTitle>
           <DialogDescription>
             Store one department login. Secrets are encrypted before they reach the database.
           </DialogDescription>
@@ -256,13 +263,13 @@ function SoftwareCredentialDialog({
                   required={!editing}
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Passwords are never included in the software list or audit log. Reveals are explicit and audited.
+                  Passwords stay out of the shared list and audit log. Reveals are explicit and audited.
                 </p>
               </div>
               <fieldset className="space-y-2 sm:col-span-2">
-                <legend className="text-sm font-medium">Who can use this login?</legend>
+                <legend className="text-sm font-medium">Who is this shared with?</legend>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Choose at least one audience. Staff includes administrators and can always manage the record.
+                  Choose at least one audience. Staff operators can always manage every shared login, even when Staff is not selected.
                 </p>
                 <div className="grid gap-2">
                   {AUDIENCE_OPTIONS.map((option) => {
@@ -309,13 +316,17 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SoftwareCredentialSummary | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<SoftwareCredentialSummary | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
-  const [revealingId, setRevealingId] = useState<string | null>(null);
+  const [pendingSecretIds, setPendingSecretIds] = useState<Set<string>>(new Set());
+  const [pendingMutationIds, setPendingMutationIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const revealTimers = useRef<Record<string, number>>({});
   const copyTimer = useRef<number | null>(null);
+  const secretRequestIds = useRef(new Set<string>());
+  const mutationIds = useRef(new Set<string>());
 
-  const { data, loading, error, reload } = useFetch<SoftwareCredentialSummary[]>({
+  const { data, loading, refreshing, error, lastRefreshed, reload } = useFetch<SoftwareCredentialSummary[]>({
     url: isAdmin ? "/api/software?includeArchived=1" : "/api/software",
     transform: (json) => (json.data as SoftwareCredentialSummary[]) ?? [],
   });
@@ -338,12 +349,50 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
   }
 
   function openEditForm(record: SoftwareCredentialSummary) {
+    clearRevealedPassword(record.id);
     setEditing(record);
     setFormOpen(true);
   }
 
+  function setPendingId(
+    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    id: string,
+    pending: boolean,
+  ) {
+    setter((current) => {
+      const next = new Set(current);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function runSecretRequest<T>(id: string, action: () => Promise<T>): Promise<T | undefined> {
+    if (secretRequestIds.current.has(id)) return undefined;
+    secretRequestIds.current.add(id);
+    setPendingId(setPendingSecretIds, id, true);
+    try {
+      return await action();
+    } finally {
+      secretRequestIds.current.delete(id);
+      setPendingId(setPendingSecretIds, id, false);
+    }
+  }
+
+  async function runMutation<T>(id: string, action: () => Promise<T>): Promise<T | undefined> {
+    if (mutationIds.current.has(id)) return undefined;
+    mutationIds.current.add(id);
+    setPendingId(setPendingMutationIds, id, true);
+    try {
+      return await action();
+    } finally {
+      mutationIds.current.delete(id);
+      setPendingId(setPendingMutationIds, id, false);
+    }
+  }
+
   async function requestPassword(id: string): Promise<string> {
-    const res = await fetch(`/api/software/${id}/secret`);
+    const res = await fetch(`/api/software/${id}/secret`, { method: "POST" });
     if (handleAuthRedirect(res)) throw new Error("Session expired");
     if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not retrieve password"));
     const json = await parseJsonSafely<{ data?: { password?: unknown } }>(res);
@@ -365,24 +414,30 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
     }, 30_000);
   }
 
+  function clearRevealedPassword(id: string) {
+    if (revealTimers.current[id]) {
+      window.clearTimeout(revealTimers.current[id]);
+      delete revealTimers.current[id];
+    }
+    setRevealedPasswords((current) => {
+      if (!(id in current)) return current;
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function togglePassword(record: SoftwareCredentialSummary) {
     if (revealedPasswords[record.id]) {
-      setRevealedPasswords((current) => {
-        const next = { ...current };
-        delete next[record.id];
-        return next;
-      });
+      clearRevealedPassword(record.id);
       return;
     }
 
-    setRevealingId(record.id);
     try {
-      const password = await requestPassword(record.id);
-      holdRevealedPassword(record.id, password);
+      const password = await runSecretRequest(record.id, () => requestPassword(record.id));
+      if (password) holdRevealedPassword(record.id, password);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not retrieve password");
-    } finally {
-      setRevealingId(null);
     }
   }
 
@@ -398,7 +453,9 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
 
   async function copyPassword(record: SoftwareCredentialSummary) {
     try {
-      const password = revealedPasswords[record.id] ?? await requestPassword(record.id);
+      const password = revealedPasswords[record.id]
+        ?? await runSecretRequest(record.id, () => requestPassword(record.id));
+      if (!password) return;
       await navigator.clipboard.writeText(password);
       showCopied(`${record.id}:password`);
       toast.success("Password copied");
@@ -418,45 +475,57 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
 
   async function archiveRecord() {
     if (!archiveTarget) return;
+    const target = archiveTarget;
     try {
-      const res = await fetch(`/api/software/${archiveTarget.id}`, { method: "DELETE" });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not archive software account"));
-      toast.success(`${archiveTarget.name} archived`);
+      const archived = await runMutation(target.id, async () => {
+        const res = await fetch(`/api/software/${target.id}`, { method: "DELETE" });
+        if (handleAuthRedirect(res)) return false;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not archive shared login"));
+        return true;
+      });
+      if (!archived) return;
+      clearRevealedPassword(target.id);
+      toast.success(`${target.name} archived`);
       setArchiveTarget(null);
       reload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not archive software account");
+      toast.error(error instanceof Error ? error.message : "Could not archive shared login");
     }
   }
 
   async function restoreRecord(record: SoftwareCredentialSummary) {
     try {
-      const res = await fetch(`/api/software/${record.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: false }),
+      const restored = await runMutation(record.id, async () => {
+        const res = await fetch(`/api/software/${record.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: false }),
+        });
+        if (handleAuthRedirect(res)) return false;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not restore shared login"));
+        return true;
       });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error(await parseErrorMessage(res, "Could not restore software account"));
+      if (!restored) return;
       toast.success(`${record.name} restored`);
       reload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not restore software account");
+      toast.error(error instanceof Error ? error.message : "Could not restore shared login");
     }
   }
 
   function renderCard(record: SoftwareCredentialSummary) {
     const password = revealedPasswords[record.id];
     const isArchived = Boolean(record.archivedAt);
+    const secretPending = pendingSecretIds.has(record.id);
+    const mutationPending = pendingMutationIds.has(record.id);
 
     return (
-      <Card key={record.id} className={isArchived ? "opacity-70" : undefined}>
+      <Card key={record.id} className={isArchived ? "opacity-70" : undefined} aria-busy={secretPending || mutationPending || undefined}>
         <CardHeader className="gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={isArchived ? "gray" : "blue"} size="sm">
+                <Badge variant={isArchived ? "gray" : "outline"} size="sm">
                   {isArchived ? "Archived" : record.category || "Department account"}
                 </Badge>
                 {!isArchived && <LockKeyhole className="size-3.5 text-muted-foreground" aria-label="Password protected" />}
@@ -479,6 +548,7 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
                   className="size-10 text-muted-foreground hover:text-foreground"
                   aria-label={`Edit ${record.name}`}
                   onClick={() => openEditForm(record)}
+                  disabled={mutationPending}
                 >
                   <Pencil className="size-4" />
                 </Button>
@@ -486,8 +556,13 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
             </div>
           </div>
           <CardDescription>
-            <span className="block">{isArchived ? "Archived from the shared software list." : "Department login · available to the authorized team"}</span>
-            {!isArchived && <span className="mt-1 block text-xs">Shared with {formatAudience(record.visibleTo)}.</span>}
+            <span className="block">{isArchived ? "Archived from the shared-login list." : "Department login · available to the authorized team"}</span>
+            {!isArchived && (
+              <>
+                <span className="mt-1 block text-xs">Shared with {formatAudience(record.visibleTo)}. Staff operators can always manage it.</span>
+                <span className="mt-1 block text-xs">Updated {formatRelativeTime(record.updatedAt, new Date())}</span>
+              </>
+            )}
           </CardDescription>
         </CardHeader>
         {!isArchived ? (
@@ -517,14 +592,17 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
                   aria-label={password ? `Hide ${record.name} password` : `Show ${record.name} password`}
                   aria-pressed={Boolean(password)}
                   onClick={() => togglePassword(record)}
-                  disabled={revealingId === record.id}
+                  disabled={secretPending}
                 >
-                  {password ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {secretPending
+                    ? <RefreshCw className="size-4 animate-spin" />
+                    : password ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </Button>
                 <SecretAction
                   label={`Copy ${record.name} password`}
                   onClick={() => copyPassword(record)}
                   copied={copiedId === `${record.id}:password`}
+                  disabled={secretPending}
                 />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Reveal or copy only when you need it. Reveals are logged.</p>
@@ -538,11 +616,11 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
         {isAdmin && (
           <CardFooter className="justify-between gap-3 border-t pt-4">
             {isArchived ? (
-              <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => restoreRecord(record)}>
+              <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => restoreRecord(record)} loading={mutationPending}>
                 Restore account
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" className="h-10 text-muted-foreground hover:text-destructive" onClick={() => setArchiveTarget(record)}>
+              <Button type="button" variant="ghost" size="sm" className="h-10 text-muted-foreground hover:text-destructive" onClick={() => setArchiveTarget(record)} disabled={mutationPending}>
                 <Archive data-icon="inline-start" />
                 Archive
               </Button>
@@ -555,35 +633,61 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <section aria-labelledby="software-vault-title" className="mb-8 space-y-4">
+    <section aria-labelledby="shared-logins-title" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Shared access</p>
-          <h2 id="software-vault-title" className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Department accounts</p>
+          <h2 id="shared-logins-title" className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
             <KeyRound className="size-5 text-[var(--wi-red)]" />
-            Software vault
+            Shared logins
+            {!loading && !error && <Badge variant="outline" size="sm">{activeRecords.length} active</Badge>}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            One clear place for department software logins. Email is ready to copy; passwords stay masked until you ask.
+            Copy the department email or password for tools the team shares. Photo Mechanic activation codes live in their own tab.
           </p>
         </div>
-        {isAdmin && (
-          <Button type="button" className="h-10" onClick={openNewForm}>
-            <Plus data-icon="inline-start" />
-            Add software
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && archivedRecords.length > 0 && (
+            <Button
+              type="button"
+              variant={showArchived ? "secondary" : "outline"}
+              size="sm"
+              className="h-10"
+              onClick={() => setShowArchived((current) => !current)}
+              aria-pressed={showArchived}
+            >
+              <Archive data-icon="inline-start" />
+              {showArchived ? "Hide archived" : `Archived (${archivedRecords.length})`}
+            </Button>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="size-10" onClick={reload} disabled={loading || refreshing} aria-label="Refresh shared logins">
+                <RefreshCw className={refreshing ? "animate-spin" : undefined} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), new Date())}` : "Refresh shared logins"}
+            </TooltipContent>
+          </Tooltip>
+          {isAdmin && (
+            <Button type="button" className="h-10" onClick={openNewForm}>
+              <Plus data-icon="inline-start" />
+              Add shared login
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex items-start gap-3 rounded-lg border border-[var(--blue)]/25 bg-[var(--blue-bg)]/35 px-4 py-3 text-sm">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--blue-text)]" />
         <p className="leading-relaxed text-muted-foreground">
-          Account emails and passwords are encrypted at rest. Passwords are fetched only for an explicit reveal or copy action, never in the list response.
+          Account emails and passwords are encrypted. Password access is always deliberate, rate-limited, and logged.
         </p>
       </div>
 
       {loading && activeRecords.length === 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading software accounts">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading shared logins">
           {Array.from({ length: 3 }, (_, index) => (
             <Card key={index}>
               <CardHeader><Skeleton className="h-4 w-28" /><Skeleton className="h-5 w-44" /></CardHeader>
@@ -592,27 +696,39 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
           ))}
         </div>
       ) : error && records.length === 0 ? (
-        <EmptyState icon="wifi-off" title="Couldn't load software accounts" description="Check your connection and try again." actionLabel="Retry" onAction={reload} />
+        <EmptyState icon="wifi-off" title="Couldn't load shared logins" description="Check your connection and try again." actionLabel="Retry" onAction={reload} />
       ) : activeRecords.length === 0 ? (
         <Card className="border-dashed" elevation="flat">
           <CardContent className="py-8 text-center">
             <LockKeyhole className="mx-auto mb-3 size-6 text-muted-foreground" />
-            <h3 className="font-medium">No shared software accounts yet</h3>
+            <h3 className="font-medium">No active shared logins</h3>
             <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
-              Add the department logins your crew reaches for most often. Suggested entries: {SUGGESTED_SOFTWARE.join(", ")}.
+              {archivedRecords.length > 0
+                ? "Archived logins are kept out of the active list until a staff operator restores them."
+                : `Add the department logins your crew reaches for most often. Suggested entries: ${SUGGESTED_SOFTWARE.join(", ")}.`}
             </p>
-            {isAdmin && <Button type="button" className="mt-4 h-10" onClick={openNewForm}><Plus data-icon="inline-start" />Add first account</Button>}
+            {isAdmin && archivedRecords.length > 0 ? (
+              <Button type="button" variant="outline" className="mt-4 h-10" onClick={() => setShowArchived(true)}>
+                <Archive data-icon="inline-start" />
+                Review archived
+              </Button>
+            ) : isAdmin ? (
+              <Button type="button" className="mt-4 h-10" onClick={openNewForm}><Plus data-icon="inline-start" />Add first shared login</Button>
+            ) : null}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeRecords.map(renderCard)}</div>
       )}
 
-      {isAdmin && archivedRecords.length > 0 && (
-        <details className="rounded-lg border bg-muted/10 px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">Archived accounts ({archivedRecords.length})</summary>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{archivedRecords.map(renderCard)}</div>
-        </details>
+      {isAdmin && showArchived && archivedRecords.length > 0 && (
+        <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
+          <div>
+            <h3 className="text-sm font-semibold">Archived shared logins</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Restore a login to return it to the active team list.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{archivedRecords.map(renderCard)}</div>
+        </div>
       )}
 
       <SoftwareCredentialDialog
@@ -622,18 +738,31 @@ export function SoftwareVault({ isAdmin }: { isAdmin: boolean }) {
         onSaved={reload}
       />
 
-      <AlertDialog open={Boolean(archiveTarget)} onOpenChange={(open) => { if (!open) setArchiveTarget(null); }}>
+      <AlertDialog
+        open={Boolean(archiveTarget)}
+        onOpenChange={(open) => {
+          if (!open && archiveTarget && !pendingMutationIds.has(archiveTarget.id)) setArchiveTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Archive {archiveTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the account from the shared list without deleting its encrypted record. Admins can restore it later.
+              This removes the login from the team list without deleting its encrypted record. Staff operators can restore it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep account</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={archiveRecord}>
-              Archive account
+            <AlertDialogCancel disabled={Boolean(archiveTarget && pendingMutationIds.has(archiveTarget.id))}>Keep login</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={Boolean(archiveTarget && pendingMutationIds.has(archiveTarget.id))}
+              onClick={(event) => {
+                event.preventDefault();
+                void archiveRecord();
+              }}
+            >
+              {archiveTarget && pendingMutationIds.has(archiveTarget.id) && <RefreshCw className="size-4 animate-spin" />}
+              Archive login
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

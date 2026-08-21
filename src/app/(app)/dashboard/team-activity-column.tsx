@@ -208,7 +208,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
               <div
                 key={e.id}
                 className={cn(
-                  "group flex min-h-[4.5rem] w-full items-center justify-between gap-3 border-l-[3px] px-4 py-3 text-inherit no-underline transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-border/40",
+                  "group flex min-h-[4.5rem] w-full items-center justify-between gap-3 border-l-[3px] px-4 py-3 text-inherit no-underline transition-colors hover:bg-muted/45 [&+&]:border-t [&+&]:border-t-border/40",
                   eventBorder(e),
                 )}
               >

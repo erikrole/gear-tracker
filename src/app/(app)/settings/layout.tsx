@@ -39,13 +39,14 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const router = useRouter();
   const { data: currentUser, isLoading } = useCurrentUser();
   const role = currentUser?.role ?? null;
+  const canViewOwnerReport = currentUser?.canViewUsageAnalytics === true;
 
   useEffect(() => {
     if (!isLoading && !currentUser) router.replace("/login");
   }, [currentUser, isLoading, router]);
 
   const visibleSections = role
-    ? SETTINGS_SECTIONS.filter((s) => isSectionVisible(s, role))
+    ? SETTINGS_SECTIONS.filter((s) => isSectionVisible(s, role, canViewOwnerReport))
     : [];
   const groupedSections = SETTINGS_GROUP_ORDER.map((group) => ({
     group,
@@ -80,7 +81,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <SettingsRail pathname={pathname} groupedSections={groupedSections} />
 
         <main className="min-w-0">
-          <SettingsRouteContent pathname={pathname} role={role} isLoading={isLoading}>
+          <SettingsRouteContent
+            pathname={pathname}
+            role={role}
+            ownerAccess={canViewOwnerReport}
+            isLoading={isLoading}
+          >
             {children}
           </SettingsRouteContent>
         </main>
@@ -92,11 +98,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 function SettingsRouteContent({
   pathname,
   role,
+  ownerAccess,
   isLoading,
   children,
 }: {
   pathname: string;
   role: string | null;
+  ownerAccess: boolean;
   isLoading: boolean;
   children: React.ReactNode;
 }) {
@@ -117,7 +125,7 @@ function SettingsRouteContent({
 
   if (!role) return null;
 
-  const access = getSettingsRouteAccess(pathname, role);
+  const access = getSettingsRouteAccess(pathname, role, ownerAccess);
   if (access.allowed) return children;
 
   const unknownRoute = access.kind === "unknown";

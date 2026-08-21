@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-15
+- Last Updated: 2026-08-20
 - Status: Active; durable overdue escalation hardening is implemented locally with migration and production rollout pending
 - Version: V1.4
 
@@ -133,8 +133,9 @@ Implementation: `src/lib/checkout-escalation-policy.ts`, `src/lib/services/notif
 - The push contains no booking details. It only invalidates the local snapshot; the Mac then fetches `/api/companion/projection`, whose authentication and data source are entirely external to Neon.
 - APNs delivery is best-effort and may be throttled by the operating system. Manual refresh uses the same Upstash-only route and cached data remains visible on failure.
 - Local booking-change notifications use the booking title as the stackable notification title and show a localized `Status • Requester • Timestamp` body from the projection's server `updatedAt`, so delayed delivery retains the source event time instead of relying only on the Mac's delivery time.
-- Account deactivation and role changes revoke that user's external companion sessions and device registrations. Credential expiry is 90 days.
-- Existing production KV/Upstash, session-secret, and APNs provider variables satisfy the server prerequisites. The macOS App ID capability, signed build, deployment, and real delivery remain rollout gates.
+- Wisconsin Creative requests both alert and sound authorization while keeping sound delivery opt-in. On sign-out or identity replacement it removes pending and delivered companion booking requests so requester names, titles, and timestamps do not remain in Notification Center.
+- Account deactivation and role changes revoke that user's external companion sessions and device registrations. Companion credentials are 90-day leases renewed through the Upstash-only session route during normal restore, APNs, or manual refresh; a credential that is unused past its lease still requires sign-in again.
+- Existing production KV/Upstash, session-secret, and APNs provider variables satisfy the server prerequisites. The macOS App ID capability and Developer ID signed/notarized build shipped in `macos-v1.0.0` with profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; real APNs delivery and end-to-end notification acceptance remain rollout gates.
 
 ## Channels (V1 + Email)
 - **In-app**: `Notification` records are durable for the requester and configured operational recipients
@@ -324,6 +325,9 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Wisconsin Creative <noreply@wisconsincreative.com>` |
 
 ## Change Log
+- 2026-08-20: **macOS companion session persistence.** Active credentials now renew through an authenticated Upstash-only route before projection refresh, with the replacement saved to device-only Keychain before the old session is revoked. Network, Keychain, or server interruptions keep the current credential and last trusted projection instead of forcing a logout; inactive credentials still expire after 90 days.
+- 2026-08-20: **macOS companion notification cleanup.** Companion alerts now request the sound capability needed by the opt-in sound setting, while delivery remains silent by default. Sign-out and identity replacement remove pending and delivered local booking requests; APNs invalidation remains detail-free and the external projection remains the data source.
+
 - 2026-08-15: macOS companion booking-change notifications now use the booking title as the stackable title and `Status • Requester • Timestamp` as the body, preserving source event-time context when APNs or Notification Center delivery is delayed.
 - 2026-08-10: Implemented the durable five-stage overdue policy locally. Checkout open/due-time mutations schedule a due-versioned Workflow; late runs collapse to one current stage; grace only defines the first overdue boundary; +4h routes to location responders with safe fallback; +24h adds all admins without push; separate caps are enforced inside fanout; manual nudges honor grace; and migration `0111` plus production/authenticated proof remain rollout gates.
 - 2026-08-10: Shift-trade claimed, completed, approved, and declined flows now share one post-commit push/email dispatcher. Durable in-app notifications and their event-routable payloads remain inside the serializable trade transaction; best-effort push and email continue only after commit, respect existing preferences, and do not change assignment or trade state when delivery fails.

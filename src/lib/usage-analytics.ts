@@ -31,10 +31,13 @@ export const PRODUCT_EVENT_NAMES = [
 export const PRODUCT_EVENT_PLATFORMS = ["web", "ios", "kiosk"] as const;
 export const PRODUCT_EVENT_SURFACES = [
   "home", "bookings", "items", "schedule", "reports", "settings",
-  "search", "notifications", "users", "resources", "licenses", "kiosk", "other",
+  // The native profile record is its own screen reached from two places, so it
+  // counts as itself rather than disappearing into "users".
+  "search", "notifications", "users", "scoreboard", "resources", "licenses", "kiosk", "other",
 ] as const;
 export const PRODUCT_EVENT_OUTCOMES = ["started", "succeeded", "failed", "cancelled"] as const;
 export const PRODUCT_EVENT_DURATION_BUCKETS = ["under_5s", "5_15s", "15_60s", "over_60s"] as const;
+export const PRODUCT_RELEASE_CHANNELS = ["app_store", "testflight", "development", "unknown", "web"] as const;
 
 function parseEmailList(value: string | undefined): Set<string> {
   return new Set((value ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
@@ -53,4 +56,11 @@ export function pseudonymousAnalyticsKey(value: string, occurredAt = new Date())
   if (!secret) return null;
   const rotation = occurredAt.getUTCFullYear().toString();
   return createHmac("sha256", secret).update(`${rotation}:${value}`).digest("hex");
+}
+
+/** Stable only for this configured secret; used to keep one current row per app installation. */
+export function pseudonymousInstallationKey(value: string): string | null {
+  const secret = analyticsSecret();
+  if (!secret) return null;
+  return createHmac("sha256", secret).update(`installation:${value}`).digest("hex");
 }

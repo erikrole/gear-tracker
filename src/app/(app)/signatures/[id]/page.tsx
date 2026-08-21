@@ -6,5 +6,5 @@ export default async function SignatureCollectionRoute({ params }: { params: Pro
   const user = await requireAuth();
   requirePermission(user.role, "signature", "view");
   const { id } = await params;
-  return <SignatureCollectionPage collectionId={id} />;
+  return <SignatureCollectionPage collectionId={id} isAdmin={user.role === "ADMIN"} />;
 }

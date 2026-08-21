@@ -283,7 +283,8 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             endsAt: true,
             updatedAt: true,
             completedAt: true,
-            checkinReports: { select: { id: true }, take: 1 },
+            checkinReports: { select: { id: true, type: true } },
+            dueDateChanges: { select: { id: true }, take: 1 },
           },
         })
       : Promise.resolve([]),
@@ -297,6 +298,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             ],
           },
           select: {
+            postedByUserId: true,
             claimedByUserId: true,
             claimedAt: true,
             shiftAssignment: { select: { shift: { select: { startsAt: true } } } },
@@ -325,6 +327,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             shift: { shiftGroup: { event: { endsAt: { lt: new Date() }, status: "CONFIRMED" } } },
           },
           select: {
+            hasConflict: true,
             callStartsAt: true,
             callEndsAt: true,
             shift: {
@@ -334,7 +337,16 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
                 callStartsAt: true,
                 callEndsAt: true,
                 area: true,
-                shiftGroup: { select: { event: { select: { isHome: true, sportCode: true } } } },
+                shiftGroup: { select: { event: {
+                  select: {
+                    isHome: true,
+                    sportCode: true,
+                    result: true,
+                    site: true,
+                    locationId: true,
+                    opponent: true,
+                  },
+                } } },
               },
             },
           },
@@ -354,6 +366,10 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
         select: {
           startsAt: true,
           kitId: true,
+          eventId: true,
+          sourceReservationId: true,
+          shiftAssignmentId: true,
+          events: { select: { eventId: true } },
           serializedItems: {
             select: {
               assetId: true,

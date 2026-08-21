@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-13
+- Last Updated: 2026-08-20
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -258,6 +258,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+
+- 2026-08-20: **Linked-event editing now stays in the present and future.** The shared booking detail dialog no longer loads unrelated scheduled events that already ended, while existing historical links remain available so operators can review or remove them. The event-link API, booking lifecycle, authorization, reservation state, and kiosk pickup boundaries are unchanged.
 
 - 2026-08-09: **Native booking mutations now retain server truth.** The combined booking API includes per-user `allowedActions` without extra database reads, and native list/detail action visibility uses that policy whenever present. Edit now requires `If-Unmodified-Since`; Edit and Cancel join Extend and Transfer in decoding and immediately installing the enriched returned booking, preserving current lifecycle, action, and `updatedAt` state after success even when a follow-up refresh would fail. Older server responses remain decodable through a local fallback during rollout.
 

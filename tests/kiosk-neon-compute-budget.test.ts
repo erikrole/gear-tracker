@@ -42,7 +42,7 @@ describe("kiosk Neon compute budget", () => {
   });
 
   it("keeps the student hub bounded and stops its safety poll while idle", () => {
-    const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const hub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const poll = hub.slice(
       hub.indexOf('.task(id: "refresh")'),
       hub.indexOf('.sheet(item: $selectedCheckout)'),

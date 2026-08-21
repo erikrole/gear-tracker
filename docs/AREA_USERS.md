@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-19
+- Last Updated: 2026-08-21
 - Status: Active
 - Version: V1.3
 
@@ -119,6 +119,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+
+- 2026-08-21: **The web profile Scoreboard now shows a season, not just a query result.** It matched the native screen's original shape -- a record, three different kinds of number in one row, four breakdown tables rendered in full, and a flat list of games -- while the native surface moved on. The season card now carries a win/loss proportion meter in the chart palette (`--chart-2` wins, `--chart-5` losses), the last five results newest-first with the current run named, and one sentence reconciling events worked against resolved games; under a filter that sentence states which set is which, using a season total held from an unfiltered read. Highlights (most worked, best venue, top matchup) hide once a filter narrows the view. The four tables became one card with a Sport/Opponent/Site/Venue switcher, five rows deep with Show all, each row carrying a bar whose length is its share of the season and whose split is how that share went, and a screen-reader-only game count since the bar is decorative. Games group by month with a round result badge, day, and a site glyph, and the header counts what is shown against the total. The shared presentation logic lives in `src/lib/scoreboard-digest.ts` so the web and the native screen derive recency, streaks, month grouping, and highlights the same way. Route, season scope, visibility rules, and record semantics are unchanged. Files: `src/app/(app)/users/[id]/UserScoreboardTab.tsx`, `src/lib/scoreboard-digest.ts`, `tests/scoreboard-digest.test.ts`.
+
+- 2026-08-21: **The profile Scoreboard's sport filter reported the wrong state and could not be moved across.** The tab built its sport dropdown from the current response, but `/api/users/[id]/scoreboard` applies `sportCode` and `result` to its own breakdowns, so a filtered read only carries the sports that survived the filter. Choosing Football collapsed the list to Football, leaving no way to reach another sport without clearing first; and with the Wins toggle on, a sport with only losses left `bySport` entirely, so the Select matched no item and its trigger fell back to the "All sports" placeholder while that sport's filter was still running -- the control naming a filter that was not in effect. The option list now comes from an unfiltered read and is held across filtered ones, a selected code the list does not carry names itself instead of falling back to the placeholder, and the control is hidden rather than offered empty for a profile with no resolved games. This mirrors the fix already shipped on the native Scoreboard (`sportMenuOptions` in `ios/Wisconsin/Views/ScoreboardView.swift`). Route, season scope, visibility rules, and record semantics are unchanged. Files: `src/app/(app)/users/[id]/UserScoreboardTab.tsx`, `tests/scoreboard-sport-filter-source.test.ts`.
+
+- 2026-08-21: **Native iOS now exposes the existing profile Scoreboard.** The member's Profile and permitted teammate User Detail reuse the authenticated Scoreboard route and keep its server-owned season scope, events-worked total, official W–L record, site and venue semantics, pagination, and read-only boundary. Collaborator directory viewers do not receive a cross-user Scoreboard entry. Files: `ios/Wisconsin/Views/ScoreboardView.swift`, `ios/Wisconsin/Views/ProfileView.swift`, `ios/Wisconsin/Views/UserDetailView.swift`.
 
 - 2026-08-19: **Profiles now expose a separate 2026–27 Events worked total.** The total counts each completed, confirmed Schedule event once per person with an active assignment, including result-less events, exhibitions, scrimmages, Alumni Matches, and non-game work. Future, cancelled, and hidden events are excluded while archived history remains eligible for future Wrapped-style recaps and event-count badges. The official W–L record and existing assignment-based `shift:completed` badges remain separate; the shared event-level count is reusable by both the profile and Scoreboard surfaces.
 

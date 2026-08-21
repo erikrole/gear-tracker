@@ -2,7 +2,6 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { createAuditEntry } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { releaseCode } from "@/lib/services/licenses";
 
@@ -25,16 +24,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     // empty body is fine
   }
 
-  const code = await releaseCode(params.id, user.id, isAdmin, { claimId, releaseAll });
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "license_code",
-    entityId: params.id,
-    action: "release",
-    after: { status: code.status, claimId, releaseAll, releasedById: isAdmin ? user.id : null },
-  });
+  const code = await releaseCode(params.id, user.id, isAdmin, { claimId, releaseAll }, user.role);
 
   return ok({ data: code });
 });

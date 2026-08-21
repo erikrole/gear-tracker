@@ -19,13 +19,19 @@ function assignment(overrides: {
   end: string;
   callStart?: string | null;
   callEnd?: string | null;
+  hasConflict?: boolean;
   area?: string;
   sportCode?: string | null;
   isHome?: boolean | null;
+  result?: string | null;
+  site?: string | null;
+  locationId?: string | null;
+  opponent?: string | null;
 }): ShiftBadgeEvidence {
   return {
     callStartsAt: overrides.callStart ? new Date(overrides.callStart) : null,
     callEndsAt: overrides.callEnd ? new Date(overrides.callEnd) : null,
+    hasConflict: overrides.hasConflict ?? false,
     shift: {
       startsAt: new Date(overrides.start),
       endsAt: new Date(overrides.end),
@@ -36,6 +42,10 @@ function assignment(overrides: {
         event: {
           isHome: overrides.isHome ?? true,
           sportCode: overrides.sportCode ?? null,
+          result: overrides.result ?? null,
+          site: overrides.site ?? null,
+          locationId: overrides.locationId ?? null,
+          opponent: overrides.opponent ?? null,
         },
       },
     },
@@ -90,6 +100,84 @@ describe("shift breadth rule counts", () => {
     expect(counts.get("shift_after_22")).toBe(2);
   });
 
+  it("counts schedule result, site, mapped venue, opponent, and conflicts", () => {
+    const counts = shiftAutomaticRuleCounts([
+      assignment({
+        start: "2026-08-10T18:00:00.000Z",
+        end: "2026-08-10T20:00:00.000Z",
+        result: "WIN",
+        site: "HOME",
+        locationId: "venue-1",
+        opponent: "Rival A",
+        hasConflict: true,
+      }),
+      assignment({
+        start: "2026-09-10T18:00:00.000Z",
+        end: "2026-09-10T20:00:00.000Z",
+        result: "LOSS",
+        site: "NEUTRAL",
+        locationId: "venue-2",
+        opponent: "Rival B",
+      }),
+      assignment({
+        start: "2026-10-10T18:00:00.000Z",
+        end: "2026-10-10T20:00:00.000Z",
+        result: "WIN",
+        site: "HOME",
+        locationId: "venue-1",
+        opponent: " rival a ",
+      }),
+      assignment({
+        start: "2026-11-10T18:00:00.000Z",
+        end: "2026-11-10T20:00:00.000Z",
+        site: "AWAY",
+        locationId: "venue-3",
+        opponent: "Rival B",
+      }),
+    ], TZ);
+
+    expect(counts.get("shift_wins")).toBe(2);
+    expect(counts.get("shift_losses")).toBe(1);
+    expect(counts.get("shift_home")).toBe(2);
+    expect(counts.get("shift_neutral")).toBe(1);
+    expect(counts.get("shift_venues")).toBe(3);
+    expect(counts.get("shift_same_venue")).toBe(2);
+    expect(counts.get("shift_opponents")).toBe(2);
+    expect(counts.get("shift_same_opponent")).toBe(2);
+    expect(counts.get("shift_conflicts")).toBe(1);
+  });
+
+  it("recognizes sustained schedule depth and a real winning sequence", () => {
+    const counts = shiftAutomaticRuleCounts([
+      assignment({ start: "2026-08-01T08:00:00.000Z", end: "2026-08-01T12:00:00.000Z", result: "LOSS", site: "HOME", sportCode: "MFB", area: "VIDEO" }),
+      assignment({ start: "2026-08-01T10:00:00.000Z", end: "2026-08-01T14:00:00.000Z", result: "LOSS", site: "AWAY", sportCode: "MFB", area: "VIDEO" }),
+      assignment({ start: "2026-08-02T18:00:00.000Z", end: "2026-08-03T04:00:00.000Z", result: "WIN", site: "AWAY", sportCode: "MBB", area: "PHOTO" }),
+      assignment({ start: "2026-08-03T18:00:00.000Z", end: "2026-08-04T04:00:00.000Z", result: "WIN", site: "HOME", sportCode: "WVB", area: "LIVE_PRODUCTION" }),
+      assignment({ start: "2026-09-03T18:00:00.000Z", end: "2026-09-04T04:00:00.000Z", result: "WIN", site: "NEUTRAL", sportCode: "SOC", area: "VIDEO" }),
+      assignment({ start: "2026-09-04T18:00:00.000Z", end: "2026-09-05T04:00:00.000Z", result: "WIN", site: "AWAY", sportCode: "HOCK", area: "PHOTO" }),
+      assignment({ start: "2026-10-05T18:00:00.000Z", end: "2026-10-06T04:00:00.000Z", result: "WIN", site: "HOME", sportCode: "MFB", area: "LIVE_PRODUCTION" }),
+      assignment({ start: "2026-10-06T10:00:00.000Z", end: "2026-10-06T14:00:00.000Z", result: "WIN", site: "AWAY", sportCode: "MBB", area: "VIDEO" }),
+      assignment({ start: "2026-11-07T11:00:00.000Z", end: "2026-11-07T15:00:00.000Z", result: "WIN", site: "HOME", sportCode: "WVB", area: "PHOTO" }),
+      assignment({ start: "2026-11-08T18:00:00.000Z", end: "2026-11-09T04:00:00.000Z", result: "LOSS", site: "AWAY", sportCode: "SOC", area: "LIVE_PRODUCTION" }),
+      assignment({ start: "2026-12-09T18:00:00.000Z", end: "2026-12-10T04:00:00.000Z", result: "WIN", site: "HOME", sportCode: "HOCK", area: "VIDEO" }),
+      assignment({ start: "2026-12-10T18:00:00.000Z", end: "2026-12-11T04:00:00.000Z", result: "WIN", site: "AWAY", sportCode: "MFB", area: "PHOTO" }),
+    ], TZ);
+
+    expect(counts.get("shift_sport_area_pairs")).toBe(11);
+    expect(counts.get("shift_months")).toBe(5);
+    expect(counts.get("shift_home_and_away")).toBe(1);
+    expect(counts.get("shift_spectrum")).toBe(1);
+    expect(counts.get("shift_away_wins")).toBe(4);
+    expect(counts.get("shift_result_sites")).toBe(1);
+    expect(counts.get("shift_early_late_mix")).toBe(1);
+    expect(counts.get("shift_scored_sports")).toBe(5);
+    expect(counts.get("shift_winning_record")).toBe(1);
+    expect(counts.get("shift_win_streak")).toBe(7);
+    expect(counts.get("shift_bounce_back")).toBe(1);
+    expect(counts.get("shift_battle_tested")).toBe(1);
+    expect(counts.get("shift_sites")).toBe(3);
+  });
+
   it("prefers the assignment call window over the shift window", () => {
     const counts = shiftAutomaticRuleCounts([
       assignment({
@@ -113,10 +201,59 @@ describe("shift breadth rule counts", () => {
     expect(counts.get("shift_areas")).toBe(0);
     expect(counts.get("shift_doubleheader_days")).toBe(0);
     expect(counts.get("shift_after_22")).toBe(0);
+    expect(counts.get("shift_wins")).toBe(0);
+    expect(counts.get("shift_losses")).toBe(0);
+    expect(counts.get("shift_home")).toBe(0);
+    expect(counts.get("shift_neutral")).toBe(0);
+    expect(counts.get("shift_venues")).toBe(0);
+    expect(counts.get("shift_same_venue")).toBe(0);
+    expect(counts.get("shift_opponents")).toBe(0);
+    expect(counts.get("shift_same_opponent")).toBe(0);
+    expect(counts.get("shift_conflicts")).toBe(0);
+    expect(counts.get("shift_sport_area_pairs")).toBe(0);
+    expect(counts.get("shift_months")).toBe(0);
+    expect(counts.get("shift_home_and_away")).toBe(0);
+    expect(counts.get("shift_spectrum")).toBe(0);
+    expect(counts.get("shift_away_wins")).toBe(0);
+    expect(counts.get("shift_result_sites")).toBe(0);
+    expect(counts.get("shift_early_late_mix")).toBe(0);
+    expect(counts.get("shift_scored_sports")).toBe(0);
+    expect(counts.get("shift_winning_record")).toBe(0);
+    expect(counts.get("shift_win_streak")).toBe(0);
+    expect(counts.get("shift_bounce_back")).toBe(0);
+    expect(counts.get("shift_battle_tested")).toBe(0);
+    expect(counts.get("shift_sites")).toBe(0);
   });
 
   it("registers every new rule as measured so profile progress can derive it", () => {
-    for (const ruleKey of ["shift_sports", "shift_areas", "shift_doubleheader_days", "shift_after_22"]) {
+    for (const ruleKey of [
+      "shift_sports",
+      "shift_areas",
+      "shift_doubleheader_days",
+      "shift_after_22",
+      "shift_wins",
+      "shift_losses",
+      "shift_home",
+      "shift_neutral",
+      "shift_venues",
+      "shift_same_venue",
+      "shift_opponents",
+      "shift_same_opponent",
+      "shift_conflicts",
+      "shift_sport_area_pairs",
+      "shift_months",
+      "shift_home_and_away",
+      "shift_spectrum",
+      "shift_away_wins",
+      "shift_result_sites",
+      "shift_early_late_mix",
+      "shift_scored_sports",
+      "shift_winning_record",
+      "shift_win_streak",
+      "shift_bounce_back",
+      "shift_battle_tested",
+      "shift_sites",
+    ]) {
       expect(automaticMeasuredRuleKeys.has(ruleKey)).toBe(true);
     }
   });
@@ -163,7 +300,17 @@ describe("shift breadth evidence selects", () => {
   it("selects the same new columns for awards and for profile progress", () => {
     // Two hand-written selects feed one derivation. If they drift, a badge
     // awards but shows no progress, or shows progress it can never complete.
-    for (const field of ["callEndsAt: true", "endsAt: true", "area: true", "sportCode: true"]) {
+    for (const field of [
+      "hasConflict: true",
+      "callEndsAt: true",
+      "endsAt: true",
+      "area: true",
+      "sportCode: true",
+      "result: true",
+      "site: true",
+      "locationId: true",
+      "opponent: true",
+    ]) {
       expect(evaluator).toContain(field);
       expect(queries).toContain(field);
     }

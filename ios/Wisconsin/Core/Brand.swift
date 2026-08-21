@@ -331,6 +331,38 @@ extension View {
     }
 }
 
+// MARK: - Active control bar
+
+/// Names what a list's toolbar controls have actually done to the list, with a
+/// single Clear action. Lives in list content rather than a safe-area inset: a
+/// conditional inset makes the navigation bar drop its large title.
+///
+/// Shared by every list that puts its controls in the toolbar, so "what is this
+/// list showing right now" is answered the same way on each of them.
+struct ActiveControlBar: View {
+    let summary: String
+    let clear: () -> Void
+
+    var body: some View {
+        HStack(spacing: Brand.Space.sm) {
+            Text(summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Button("Clear") {
+                Haptics.tap()
+                clear()
+            }
+            .font(.footnote.weight(.semibold))
+            .tint(Color.primary)
+        }
+        .frame(minHeight: 36)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Showing \(summary)")
+    }
+}
+
 // MARK: - Section header
 
 /// Consistent section header used above grouped card stacks. Optional subtitle,

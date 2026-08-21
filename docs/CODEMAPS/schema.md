@@ -127,7 +127,7 @@ Values: `UPLOADING`, `FINALIZING`, `COMMITTED`, `FAILED`
 
 ## Model `User`
 
-Fields: 109
+Fields: 110
 
 - `id                           String                           @id @default(cuid())`
 - `name                         String`
@@ -183,6 +183,7 @@ Fields: 109
 - `passwordResetTokens          PasswordResetToken[]`
 - `notifications                Notification[]`
 - `deviceTokens                 DeviceToken[]`
+- `appInstallations             UserAppInstallation[]`
 - `liveActivityTokens           LiveActivityToken[]`
 - `liveActivityStartTokens      LiveActivityStartToken[]`
 - `liveActivityStarts           LiveActivityStart[]`
@@ -911,6 +912,33 @@ Indexes and constraints:
 - `@@index([surface, occurredAt])`
 - `@@index([actorHash, occurredAt])`
 - `@@map("product_events")`
+
+## Model `UserAppInstallation`
+
+Fields: 15
+
+- `id               String    @id @default(cuid())`
+- `userId           String    @map("user_id")`
+- `installationHash String    @map("installation_hash")`
+- `platform         String`
+- `appVersion       String?   @map("app_version")`
+- `appBuild         String?   @map("app_build")`
+- `osVersion        String?   @map("os_version")`
+- `deviceModel      String?   @map("device_model")`
+- `releaseChannel   String?   @map("release_channel")`
+- `firstSeenAt      DateTime  @default(now()) @map("first_seen_at")`
+- `lastSeenAt       DateTime  @default(now()) @map("last_seen_at")`
+- `lastOpenedAt     DateTime? @map("last_opened_at")`
+- `createdAt        DateTime  @default(now()) @map("created_at")`
+- `updatedAt        DateTime  @updatedAt @map("updated_at")`
+- `user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([userId, installationHash, platform])`
+- `@@index([userId, lastSeenAt])`
+- `@@index([platform, lastSeenAt])`
+- `@@map("user_app_installations")`
 
 ## Model `SignatureCollection`
 
@@ -1888,7 +1916,7 @@ Indexes and constraints:
 
 ## Model `ShiftGroup`
 
-Fields: 17
+Fields: 20
 
 - `id                    String                       @id @default(cuid())`
 - `eventId               String                       @unique @map("event_id")`
@@ -1899,6 +1927,9 @@ Fields: 17
 - `publishedById         String?                      @map("published_by_id")`
 - `lastPublishedSnapshot Json?                        @map("last_published_snapshot")`
 - `publishedVersion      Int                          @default(0) @map("published_version")`
+- `notifyAfter           DateTime?                    @map("notify_after")`
+- `notifyAttemptedAt     DateTime?                    @map("notify_attempted_at")`
+- `notifyError           String?                      @map("notify_error")`
 - `archivedAt            DateTime?                    @map("archived_at")`
 - `createdAt             DateTime                     @default(now()) @map("created_at")`
 - `updatedAt             DateTime                     @updatedAt @map("updated_at")`
@@ -1912,6 +1943,7 @@ Indexes and constraints:
 
 - `@@index([publishedAt])`
 - `@@index([publishedById])`
+- `@@index([notifyAfter])`
 - `@@map("shift_groups")`
 
 ## Model `ShiftGroupWorkingCopy`
@@ -2114,7 +2146,7 @@ Indexes and constraints:
 
 ## Model `StudentAvailabilityBlock`
 
-Fields: 20
+Fields: 22
 
 - `id               String                    @id @default(cuid())`
 - `userId           String                    @map("user_id")`
@@ -2122,7 +2154,9 @@ Fields: 20
 - `intent           StudentAvailabilityIntent @default(CANNOT_WORK)`
 - `status           StudentAvailabilityStatus @default(APPROVED)`
 - `dayOfWeek        Int?                      @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only`
-- `date             DateTime?                 @db.Date // ad hoc local date`
+- `date             DateTime?                 @db.Date // ad hoc local start date`
+- `dateEndsOn       DateTime?                 @map("date_ends_on") @db.Date // inclusive ad hoc local end date; null means date only for legacy rows`
+- `allDay           Boolean                   @default(false) @map("all_day") // ad hoc date/range applies all day`
 - `startsAt         String                    @map("starts_at") // "09:00" HH:mm local time`
 - `endsAt           String                    @map("ends_at") // "11:00" HH:mm local time`
 - `label            String? // e.g. "CHEM 101"`
@@ -2141,6 +2175,7 @@ Indexes and constraints:
 
 - `@@index([userId])`
 - `@@index([kind, date])`
+- `@@index([kind, date, dateEndsOn])`
 - `@@index([userId, kind])`
 - `@@index([intent, status])`
 - `@@index([reviewedById])`

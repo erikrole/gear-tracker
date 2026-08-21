@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-04
+- Last Updated: 2026-08-20
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -314,6 +314,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+
+- 2026-08-20: **Linked-event editing now stays in the present and future.** The shared booking detail dialog no longer loads unrelated scheduled events that already ended, while existing historical links remain available so operators can review or remove them. The event-link API, booking lifecycle, authorization, allocations, and kiosk custody boundaries are unchanged.
 
 - 2026-08-10: **Badge credit now survives owner transfer.** Opening a checkout writes immutable badge credit keyed to that checkout and opener. A transfer before opening moves future credit; a transfer after opening leaves checkout-count and category-breadth credit with the original opener while the current custodian receives return, on-time, and damage-free outcomes. Migration `0110_badge_rewards` reconstructs a prior opener only from the first ownership transfer recorded after the first kiosk-open audit; pre-open and ambiguous legacy transfers remain with the current requester.
 

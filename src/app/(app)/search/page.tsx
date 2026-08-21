@@ -143,7 +143,12 @@ export default function SearchPage() {
         fetch(`/api/users?q=${encoded}&limit=10`, { signal: controller.signal }),
       ]);
 
-      const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, trimmed, 12);
+      const merged: SearchResult[] = getVisiblePageSearchResults(
+        user?.role,
+        trimmed,
+        12,
+        user?.canViewUsageAnalytics === true,
+      );
       const failures: string[] = [];
 
       if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, "/search")) return;
@@ -242,7 +247,7 @@ export default function SearchPage() {
         setLoading(false);
       }
     }
-  }, [resetSearchState, user?.role]);
+  }, [resetSearchState, user?.canViewUsageAnalytics, user?.role]);
 
   // Auto-search on committed query change (typing pause, Enter, clear, or
   // browser navigation rehydrating the q param).

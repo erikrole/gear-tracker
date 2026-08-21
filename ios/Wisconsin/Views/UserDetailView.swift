@@ -46,6 +46,7 @@ struct UserDetailView: View {
                                 openBooking: { pushedBookingId = $0 },
                                 openShift: { selectedShift = $0 }
                             )
+                            ScoreboardLinkCard(userId: detail.id)
                             badgesSection
                         }
                     }
@@ -1334,6 +1335,14 @@ private let hiddenBadgeKeys: Set<String> = [
     "buzzer_beater",
     "take_thirteen",
     "holiday_hours",
+    "oops_damaged",
+    "oops_missing",
+    "running_late",
+    "due_date_dancer",
+    "calendar_tetris",
+    "midnight_oil",
+    "weekend_warrior",
+    "leap_day",
 ]
 
 private let legendaryBadgeKeys: Set<String> = [

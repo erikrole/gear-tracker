@@ -347,6 +347,10 @@ describe("badge evaluator checkout events", () => {
       select: {
         startsAt: true,
         kitId: true,
+        eventId: true,
+        sourceReservationId: true,
+        shiftAssignmentId: true,
+        events: { select: { eventId: true } },
         serializedItems: {
           select: {
             assetId: true,
@@ -628,7 +632,8 @@ describe("badge evaluator checkout events", () => {
         endsAt: true,
         updatedAt: true,
         completedAt: true,
-        checkinReports: { select: { id: true }, take: 1 },
+        checkinReports: { select: { id: true, type: true } },
+        dueDateChanges: { select: { id: true }, take: 1 },
       },
     });
     expect(mockTx.studentBadge.createManyAndReturn).toHaveBeenCalledWith({
@@ -785,6 +790,30 @@ describe("badge evaluator checkout events", () => {
       skipDuplicates: true,
       select: { id: true, definitionId: true },
     });
+  });
+
+  it("evaluates midnight, weekend, and leap-day app-open rules independently", async () => {
+    process.env.APP_TIMEZONE = "America/Chicago";
+
+    await onAppOpened({
+      userId: "user-1",
+      // Sunday, February 27, 2028 at 12:30 a.m. Central.
+      occurredAt: new Date("2028-02-27T06:30:00.000Z"),
+    });
+    await onAppOpened({
+      userId: "user-1",
+      // Tuesday, February 29, 2028 at 12:30 a.m. Central.
+      occurredAt: new Date("2028-02-29T06:30:00.000Z"),
+    });
+
+    const receiptKeys = mockTx.badgeEventReceipt.createMany.mock.calls
+      .map((call) => (call[0] as { data: Array<{ sourceKey: string }> }).data[0]?.sourceKey);
+    expect(receiptKeys).toEqual([
+      "local-hour-0:2028-02-27",
+      "local-weekend:2028-02-27",
+      "local-hour-0:2028-02-29",
+      "local-leap-day:2028-02-29",
+    ]);
   });
 });
 

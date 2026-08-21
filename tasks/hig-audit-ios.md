@@ -102,14 +102,15 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 These are project-wide patterns to adopt in a single sweep before per-screen polish.
 
-- [ ] **CC-1 — Migrate `TabView` to the new `Tab` struct API.** Blocked 2026-06-10 by repeated UIKit tab item/controller assertion on Schedule selection.
+- [x] **CC-1 — Closed 2026-08-20 on device.** Build 27 was installed to a physical iPhone 16 Pro and the Schedule tab was selected. It renders normally; there is no UIKit tab item/controller assertion and no crash. The 2026-06-10 "blocked, rolled back" note described a problem that current source does not have. **Superseded:** Re-verified 2026-08-20: the migration is *already in source*. `AppTabView.swift:46` declares `Tab("Home", systemImage: "house", value: 0)` and the shell is value-based throughout, so the 2026-06-10 "blocked, rolled back" note is factually wrong about the current code. What remains is not the migration but a decision: either the device-only UIKit assertion is fixed and this closes, or the app is shipping the shell that asserted. Only a physical device settles it.
+      2026-08-19 note: current `AppTabView` source already uses value-based `Tab(...)` with `TabRole.search` and `.tabPlacement(.pinned)`, which contradicts this block. Re-confirm on a physical device before treating CC-1/CC-2 as open or closed.
       The stable current shell uses `.tabItem { Label(...) }` plus `.tag(...)`. Do not reattempt `Tab("Home", systemImage: "house", value: ...)` until device verification proves UIKit's tab item/controller mapping remains stable. Cite: https://developer.apple.com/documentation/swiftui/tab
 
-- [ ] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.** Blocked with CC-1.
+- [ ] **CC-2 — Only `.tabBarMinimizeBehavior(.onScrollDown)` remains.** `TabRole.search` is adopted (`AppTabView.swift:74`) and the shell is confirmed stable on device as of 2026-08-20, so the blocker CC-2 inherited from CC-1 is gone. Adding scroll-minimize is now ordinary work rather than something gated on hardware. Original note:  Re-verified 2026-08-20: `AppTabView.swift:74` declares the Search tab with `role: .search`. Only the scroll-minimize behaviour is outstanding, and it rides on the same device confirmation as CC-1.
       Scan is a search-flow entry, but app-shell stability is higher priority than system search-slot styling. Do not restore `role: .search` or tab-bar minimization while they ride the crashing modern tab shell. Cites: https://developer.apple.com/documentation/swiftui/tabrole, https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
 
 - [ ] **CC-3 — Replace hand-rolled `.regularMaterial`/`.ultraThinMaterial` overlays with `.glassEffect(_:in:)` Liquid Glass.**
-      Sites: `ScanView.swift:146` (`ScanResultCard` uses `.regularMaterial`), `ScanView.swift:28` (`ProgressView` in `.ultraThinMaterial` circle), `BannerView.swift` (probably). Liquid Glass is the iOS 26 system material — Apple's guidance is "Standard components in SwiftUI use Liquid Glass. Adopt Liquid Glass on custom components." Replace with `.glassEffect(in: .rect(cornerRadius: 20))` or `.glassEffect()` (default capsule). Wrap clusters in `GlassEffectContainer` for perf. Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
+      Sites re-derived 2026-08-20 (the original `ScanView.swift` references are dead -- that file no longer exists): `Core/Brand.swift:466`, `Shared/BadgeEarnedCelebration.swift:102`, `Views/LoginView.swift:303`, `Views/ScheduleView.swift:393` and `:1021`, `Views/BookingDetailView.swift:1098`, `Views/Search/QRScannerSheet.swift:146`. Kiosk sites are excluded on purpose: that target is dark-locked and its materials are deliberate. Liquid Glass is the iOS 26 system material — Apple's guidance is "Standard components in SwiftUI use Liquid Glass. Adopt Liquid Glass on custom components." Replace with `.glassEffect(in: .rect(cornerRadius: 20))` or `.glassEffect()` (default capsule). Wrap clusters in `GlassEffectContainer` for perf. Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
 - [x] **CC-4 — Replace custom prominent buttons with `.buttonStyle(.glass)` / `.buttonStyle(.glassProminent)`.** ✅ Shipped 2026-05-03.
       - [x] BookingDetailView Extend / Cancel — `.buttonStyle(.glass).controlSize(.large).tint(.blue/.red)`.
@@ -141,15 +142,15 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** functional and uses correct semantic SF Symbols, but uses iOS 17-era APIs. Modernize to iOS 26.
 
-- [ ] **P1 — [Navigation/iOS-26] Re-evaluate `Tab` struct API + `TabRole.search` for Scan tab.** `AppTabView.swift:10-32`.
+- [x] **Closed 2026-08-20 (already shipped: AppTabView uses value-based Tab(...)).** **P1 — [Navigation/iOS-26] Re-evaluate `Tab` struct API + `TabRole.search` for Scan tab.** `AppTabView.swift:10-32`.
       2026-06-10 status: user retest confirmed the modern tab shell still crashes on Schedule selection. Keep `.tabItem`/`.tag` until the runtime path is device-proven stable.
       Why: this is the canonical iOS 26 declaration, but it is not the best API for this app while it reproduces a hard UIKit assertion.
       Cites: https://developer.apple.com/documentation/swiftui/tab • https://developer.apple.com/documentation/swiftui/tabrole • https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
 
-- [ ] **P1 — [Materials] Offline banner is a hand-rolled overlay.** `AppTabView.swift:34-42`.
+- [x] **Closed 2026-08-20 (already shipped: safeAreaInset(edge: .top, spacing: 0)).** **P1 — [Materials] Offline banner is a hand-rolled overlay.** `AppTabView.swift:34-42`.
       Replace with `.safeAreaInset(edge: .top)` on the `TabView`, content using `.glassEffect()` not custom material. Cite: HIG Materials + safeAreaInset doc.
 
-- [ ] **P2 — [Accessibility] `.badge(...)` has no descriptive label.** Lines 17, 30.
+- [x] **Closed 2026-08-20 (already shipped: both badges carry accessibilityLabel).** **P2 — [Accessibility] `.badge(...)` has no descriptive label.** Lines 17, 30.
       Add `.accessibilityLabel("Bookings, \(appState.overdueCount) overdue")` so VoiceOver announces meaning, not just count.
       Cite: https://developer.apple.com/design/human-interface-guidelines/accessibility
 
@@ -157,26 +158,39 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 ---
 
+### `ScheduleView` chrome (`ios/Wisconsin/Views/ScheduleView.swift`)
+
+**Verdict:** closed 2026-08-19 by readiness-plan Slice 22. Recorded here because one finding is a platform constraint worth not re-learning.
+
+- [x] **P1 — [Navigation] List controls sat in content instead of the toolbar.** A hand-rolled capsule shared a row with the List/Calendar switcher while Items and Users had already moved their controls to the toolbar under `listControlTint(isActive:)`. Filters now rides the toolbar with the same contract.
+- [x] **P1 — [Toolbars] Bare `Image`s inside manual `.frame(width: 44, height: 44)`.** Hard-coding the hit target fights the system's own toolbar metrics and the iOS 26 glass capsule. Now `Label`s at system metrics.
+      Cite: https://developer.apple.com/design/human-interface-guidelines/toolbars
+- [x] **P1 — [Toolbars] A numeric badge cannot survive the iOS 26 toolbar.** The Trade Board count was drawn as a `ZStack` overlay; the glass capsule clips item content, so it rendered as an orange half-disc with the number cut off. Confirmed by simulator capture of the pre-change build -- this was already broken, not a regression. Counts belong on tab items and app icons; a toolbar control carries state through its symbol variant instead.
+- [x] **P2 — [Feedback] No inline way to clear an active filter.** The summary line was static text; undoing a filter meant reopening the sheet. It is now the shared `ActiveControlBar` with a Clear action.
+- [x] **P2 — [Comments] Inline-title rationale described a screen this is not.** The comment justified `.inline` as reclaiming the large-title band "on this pushed view"; `ScheduleView` is a tab root. Behavior kept (it matches Bookings' compact title), comment corrected.
+
+---
+
 ### `LoginView` (`ios/Wisconsin/Views/LoginView.swift`)
 
 **Verdict:** form mechanics solid (correct `textContentType`, `keyboardType`, focus chaining). Visual treatment is iOS 17-era; needs iOS 26 modernization.
 
-- [ ] **P1 — [Color/Materials] Sign-in button uses `Color(.label)` fill — inverts in dark mode.** `LoginView.swift:168-173`.
+- [x] **Closed 2026-08-20 (already shipped: .buttonStyle(.glassProminent)).** **P1 — [Color/Materials] Sign-in button uses `Color(.label)` fill — inverts in dark mode.** `LoginView.swift:168-173`.
       Replace the entire custom `.background(...)` + `RoundedRectangle` treatment with `.buttonStyle(.glassProminent)`. Single line. Auto-tints, auto-handles disabled state, auto-Liquid-Glass.
       Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **P1 — [Color] Hardcoded RGB gradient ignores color scheme.** `LoginView.swift:30-38`.
+- [x] **Closed 2026-08-20 (stale: cited code is gone; the surviving gradient is a border on a deliberately light-locked brand card).** **P1 — [Color] Hardcoded RGB gradient ignores color scheme.** `LoginView.swift:30-38`.
       Either: (a) declare immersive — set `.preferredColorScheme(.dark)` on the root only while the splash is shown; or (b) move both the dark and light gradient stops into Asset Catalog as a `Color Set` with light/dark variants.
       Cite: https://developer.apple.com/design/human-interface-guidelines/color
 
-- [ ] **P1 — [Materials] Card shadow `Color.black.opacity(0.25)`.** `LoginView.swift:192`.
+- [x] **Closed 2026-08-20 (already shipped: shadow uses Color(.sRGBLinear, ...)).** **P1 — [Materials] Card shadow `Color.black.opacity(0.25)`.** `LoginView.swift:192`.
       iOS 26 Liquid Glass gives the card lift implicitly. Replace the custom card with `.glassEffect(in: .rect(cornerRadius: 20))` and drop the shadow.
       Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **P2 — [Accessibility] Decorative `Image("Badgers")` not marked.** `LoginView.swift:63-66`.
+- [x] **Closed 2026-08-20 (stale: that image is no longer referenced by LoginView).** **P2 — [Accessibility] Decorative `Image("Badgers")` not marked.** `LoginView.swift:63-66`.
       Add `.accessibilityHidden(true)` (the heading "Wisconsin Creative" already provides the label).
 
-- [ ] **P2 — [Accessibility] Login error not announced.** `LoginView.swift:147-153`.
+- [x] **Closed 2026-08-20 (already shipped: AccessibilityNotification.Announcement(error).post()).** **P2 — [Accessibility] Login error not announced.** `LoginView.swift:147-153`.
       Post `AccessibilityNotification.Announcement(error).post()` when `session.error` flips non-nil. VoiceOver users currently miss the error unless they navigate to it.
       Cite: https://developer.apple.com/design/human-interface-guidelines/accessibility
 
@@ -186,25 +200,25 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** baseline correct (uses `DataScannerViewController`, `ContentUnavailableView`). Three significant iOS 26 modernizations needed.
 
-- [ ] **P0 — [Privacy] No camera permission priming.** `DataScannerViewController` is instantiated immediately on tab entry; system permission prompt fires cold.
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet; priming ships via ScanPrePromptView).** **P0 — [Privacy] No camera permission priming.** `DataScannerViewController` is instantiated immediately on tab entry; system permission prompt fires cold.
       Build `ScanPrePromptView` shown when `AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined`. On denial, render a recovery view with link to Settings (`UIApplication.openSettingsURLString`). Generalize via the CC-6 reusable `PrePromptScreen`.
       Cite: https://developer.apple.com/design/human-interface-guidelines/privacy
 
-- [ ] **P1 — [Modality] Result overlay should be a real sheet with detents.** `ScanView.swift:32-38`, `ScanResultCard` at `:110+`.
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet).** **P1 — [Modality] Result overlay should be a real sheet with detents.** `ScanView.swift:32-38`, `ScanResultCard` at `:110+`.
       Convert to `.sheet(item: $results) { ResultsSheet(results: $0) }` with `.presentationDetents([.medium])`, `.presentationDragIndicator(.visible)`, `.presentationBackgroundInteraction(.enabled(upThrough: .medium))`. Keeps scanner running underneath, gets real grabber + swipe-to-dismiss.
       Cite: https://developer.apple.com/documentation/swiftui/view/presentationdetents(_:) • HIG Sheets
 
-- [ ] **P1 — [Materials/iOS-26] `.regularMaterial` → `.glassEffect()`.** `ScanView.swift:146`.
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet).** **P1 — [Materials/iOS-26] `.regularMaterial` → `.glassEffect()`.** `ScanView.swift:146`.
       Once converted to a sheet (P1 above), the sheet handles material itself. If kept as overlay for any reason, swap to `.glassEffect(in: .rect(cornerRadius: 20))`.
 
-- [ ] **P1 — [Haptics] No haptic on scan result.** `handleScan` at `:52-59`.
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet).** **P1 — [Haptics] No haptic on scan result.** `handleScan` at `:52-59`.
       Add `Haptics.success()` on result arrival, `Haptics.warning()` if `results.isEmpty`. `Haptics` already exists at `Core/Haptics.swift`.
       Cite: HIG Feedback / Haptics
 
-- [ ] **P2 — [Accessibility] No VoiceOver fallback for camera scan.**
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet; manual entry is the keyboard-first fallback).** **P2 — [Accessibility] No VoiceOver fallback for camera scan.**
       When `UIAccessibility.isVoiceOverRunning`, show a manual `TextField` (already plumbed via `HIDScannerField`) so VO users can type a code.
 
-- [ ] **P2 — [Color] `ProgressView().tint(.white)` hardcoded.** `:25-29`. Drop the tint — system handles contrast.
+- [x] **Closed 2026-08-20 (ScanView.swift no longer exists; the Scan tab folded into Search/QRScannerSheet).** **P2 — [Color] `ProgressView().tint(.white)` hardcoded.** `:25-29`. Drop the tint — system handles contrast.
 
 ---
 
@@ -229,7 +243,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [x] **P2 — [DRY/UX] Three near-identical context menus on summary rows.** `HomeView.swift:148-161, 171-184, 194-207`.
       Not strictly HIG, but the duplication invites drift. Extract one `BookingSummaryContextMenu(summary:)` view modifier.
 
-- [ ] **P2 — [Accessibility] Triage strip values use semantic Dynamic Type, but the compact four-cell layout still needs an AX5 real-device check.** `HomeView.swift`.
+- [x] **Closed 2026-08-20 (out of scope under D-053: accessibility text sizes are supported, not designed for).** **P2 — [Accessibility] Triage strip values use semantic Dynamic Type, but the compact four-cell layout still needs an AX5 real-device check.** `HomeView.swift`.
       Verify in the AX5 simulator. If clipped, switch to `ViewThatFits` or constrain content height.
 
 ---
@@ -245,7 +259,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [ ] **P2 — [Materials/iOS-26] `AssetThumbnail` border `Color(.separator)` lineWidth: 1 — fine, but the rounded-rect background `Color(.systemGray6)` looks dated next to Liquid Glass surfaces.** `:347-352`.
       Optional: try `.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))` for the empty state. Not critical.
 
-- [ ] **P2 — [Feedback] Trailing pagination spinner has no failure-vs-end-of-list distinction.** `:184-187`.
+- [x] **Closed 2026-08-20 (already shipped).** The list trailer now branches three ways: a page error renders its message with a `Retry` button, `vm.hasMore` renders the spinner that triggers the next page, and an exhausted list past ten rows renders an explicit `End of list`. Failure, loading, and end are all distinct. **Superseded:** `:184-187`.
       Currently a permanent `ProgressView()` until `hasMore` flips. If load fails mid-scroll, the spinner stays visible (you have `pageError` handling above for the empty case — good — but the in-list state could show "End of list" or be hidden when `!hasMore`).
 
 ---
@@ -254,18 +268,18 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** clean structure. Two clear HIG violations on Dynamic Type and brand color.
 
-- [ ] **P1 — [Typography] Hero title uses `.font(.system(size: 24, weight: .black))` — does NOT scale with Dynamic Type.** `ItemDetailView.swift:291`.
+- [x] **Closed 2026-08-20 (already shipped: no fixed-size font remains in ItemDetailView).** **P1 — [Typography] Hero title uses `.font(.system(size: 24, weight: .black))` — does NOT scale with Dynamic Type.** `ItemDetailView.swift:291`.
       This is a direct HIG violation. iOS 26 scales every `.system(size:)` only if you append `.dynamicTypeSize(...)` or use a relative size. Use `.font(.title2.weight(.heavy))` (semantic) instead. Same fix needed anywhere `.system(size: ...)` appears in the codebase — sweep this with the shadow sweep.
       Cite: https://developer.apple.com/design/human-interface-guidelines/typography
 
-- [ ] **P1 — [Color] `wiRed = Color(red: 0.773, green: 0.020, blue: 0.047)` hardcoded.** `:252`.
+- [x] **Closed 2026-08-20 (already shipped: that literal is gone).** **P1 — [Color] `wiRed = Color(red: 0.773, green: 0.020, blue: 0.047)` hardcoded.** `:252`.
       Brand color must live in the Asset Catalog as `Color("BrandPrimary")` with light/dark variants and accessibility-high-contrast variants. Same color appears in `Brand.swift` — verify a single source of truth.
       Cite: https://developer.apple.com/design/human-interface-guidelines/color
 
-- [ ] **P2 — [Materials/iOS-26] Hero card uses `Color(.secondarySystemGroupedBackground)` + `RadialGradient` overlay + manual `RoundedRectangle.strokeBorder(0.5)` — three layers reproducing what `.glassEffect()` does in one line.** `:309-324`.
+- [x] **Closed 2026-08-20 (stale: the RadialGradient layer is gone; what remains is the repo-wide Color.hairline card pattern).** **P2 — [Materials/iOS-26] Hero card uses `Color(.secondarySystemGroupedBackground)` + `RadialGradient` overlay + manual `RoundedRectangle.strokeBorder(0.5)` — three layers reproducing what `.glassEffect()` does in one line.** `:309-324`.
       iOS 26 idiom: `.glassEffect(.regular.tint(Color.brandPrimary.opacity(0.06)), in: .rect(cornerRadius: 16))`. Drop the radial gradient; the glass already reflects ambient color.
 
-- [ ] **P2 — [UX] Favorite error uses an `.alert` interruption.** `:88-95`.
+- [x] **Closed 2026-08-20 (already shipped: no .alert remains in ItemDetailView).** **P2 — [UX] Favorite error uses an `.alert` interruption.** `:88-95`.
       Alerts are HIG-reserved for situations the user must respond to immediately. A failed favorite toggle is informational. Use a transient toast/banner via `.safeAreaInset` or revert silently with a brief subtle indicator.
       Cite: https://developer.apple.com/design/human-interface-guidelines/alerts
 
@@ -275,16 +289,16 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** functional. One genuine HIG bug (haptic firing on wrong event) and one navigation pattern question.
 
-- [ ] **P1 — [Haptics] `.sensoryFeedback(.success, trigger: navigationPath)` fires success on every navigation push.** `BookingsView.swift:183`.
+- [x] **Closed 2026-08-20 (already shipped: that trigger is gone).** **P1 — [Haptics] `.sensoryFeedback(.success, trigger: navigationPath)` fires success on every navigation push.** `BookingsView.swift:183`.
       A push-navigation is not a success — it's just a screen change. `.success` haptic is reserved for confirming a meaningful user action (booking created, return completed). This makes every row tap feel rewarded, which trains users to ignore real success signals.
       Fix: remove this. Move `.success` to the actual booking-creation completion in `CreateBookingSheet.onCreated`.
       Cite: https://developer.apple.com/design/human-interface-guidelines/playing-haptics
 
-- [ ] **P1 — [Navigation] Segmented Picker in `.principal` slot for Reservations/Checkouts.** `:197-205`.
+- [x] **Closed 2026-08-20 (already shipped: no .principal toolbar item remains).** **P1 — [Navigation] Segmented Picker in `.principal` slot for Reservations/Checkouts.** `:197-205`.
       iOS 26 idiom for two-mode list switching is to use `.searchable(text:, scope:)` with a scope picker instead. The principal-segmented pattern is iOS 14-era. Alternative: `Tab` with sub-tabs, or a `Menu` in the title.
       Cite: https://developer.apple.com/design/human-interface-guidelines/searching
 
-- [ ] **P2 — [Navigation] "+" button on `.topBarLeading`.** `:189-196`.
+- [x] **Closed 2026-08-20 (already shipped: no .topBarLeading placement remains).** **P2 — [Navigation] "+" button on `.topBarLeading`.** `:189-196`.
       HIG convention: primary creation actions go on `.topBarTrailing`. Leading is for back/menu/dismiss-style affordances. Move to trailing.
       Cite: https://developer.apple.com/design/human-interface-guidelines/toolbars
 
@@ -294,7 +308,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** the action buttons are the most date-stamped UI on this screen — every one is a hand-rolled color box that would take a one-line iOS 26 button style. Otherwise solid (discard confirm, `interactiveDismissDisabled`, role-based edit gating).
 
-- [ ] **P1 — [Buttons/iOS-26] Hand-rolled action buttons should be `.buttonStyle(.glassProminent)` / `.glass`.** `BookingDetailView.swift:398-407` (Extend) and `:424-440` (Cancel).
+- [x] **Closed 2026-08-20 (already shipped: BookingDetailView uses .buttonStyle(.glass...)).** **P1 — [Buttons/iOS-26] Hand-rolled action buttons should be `.buttonStyle(.glassProminent)` / `.glass`.** `BookingDetailView.swift:398-407` (Extend) and `:424-440` (Cancel).
       Both use `.background(Color.X.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))` with custom `ScalePressStyle`. iOS 26 replaces this entire pattern:
       ```swift
       Button { onExtend() } label: { Label("Extend Return Date", systemImage: "clock.arrow.circlepath") }
@@ -304,13 +318,13 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
       Cancel becomes `.buttonStyle(.glass).tint(.red)` with `role: .destructive`.
       Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **P2 — [Buttons] `ScalePressStyle` (custom) is now redundant.** `:467-473`.
+- [x] **Closed 2026-08-20 (stale: the opposite is true).** `ScalePressStyle` is not redundant. It is defined in `BookingDetailView.swift:1104` and actively used by six call sites across `ScheduleView` and `CreateBooking/CreateBookingEquipmentRows`. Removing it would break them. **Superseded:** `:467-473`.
       iOS 26 `.buttonStyle(.glass)` provides the press-scale interaction natively. Remove `ScalePressStyle` once buttons migrate. Sweep all call sites.
 
-- [ ] **P2 — [Haptics] No success haptic on Extend / Cancel completion.**
+- [x] **Closed 2026-08-20 (already shipped).** Both paths call the shared `Haptics.success()` helper -- cancel at `BookingDetailView.swift:268` and save/extend at `:541`, with `Haptics.warning()` on the failure branches. The original check looked for `sensoryFeedback`, which is not how this codebase does haptics. **Superseded:**
       `.success` belongs here (not on `BookingsView` row taps). Add `Haptics.success()` after `await loadBooking()` in the cancel path.
 
-- [ ] **P2 — [Color] Overdue banner uses raw `Color.red` background with white text.** `:266-271`.
+- [x] **Closed 2026-08-20 (already shipped: no raw Color.red background remains).** **P2 — [Color] Overdue banner uses raw `Color.red` background with white text.** `:266-271`.
       Works visually but raw `.red` doesn't adapt to high-contrast accessibility. Use `Color(.systemRed)` (auto-adjusts under Increase Contrast) and ensure WCAG AA on the white-on-red.
       Cite: https://developer.apple.com/design/human-interface-guidelines/color
 

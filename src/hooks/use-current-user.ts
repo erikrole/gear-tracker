@@ -21,6 +21,7 @@ export type CurrentUser = {
   capabilities?: string[];
   avatarUrl?: string | null;
   forcePasswordChange?: boolean;
+  canViewUsageAnalytics?: boolean;
 };
 
 export function useCurrentUser(initialUser?: CurrentUser) {
@@ -29,8 +30,15 @@ export function useCurrentUser(initialUser?: CurrentUser) {
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/me", { signal });
       if (!res.ok) return null;
-      const json = await parseJsonSafely<{ user?: CurrentUser | null }>(res);
-      return (json?.user ?? null) as CurrentUser | null;
+      const json = await parseJsonSafely<{
+        user?: CurrentUser | null;
+        canViewUsageAnalytics?: boolean;
+      }>(res);
+      if (!json?.user) return null;
+      return {
+        ...json.user,
+        canViewUsageAnalytics: json.canViewUsageAnalytics === true,
+      };
     },
     initialData: initialUser ?? undefined,
     staleTime: 5 * 60_000,

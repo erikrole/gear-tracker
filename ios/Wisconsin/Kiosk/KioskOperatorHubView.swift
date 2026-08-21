@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct KioskStudentHubView: View {
+struct KioskOperatorHubView: View {
     @Environment(KioskStore.self) private var store
     let user: KioskUser
     @State private var context: KioskStudentContext?
@@ -13,6 +13,9 @@ struct KioskStudentHubView: View {
     @State private var scanRouteRequests = LatestRequestGeneration()
     @State private var contextLoadTask: Task<Void, Never>?
     @State private var contextLoadRequests = LatestRequestGeneration()
+    @State private var shifts: [KioskCheckoutEvent] = []
+    @State private var isLoadingShifts = true
+    @State private var shiftsFailed = false
 
     private enum ScanRouteFeedback: Equatable {
         case warning(String)
@@ -79,8 +82,18 @@ struct KioskStudentHubView: View {
             }
         }
         .task {
-            store.scanner.claim(.studentHub) { routeScan($0) }
+            store.scanner.claim(.operatorHub) { routeScan($0) }
+            async let shiftLoad: Void = loadShifts()
             await loadContext()
+            await shiftLoad
+            #if DEBUG
+            // Capture hook: opens the custody drawer without a tap, so the
+            // before/after pair for this sheet is scripted rather than
+            // hand-driven. No effect outside a fixture scenario.
+            if KioskFixtureScenario.active == .checkoutSheet, let first = context?.checkouts.first {
+                selectedCheckout = drawerContext(for: first)
+            }
+            #endif
         }
         .onDisappear {
             cancelContextLoad()
@@ -89,7 +102,7 @@ struct KioskStudentHubView: View {
             scanRouteRequests.invalidate()
             scanFeedbackDismissTask?.cancel()
             scanFeedbackDismissTask = nil
-            store.scanner.release(.studentHub)
+            store.scanner.release(.operatorHub)
         }
         .task(id: "refresh") {
             while !Task.isCancelled {
@@ -137,7 +150,35 @@ struct KioskStudentHubView: View {
         VStack(alignment: .leading, spacing: KioskSpacing.lg) {
             identityBand
 
-            ScrollView {
+            GeometryReader { proxy in
+                if proxy.size.width < KioskLayout.compactBreakpoint {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: KioskSpacing.lg) {
+                            bookingsColumn
+                            shiftsColumn
+                        }
+                    }
+                    .scrollIndicators(.visible)
+                } else {
+                    HStack(alignment: .top, spacing: KioskSpacing.lg) {
+                        bookingsColumn
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                        Divider()
+                            .background(KioskStroke.divider)
+
+                        shiftsColumn
+                            .frame(width: KioskLayout.shiftsRailWidth(for: proxy.size.width))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Left column: what this person already has a claim on. Unchanged in
+    /// content — it is still the reason most people open this screen.
+    private var bookingsColumn: some View {
+        ScrollView {
                 VStack(alignment: .leading, spacing: KioskSpacing.lg) {
                     checkoutHero
 
@@ -169,7 +210,7 @@ struct KioskStudentHubView: View {
                                     dueText: dueChipText(checkout),
                                     isOverdue: checkout.isOverdue,
                                     dueAt: checkout.endsAt,
-                                    onEdit: {
+                                    onAddItems: {
                                         selectedCheckout = drawerContext(for: checkout)
                                     },
                                     onReturn: {
@@ -198,8 +239,116 @@ struct KioskStudentHubView: View {
                     }
                 }
                 .padding(.bottom, KioskSpacing.md)
+                .padding(.trailing, 2)
+        }
+        .scrollIndicators(.visible)
+    }
+
+    /// Right column: the shifts this person is actually working, each able to
+    /// start a checkout already linked to its event.
+    ///
+    /// Checkout setup has listed "Your shifts" since the 2026-07-27 rework, but
+    /// only *after* someone had already decided to check gear out and walked
+    /// through the details step — so the answer to "what am I here for?" lived
+    /// one screen past the question. Putting it on the hub means the common
+    /// path for crewed work is one tap, with the event and its end time already
+    /// filled in, instead of a booking name typed by hand.
+    private var shiftsColumn: some View {
+        VStack(alignment: .leading, spacing: KioskSpacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: KioskSpacing.xs) {
+                Text("YOUR SHIFTS")
+                    .font(KioskType.overline)
+                    .tracking(1.2)
+                    .foregroundStyle(KioskText.muted)
+                Spacer(minLength: 4)
+                if !shifts.isEmpty {
+                    Text("\(shifts.count)")
+                        .font(KioskType.micro.monospacedDigit())
+                        .foregroundStyle(KioskText.muted)
+                }
             }
-            .scrollIndicators(.visible)
+
+            if isLoadingShifts && shifts.isEmpty {
+                VStack(spacing: KioskSpacing.xs) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        KioskSkeletonBox(cornerRadius: KioskRadius.md).frame(height: 84)
+                    }
+                }
+                .accessibilityLabel("Loading your shifts")
+            } else if shifts.isEmpty {
+                // Quiet, not alarming. Plenty of gear goes out for work that is
+                // not a scheduled shift, so an empty rail is a normal Tuesday.
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: shiftsFailed ? "wifi.exclamationmark" : "calendar")
+                        .font(.title3)
+                        .foregroundStyle(KioskText.muted)
+                        .accessibilityHidden(true)
+                    Text(shiftsFailed ? "Couldn't load shifts" : "No shifts scheduled")
+                        .font(KioskType.rowTitle)
+                        .foregroundStyle(KioskText.secondary)
+                    Text(shiftsFailed
+                         ? "Checkout Gear still works."
+                         : "Use Checkout Gear for anything not on the schedule.")
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskText.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(KioskSpacing.md)
+                .kioskCard(KioskSurface.low, radius: KioskRadius.lg, stroke: KioskStroke.hairline)
+                .accessibilityElement(children: .combine)
+            } else {
+                ScrollView {
+                    VStack(spacing: KioskSpacing.xs) {
+                        ForEach(shifts) { shift in
+                            ShiftCard(event: shift) { startCheckout(for: shift) }
+                        }
+                    }
+                    .padding(.trailing, 2)
+                }
+                .scrollIndicators(.visible)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Starts checkout with the event already linked. `applyRetainedIntent` in
+    /// `KioskCheckoutView` reads `selectedEvent` off the intent, ticks the
+    /// event row, and prefills due-back from the event end — so this lands on
+    /// the details step with both required answers already filled.
+    private func startCheckout(for event: KioskCheckoutEvent) {
+        store.deferSleepMode()
+        store.resetInactivity()
+        store.setIntent(KioskFlowIntent(
+            action: .checkout,
+            source: .event,
+            identifiedUser: user,
+            expectedRequester: nil,
+            selectedEvent: KioskIntentEvent(id: event.id, title: event.title, endsAt: event.endsAt),
+            targetBooking: nil,
+            pendingScanValues: [],
+            createdAt: Date(),
+            ambiguity: .none
+        ))
+        store.screen = .checkout(user: user)
+    }
+
+    /// Shifts are supplementary: a failure here greys one rail, it does not
+    /// take down the screen someone came to return gear on.
+    private func loadShifts() async {
+        isLoadingShifts = true
+        defer { isLoadingShifts = false }
+        do {
+            let events = try await KioskAPI.shared.kioskCheckoutEvents(requesterId: user.id)
+            guard !Task.isCancelled else { return }
+            shifts = events.filter(\.isMyShift)
+            shiftsFailed = false
+        } catch APIError.unauthorized {
+            store.deactivate()
+        } catch {
+            guard !isCancellation(error) else { return }
+            shiftsFailed = true
         }
     }
 
@@ -447,8 +596,8 @@ struct KioskStudentHubView: View {
     private func ownsContextLoad(_ requestToken: UUID) -> Bool {
         guard contextLoadRequests.owns(requestToken),
               !Task.isCancelled,
-              store.scanner.owner == .studentHub,
-              case .studentHub(let activeUser) = store.screen
+              store.scanner.owner == .operatorHub,
+              case .operatorHub(let activeUser) = store.screen
         else { return false }
         return activeUser.id == user.id
     }
@@ -502,8 +651,8 @@ struct KioskStudentHubView: View {
     private func ownsScanRoute(_ requestToken: UUID) -> Bool {
         guard scanRouteRequests.owns(requestToken),
               !Task.isCancelled,
-              store.scanner.owner == .studentHub,
-              case .studentHub(let activeUser) = store.screen
+              store.scanner.owner == .operatorHub,
+              case .operatorHub(let activeUser) = store.screen
         else { return false }
         return activeUser.id == user.id
     }
@@ -637,18 +786,24 @@ private struct ActionButton: View {
     }
 }
 
-/// A booking the student currently holds. Named for the booking itself, with
-/// its two real actions exposed side by side: Edit opens the custody drawer,
-/// Return starts the scan-back flow. This replaces a single "Manage: <title>"
-/// button that made returning gear -- the most common thing anyone does at the
-/// counter -- a two-step discovery problem.
+/// A booking the student currently holds, with its two real actions named
+/// outright: Add Items opens the custody drawer ready to scan more gear onto
+/// this checkout, Return starts the scan-back flow.
+///
+/// The second button used to read "Edit". Everything a student actually does
+/// to a live checkout at the counter is adding another lens or another
+/// battery, and "Edit" named the mechanism (a drawer with fields in it)
+/// instead of the errand — so the one path to adding gear to an existing
+/// checkout was labelled after the least common thing it does. Retitling and
+/// renaming the closure keeps the drawer, which still owns title and due-back
+/// edits, but stops hiding the common case behind the rare one.
 private struct ActiveCheckoutRow: View {
     let title: String
     let subtitle: String
     let dueText: String
     let isOverdue: Bool
     let dueAt: Date
-    let onEdit: () -> Void
+    let onAddItems: () -> Void
     let onReturn: () -> Void
 
     /// Status, not brand. An `OPEN` checkout is blue, orange on its due day,
@@ -681,11 +836,13 @@ private struct ActiveCheckoutRow: View {
 
             Spacer(minLength: 12)
 
-            Button("Edit", action: onEdit)
+            Button(action: onAddItems) {
+                Label("Add Items", systemImage: "plus.circle.fill")
+            }
                 .font(KioskType.chip)
                 .kioskButtonRole(.secondary)
                 .controlSize(.large)
-                .accessibilityLabel("Edit \(title)")
+                .accessibilityLabel("Add items to \(title)")
 
             Button("Return", action: onReturn)
                 .font(KioskType.chip)
@@ -701,6 +858,96 @@ private struct ActiveCheckoutRow: View {
                 .frame(width: 3)
                 .padding(.vertical, 12)
         }
+    }
+}
+
+/// One shift this operator is working, with the checkout it implies.
+///
+/// The card is not itself the button. Tapping a whole card to start a custody
+/// flow is how someone brushing past the counter opens a checkout they did not
+/// mean to start; the explicit "Checkout" control keeps the destructive-ish
+/// action deliberate while the card stays readable as schedule information.
+private struct ShiftCard: View {
+    let event: KioskCheckoutEvent
+    let onCheckout: () -> Void
+
+    private var isToday: Bool { Calendar.current.isDateInToday(event.startsAt) }
+
+    /// Today's shift is the one you are most likely standing here for.
+    private var accent: Color { isToday ? KioskStatus.attention : KioskStatus.scheduled }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KioskSpacing.sm) {
+            HStack(alignment: .top, spacing: KioskSpacing.sm) {
+                VStack(spacing: 1) {
+                    Text(event.startsAt.formatted(.dateTime.day()))
+                        .font(.title3.weight(.heavy).monospacedDigit())
+                        .foregroundStyle(KioskText.primary)
+                    Text(event.startsAt.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(accent)
+                }
+                .frame(width: 46, height: 50)
+                .background(accent.opacity(0.14), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.title)
+                        .font(KioskType.rowTitle)
+                        .foregroundStyle(KioskText.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(subtitle)
+                        .font(KioskType.chip)
+                        .foregroundStyle(KioskText.tertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+
+                Spacer(minLength: 0)
+
+                if isToday {
+                    Text("TODAY")
+                        .font(KioskType.micro)
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(accent.opacity(0.16), in: Capsule())
+                        .accessibilityHidden(true)
+                }
+            }
+
+            // Secondary, not brand red. `Checkout Gear` and each booking's
+            // `Return` already spend red on this screen; giving every shift a
+            // full-width red button too put five of them on one canvas, which
+            // is how brand red stops meaning "the action this screen is for".
+            // The card's own tint and date block already read as actionable.
+            Button(action: onCheckout) {
+                Label("Start Checkout", systemImage: "arrow.up.circle.fill")
+                    .font(KioskType.chip)
+                    .frame(maxWidth: .infinity)
+            }
+            .kioskButtonRole(.secondary)
+            .controlSize(.large)
+            .accessibilityLabel("Check out gear for \(event.title)")
+            .accessibilityHint("Starts checkout with this event already linked")
+        }
+        .padding(KioskSpacing.sm)
+        .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: accent.opacity(0.3))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(isToday ? "Today. " : "")\(event.title), \(subtitle)")
+    }
+
+    private var subtitle: String {
+        var parts = [event.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())]
+        if let location = event.locationName, !location.isEmpty {
+            parts.append(location)
+        } else if let sport = event.sportCode, !sport.isEmpty {
+            parts.append(sport)
+        }
+        return parts.joined(separator: " · ")
     }
 }
 

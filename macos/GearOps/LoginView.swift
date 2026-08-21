@@ -38,7 +38,7 @@ struct GearOpsLoginView: View {
     }
 
     private var errorMessage: String? {
-        step == .identity ? identityError : model.statusMessage
+        step == .identity ? (identityError ?? model.statusMessage) : model.statusMessage
     }
 
     var body: some View {
@@ -76,6 +76,14 @@ struct GearOpsLoginView: View {
         .onChange(of: step) { _, newStep in
             focusedField = newStep == .identity ? .email : .password
         }
+        .onDisappear {
+            // Menu-bar content can be torn down whenever the popover closes.
+            // Never retain a password or a revealed-password state across that
+            // boundary, even if authentication was interrupted.
+            password = ""
+            showPassword = false
+            focusedField = nil
+        }
     }
 
     // The web and iOS logins split identity from password so a returning user
@@ -88,7 +96,7 @@ struct GearOpsLoginView: View {
             TextField("you@wisc.edu", text: $email)
                 .textContentType(.username)
                 .textFieldStyle(.plain)
-                .modifier(BrandFieldChrome())
+                .modifier(BrandFieldChrome(isFocused: focusedField == .email))
                 .focused($focusedField, equals: .email)
                 .disabled(authBusy)
                 .onSubmit(advance)
@@ -140,7 +148,7 @@ struct GearOpsLoginView: View {
                     .help(showPassword ? "Hide password" : "Show password")
                     .accessibilityLabel(showPassword ? "Hide password" : "Show password")
                 }
-                .modifier(BrandFieldChrome())
+                .modifier(BrandFieldChrome(isFocused: focusedField == .password))
                 .disabled(authBusy)
             }
         }
@@ -165,6 +173,7 @@ struct GearOpsLoginView: View {
         .background(BrandPalette.accent.opacity(0.10), in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Sign-in problem: \(message)")
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
     private var primaryButton: some View {
@@ -225,6 +234,7 @@ struct GearOpsLoginView: View {
     private func advance() {
         guard canContinue else { return }
         identityError = nil
+        model.clearStatusMessage()
         setStep(.password)
     }
 
@@ -233,6 +243,7 @@ struct GearOpsLoginView: View {
         password = ""
         showPassword = false
         identityError = nil
+        model.clearStatusMessage()
         setStep(.identity)
     }
 
@@ -253,6 +264,9 @@ struct GearOpsLoginView: View {
         showPassword = false
         Task {
             await model.signIn(email: submittedEmail, password: submittedPassword)
+            if model.user == nil {
+                focusedField = .password
+            }
         }
     }
 }
@@ -260,6 +274,8 @@ struct GearOpsLoginView: View {
 /// Solid white wells with a crimson focus ring, matching the web `.login-field`
 /// override. The app's default control chrome reads as gray-on-gray here.
 private struct BrandFieldChrome: ViewModifier {
+    let isFocused: Bool
+
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 10)
@@ -267,7 +283,14 @@ private struct BrandFieldChrome: ViewModifier {
             .background(.white, in: .rect(cornerRadius: 8))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.16), lineWidth: 1)
+                    .strokeBorder(
+                        isFocused ? BrandPalette.accent : Color.black.opacity(0.16),
+                        lineWidth: isFocused ? 2 : 1
+                    )
             }
+            .shadow(
+                color: isFocused ? BrandPalette.accent.opacity(0.18) : .clear,
+                radius: 3
+            )
     }
 }

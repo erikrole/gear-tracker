@@ -48,6 +48,7 @@ struct ProfileView: View {
             List {
                 headerSection
                 nextUpSection
+                scoreboardSection
                 badgeSection
                 profileCompletionSection
                 scheduleSection
@@ -185,6 +186,31 @@ struct ProfileView: View {
             )
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
+        }
+    }
+
+    /// Your own season record. This is a list row rather than a card: a
+    /// NavigationLink row already draws the system chevron and standard insets,
+    /// which the hand-built card label was duplicating and then losing its
+    /// padding to `listRowInsets(EdgeInsets())`.
+    @ViewBuilder
+    private var scoreboardSection: some View {
+        if let userId = session.currentUser?.id {
+            Section {
+                NavigationLink {
+                    ScoreboardView(userId: userId)
+                } label: {
+                    SettingsMenuRow(
+                        title: "Scoreboard",
+                        subtitle: ScoreboardLink.subtitle,
+                        systemImage: "trophy",
+                        tint: Color.statusText(.orange)
+                    ) {
+                        EmptyView()
+                    }
+                }
+                .accessibilityHint(ScoreboardLink.hint)
+            }
         }
     }
 

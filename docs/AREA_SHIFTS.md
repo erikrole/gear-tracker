@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Shift Calendar & Scheduling
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-18
+- Last Updated: 2026-08-21
 - Status: Active — implemented V1 with ongoing hardening
 
 ## Purpose
@@ -20,7 +20,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - **Pending schedule**: One private, versioned staff editing copy per ShiftGroup. Every edit restarts a durable ten-minute quiet period; the newest version then reconciles automatically while worker-facing reads retain the last released schedule.
 - **Assignment provenance**: `ShiftAssignment.source` distinguishes manual staffing, preview-approved auto-fill, and reservation-managed schedule work. Reservation lifecycle cleanup can release only the last category.
 - **Trade Board**: Area-filtered board where students post shifts they can't work; other students in the same area can claim them
-- **StudentAvailabilityBlock**: Weekly or ad hoc student availability signal used by scheduling. Existing blocks read as approved cannot-work advisory conflicts; newer blocks can express prefer, dislike, pending time off, approved time off, or denied time off.
+- **StudentAvailabilityBlock**: Weekly or ad hoc student availability signal used by scheduling. Weekly blocks describe recurring class windows; ad hoc blocks can cover an inclusive date range and all-day time away. Existing blocks read as approved cannot-work advisory conflicts; newer blocks can express prefer, dislike, pending time off, approved time off, or denied time off.
 
 ## Acceptance Criteria
 
@@ -42,6 +42,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Schedule activity counts: staff/admin readiness and Event command-center history derive recent calendar-sync, live assignment, and private working-copy edits from scoped audit history while student Schedule reads remain published-only
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
+- [x] Student availability input: web and native iOS support recurring class windows plus one-off single-date, inclusive-range, and all-day entries while preserving legacy rows
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
 - [x] Staff/Student display truth: filled Schedule rows/cards derive Staff or Student labels from the assigned user's scheduling class, while Staff slot/Student slot labels are reserved for open planned slots and editing controls
@@ -103,6 +104,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+
+- 2026-08-21: **Student availability now matches the real entry pattern.** Web and native iOS lead with recurring class schedules, keep one-off days separate, and support inclusive From/Through ranges with an explicit All day choice for travel, visitors, and similar time away. Native class-term bounds and web semester bounds remain optional, while the shared conflict helper preserves advisory cannot-work behavior and approved-time-off blocking semantics. The additive `dateEndsOn`/`allDay` fields remain rollout-safe for older rows and payloads; authenticated browser/runtime proof and migration application remain deployment gates.
 
 - 2026-08-18: **Shared crew editor hardening shipped.** Compact Schedule and deeper Event detail crew management now filter already-assigned candidates, distinguish editor and picker load failures with retry actions, confirm destructive reverts, retain replacement context after failed saves, refresh parent release metadata after a successful rebase or revert, and wrap call-time controls on narrow screens. The versioned mutation path and worker-facing publication boundary are unchanged.
 - 2026-08-18: **Crew setup and crew management now share one helper.** Staff choose Home, Away, or empty crew setup from the main Schedule event-row menu, then use Manage crew to open the compact version of the same versioned working-copy editor used by Event detail. Event detail remains deeper through its event, gear, and recent-change context; worker-facing publication and timed-release boundaries are unchanged. Automation auto-fill review links now open the first affected Event detail instead of the legacy assignment grid.

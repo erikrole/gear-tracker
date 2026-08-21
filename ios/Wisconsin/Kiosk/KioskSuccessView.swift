@@ -15,7 +15,7 @@ struct KioskSuccessView: View {
 
     /// Entrance values driven by the keyframe animators below. The icon pops
     /// in with a small overshoot; the checkmark badge follows a beat later.
-    private struct Entrance {
+    fileprivate struct Entrance {
         var scale: CGFloat = 0.6
         var opacity: Double = 0
         var badgeScale: CGFloat = 0
@@ -33,28 +33,48 @@ struct KioskSuccessView: View {
         VStack(spacing: 28) {
             Spacer()
 
-            successIcon
-
-            VStack(spacing: 14) {
-                Text(info.kind.label.uppercased())
-                    .font(KioskType.sectionTitle)
-                    .tracking(2)
-                    .foregroundStyle(accent)
-
-                Text(info.message)
-                    .font(.kioskSuccessTitle())
-                    .foregroundStyle(KioskText.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 48)
-            }
-            .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.2))
-
+            // With a badge earned, the badge *is* the moment. It used to be a
+            // modest card sitting under a full-width custody sentence, which
+            // made the reward the third thing on the screen and quieter than
+            // the receipt. One focal point: the badge disc replaces the kind
+            // icon, the badge name takes the headline, and the custody message
+            // demotes to the supporting line it always was.
             if let reward = info.earnedBadges.first {
-                KioskBadgeRewardCard(
+                KioskBadgeCelebration(
                     reward: reward,
-                    additionalCount: max(0, info.earnedBadges.count - 1)
+                    additionalCount: max(0, info.earnedBadges.count - 1),
+                    appeared: appeared,
+                    reduceMotion: reduceMotion
                 )
-                .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.26))
+
+                VStack(spacing: 10) {
+                    Text(info.kind.label.uppercased())
+                        .font(KioskType.chip)
+                        .tracking(2)
+                        .foregroundStyle(accent)
+                    Text(info.message)
+                        .font(KioskType.body)
+                        .foregroundStyle(KioskText.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 48)
+                }
+                .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.3))
+            } else {
+                successIcon
+
+                VStack(spacing: 14) {
+                    Text(info.kind.label.uppercased())
+                        .font(KioskType.sectionTitle)
+                        .tracking(2)
+                        .foregroundStyle(accent)
+
+                    Text(info.message)
+                        .font(.kioskSuccessTitle())
+                        .foregroundStyle(KioskText.primary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 48)
+                }
+                .modifier(EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.2))
             }
 
             countdownView
@@ -157,7 +177,7 @@ struct KioskSuccessView: View {
     /// Pop-in for the icon ring: fade up while overshooting to 106% and
     /// settling. Holds the settled state after the run. Static under Reduce
     /// Motion.
-    private struct IconEntrance: ViewModifier {
+    fileprivate struct IconEntrance: ViewModifier {
         let trigger: Bool
         let reduceMotion: Bool
 
@@ -184,7 +204,7 @@ struct KioskSuccessView: View {
 
     /// The green checkmark lands a beat after the icon: held at zero scale for
     /// 0.25s, then springs past full size and settles.
-    private struct BadgeEntrance: ViewModifier {
+    fileprivate struct BadgeEntrance: ViewModifier {
         let trigger: Bool
         let reduceMotion: Bool
 
@@ -206,7 +226,7 @@ struct KioskSuccessView: View {
     }
 
     /// Fade-and-rise entrance for the text/CTA blocks under the icon.
-    private struct EntranceFade: ViewModifier {
+    fileprivate struct EntranceFade: ViewModifier {
         let visible: Bool
         let reduceMotion: Bool
         let delay: Double
@@ -259,65 +279,94 @@ struct KioskSuccessView: View {
     }
 }
 
-private struct KioskBadgeRewardCard: View {
+/// The badge moment on the kiosk success screen.
+///
+/// Borrows the shared celebration's visual language — rarity-gradient disc,
+/// glow, rarity chip — so a badge looks the same everywhere it is awarded,
+/// while staying inside the kiosk's own terminal screen rather than being a
+/// modal with its own dismiss button. `BadgeEarnedCelebrationView` could not be
+/// dropped in directly: it is a `.regularMaterial` sheet built to be dismissed
+/// by hand, and this screen auto-returns on a countdown.
+private struct KioskBadgeCelebration: View {
     let reward: EarnedBadgeReward
     let additionalCount: Int
+    let appeared: Bool
+    let reduceMotion: Bool
 
-    private var color: Color {
-        switch reward.rarity.lowercased() {
-        case "legendary": .purple
-        case "rare": KioskStatus.attention
-        case "uncommon": KioskStatus.scheduled
-        default: Color.kioskRed
-        }
-    }
+    private var color: Color { reward.badgeRarity.accent }
 
     var body: some View {
-        HStack(spacing: 18) {
-            ZStack {
-                Circle().fill(color.opacity(0.18))
-                Circle().stroke(color.opacity(0.55), lineWidth: 1.5)
-                Image(systemName: reward.symbolName)
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(color)
-            }
-            .frame(width: 68, height: 68)
+        VStack(spacing: KioskSpacing.md) {
+            ZStack(alignment: .bottomTrailing) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.18))
+                        .frame(width: 176, height: 176)
+                        .blur(radius: reduceMotion ? 6 : 16)
+                    Circle()
+                        .fill(color.gradient)
+                        .frame(width: 132, height: 132)
+                        .shadow(color: color.opacity(0.45), radius: 28, y: 12)
+                    Image(systemName: reward.symbolName)
+                        .font(.system(size: 58, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .modifier(KioskSuccessView.IconEntrance(trigger: appeared, reduceMotion: reduceMotion))
 
-            VStack(alignment: .leading, spacing: 5) {
+                if additionalCount > 0 {
+                    Text("+\(additionalCount)")
+                        .font(.gothamBold(size: 18))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(color, in: Circle())
+                        .overlay(Circle().stroke(KioskSurface.base, lineWidth: 3))
+                        .offset(x: 6, y: 6)
+                        .modifier(KioskSuccessView.BadgeEntrance(trigger: appeared, reduceMotion: reduceMotion))
+                        .accessibilityLabel("\(additionalCount) more badges earned")
+                }
+            }
+            .background(
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [color.opacity(0.14), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 210
+                        )
+                    )
+                    .frame(width: 420, height: 420)
+            )
+
+            VStack(spacing: 8) {
                 Text("BADGE EARNED")
                     .font(KioskType.overline)
-                    .tracking(1.5)
+                    .tracking(2.2)
                     .foregroundStyle(color)
                 Text(reward.name)
-                    .font(.gothamBold(size: 22))
+                    .font(.gothamBlack(size: 40))
                     .foregroundStyle(KioskText.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
                 Text(reward.description)
                     .font(KioskType.rowDetail)
                     .foregroundStyle(KioskText.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer(minLength: 12)
-
-            if additionalCount > 0 {
-                Text("+\(additionalCount)")
-                    .font(.gothamBold(size: 18))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 48)
+                Text(reward.badgeRarity.title.uppercased())
+                    .font(KioskType.micro)
+                    .tracking(1.2)
                     .foregroundStyle(color)
-                    .padding(10)
-                    .background(color.opacity(0.16), in: Circle())
-                    .accessibilityLabel("\(additionalCount) more badges earned")
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(color.opacity(0.16), in: Capsule())
+                    .padding(.top, 2)
             }
+            .modifier(KioskSuccessView.EntranceFade(visible: appeared || reduceMotion, reduceMotion: reduceMotion, delay: 0.24))
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
-        .frame(maxWidth: 620)
-        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: KioskRadius.lg)
-                .stroke(color.opacity(0.4), lineWidth: 1.5)
-        )
-        .shadow(color: color.opacity(0.12), radius: 24, y: 10)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Badge earned. \(reward.name). \(reward.description)")
+        .accessibilityLabel("Badge earned. \(reward.name), \(reward.badgeRarity.title). \(reward.description)")
     }
 }

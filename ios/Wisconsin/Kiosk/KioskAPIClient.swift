@@ -56,6 +56,13 @@ struct KioskAPI {
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
         config.multipathServiceType = .none
+        #if DEBUG
+        // Fixture scenarios answer locally so UI captures never touch the real
+        // host with real credentials. Inert unless GT_KIOSK_SCENARIO is set.
+        if KioskFixtureScenario.active != nil {
+            config.protocolClasses = [KioskFixtureURLProtocol.self] + (config.protocolClasses ?? [])
+        }
+        #endif
         return URLSession(configuration: config)
     }()
 

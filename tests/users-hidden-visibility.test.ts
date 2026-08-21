@@ -21,6 +21,7 @@ const dbMock = vi.hoisted(() => ({
   },
   calendarEvent: {
     groupBy: vi.fn(),
+    count: vi.fn(),
   },
 }));
 
@@ -145,6 +146,7 @@ beforeEach(() => {
   vi.mocked(db.user.findUnique).mockResolvedValue(null);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
   vi.mocked(db.calendarEvent.groupBy).mockResolvedValue([]);
+  vi.mocked(db.calendarEvent.count).mockResolvedValue(0);
   vi.mocked(db.location.findMany).mockResolvedValue([]);
   vi.mocked(db.department.findMany).mockResolvedValue([]);
   vi.mocked(db.bulkSku.findMany).mockResolvedValue([]);

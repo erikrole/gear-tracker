@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Check, Eraser, Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { SignatureAthleteProfileForm, type SignatureAthleteProfileValues } from "@/components/signatures/SignatureAthleteProfileForm";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { invalidateSignatureCollectionCaches } from "@/lib/signatures/client-cache";
 import {
   appendDistinctSignaturePoints,
   isCurrentDeviceIpad,
@@ -26,7 +28,7 @@ import { signatureSaveRequestIdSchema } from "@/lib/signatures/types";
 type PenSettings = { strokeColor: string; strokeWidth: number; cropPadding: number; maxWidth: number; maxHeight: number };
 type AthleteProfile = SignatureAthleteProfileValues;
 type Member = { id: string; name: string; jerseyNumber: number | null; title: string | null; roleGroup: string; active: boolean; captureVersion: number; settingsVersion: number; captureSettings?: PenSettings; artifact: { id: string } | null; athleteProfile: AthleteProfile | null; athleteProfileComplete: boolean };
-type Collection = { id: string; season: string; status: "OPEN" | "ARCHIVED"; collectionVersion: number; settingsVersion: number; penSettings: PenSettings; members: Member[] };
+type Collection = { id: string; season: string; status: "OPEN" | "ARCHIVED"; collectionVersion: number; member: Member };
 type DraftStatus = "loading" | "empty" | "saving" | "saved" | "unavailable";
 
 function pointForEvent(event: PointerEvent, canvas: HTMLCanvasElement, logicalSize: SignatureCanvasSize) {
@@ -85,9 +87,14 @@ function drawStrokes(
 
 export default function SignatureCapturePage({ collectionId, memberId, userId }: { collectionId: string; memberId: string; userId: string }) {
   const router = useRouter();
-  const { data: collection, loading, error } = useFetch<Collection>({ url: `/api/signatures/collections/${collectionId}` });
-  const member = collection?.members.find((candidate) => candidate.id === memberId) ?? null;
-  const settings = member?.captureSettings ?? collection?.penSettings;
+  const queryClient = useQueryClient();
+  const [isIpad, setIsIpad] = useState<boolean | null>(null);
+  const { data: collection, loading, error, reload, refreshing } = useFetch<Collection>({
+    url: `/api/signatures/collections/${collectionId}/members/${memberId}`,
+    enabled: isIpad === true,
+  });
+  const member = collection?.member ?? null;
+  const settings = member?.captureSettings;
   const draftKey = useMemo(
     () => collection && member
       ? signatureDraftKey(userId, collection.id, member.id, member.settingsVersion, member.captureVersion)
@@ -107,7 +114,6 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
   const [clearedStrokes, setClearedStrokes] = useState<SignatureDraftStroke[] | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("loading");
-  const [isIpad, setIsIpad] = useState<boolean | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profileStep, setProfileStep] = useState(false);
@@ -469,6 +475,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
         draftQueueRef.current = deletion;
         await deletion.catch(() => undefined);
       }
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       toast.success(`${member.name}'s signature saved`);
       if (member.roleGroup === "PLAYER") {
         setProfileStep(true);
@@ -495,6 +502,7 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
       });
       if (handleAuthRedirect(response)) return;
       if (!response.ok) throw new Error(await parseErrorMessage(response, "Athlete profile was not saved"));
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       toast.success(`${member.name}'s website profile saved`);
       router.push(`/signatures/${collection.id}`);
     } catch (requestError) {
@@ -524,7 +532,19 @@ export default function SignatureCapturePage({ collectionId, memberId, userId }:
       </Card>
     </div>
   );
-  if (error || !collection || !member || !member.active || !settings || collection.status !== "OPEN") return <div className="flex min-h-[100dvh] items-center justify-center p-6"><Card className="max-w-md p-6 text-sm text-muted-foreground">This signer is unavailable or the collection is archived. <Link href={`/signatures/${collectionId}`} className="font-medium text-foreground underline">Return to roster</Link></Card></div>;
+  if (error) return (
+    <div className="flex min-h-[100dvh] items-center justify-center p-6">
+      <Card className="max-w-md p-6">
+        <p className="font-semibold">Couldn’t load this signer</p>
+        <p className="mt-2 text-sm text-muted-foreground">The roster could not be reached. Try again before starting capture.</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button variant="brand" className="h-11" onClick={reload} disabled={refreshing}>Retry</Button>
+          <Button variant="outline" className="h-11" asChild><Link href={`/signatures/${collectionId}`}><ArrowLeft data-icon="inline-start" />Return to roster</Link></Button>
+        </div>
+      </Card>
+    </div>
+  );
+  if (!collection || !member || !member.active || !settings || collection.status !== "OPEN") return <div className="flex min-h-[100dvh] items-center justify-center p-6"><Card className="max-w-md p-6 text-sm text-muted-foreground">This signer is unavailable or the collection is archived. <Link href={`/signatures/${collectionId}`} className="font-medium text-foreground underline">Return to roster</Link></Card></div>;
 
   return (
     <main

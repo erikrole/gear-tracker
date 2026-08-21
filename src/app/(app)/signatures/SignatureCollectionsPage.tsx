@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Archive, ArrowRight, Download, Eye, EyeOff, FileCode2, FileImage, FilePenLine, FolderPen, Plus, RefreshCw, Trash2, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -21,6 +23,8 @@ import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuS
 import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { isCurrentDeviceIpad } from "@/lib/signatures/capture";
+import { invalidateSignatureCollectionCaches } from "@/lib/signatures/client-cache";
 import {
   DEFAULT_SIGNATURE_SEASON,
   SIGNATURE_AD_HOC_SPORT_CODE,
@@ -58,6 +62,8 @@ type Preview = {
 
 type SignatureZipFormat = "png" | "svg";
 
+const CAPTURE_ON_IPAD_TOOLTIP = "Capture can only be done on an iPad with an Apple Pencil.";
+
 const SIGNATURE_SEASON_OPTIONS = Array.from({ length: 9 }, (_, index) => {
   const startYear = 2024 + index;
   return `${startYear}-${String(startYear + 1).slice(-2)}`;
@@ -87,6 +93,7 @@ async function deleteJson(url: string, body: unknown) {
 
 export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [season, setSeason] = useState(DEFAULT_SIGNATURE_SEASON);
   const [importSportCode, setImportSportCode] = useState<SignatureImportedSportCode>(SIGNATURE_MBB_SPORT_CODE);
@@ -98,12 +105,17 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
   const [adHocCategory, setAdHocCategory] = useState("");
   const [addingAdHoc, setAddingAdHoc] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
+  const [isIpad, setIsIpad] = useState(false);
   const automaticSyncAttempt = useRef<string | null>(null);
-  const { data, loading, error, reload } = useFetch<Collection[]>({
+  const { data, loading, refreshing, error, reload } = useFetch<Collection[]>({
     url: "/api/signatures/collections" + (showArchived ? "?includeArchived=true" : ""),
     transform: (json) => (json.collections as Collection[]) ?? [],
   });
   const collections = useMemo(() => data ?? [], [data]);
+
+  useEffect(() => {
+    setIsIpad(isCurrentDeviceIpad());
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -115,16 +127,23 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
     setWorkingCollectionId(creativeStaffRoster.id);
     void postJson(`/api/signatures/collections/${creativeStaffRoster.id}/creative-staff`, {
       expectedCollectionVersion: creativeStaffRoster.collectionVersion,
-    }).then((result) => {
-      if (!result.unchanged) reload();
+    }).then(async (result) => {
+      if (!result.unchanged) {
+        await invalidateSignatureCollectionCaches(queryClient, creativeStaffRoster.id);
+        reload();
+      }
     }).catch((requestError) => {
       toast.error(requestError instanceof Error ? requestError.message : "Creative Staff was not updated");
     }).finally(() => {
       setWorkingCollectionId(null);
     });
-  }, [collections, loading, reload]);
+  }, [collections, loading, queryClient, reload]);
 
   async function addAdHocSigner() {
+    if (!isIpad) {
+      toast.error(CAPTURE_ON_IPAD_TOOLTIP);
+      return;
+    }
     setAddingAdHoc(true);
     try {
       const result = await postJson("/api/signatures/collections", {
@@ -135,7 +154,9 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
       setAdHocOpen(false);
       setAdHocName("");
       setAdHocCategory("");
-      router.push(`/signatures/${result.collectionId}/capture/${result.memberId}`);
+      const collectionId = String(result.collectionId);
+      await invalidateSignatureCollectionCaches(queryClient, collectionId);
+      router.push(`/signatures/${collectionId}/capture/${String(result.memberId)}`);
     } catch (requestError) {
       toast.error(requestError instanceof Error ? requestError.message : "Ad-hoc signer was not added");
     } finally {
@@ -164,6 +185,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
         snapshotId: preview.snapshotId,
         expectedCollectionVersion: preview.collectionVersion,
       });
+      await invalidateSignatureCollectionCaches(queryClient, preview.collectionId);
       setPreview(null);
       reload();
       toast.success("Roster applied");
@@ -181,6 +203,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
       await postJson("/api/signatures/collections/" + collection.id + "/archive", {
         expectedCollectionVersion: collection.collectionVersion,
       });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success(collection.season + " was archived");
     } catch (requestError) {
@@ -197,6 +220,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
       await postJson("/api/signatures/collections/" + collection.id + "/restore", {
         expectedCollectionVersion: collection.collectionVersion,
       });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       reload();
       toast.success(collection.season + " was restored");
     } catch (requestError) {
@@ -243,6 +267,7 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
       await deleteJson(`/api/signatures/collections/${collection.id}`, {
         expectedCollectionVersion: collection.collectionVersion,
       });
+      await invalidateSignatureCollectionCaches(queryClient, collection.id);
       setDeleteTarget(null);
       await reload();
       toast.success(`${signatureCollectionTitle(collection.sportCode)} was deleted`);
@@ -257,9 +282,20 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
     <FadeUp>
       <PageHeader title="Signatures">
         <Dialog open={adHocOpen} onOpenChange={setAdHocOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="h-10"><Plus data-icon="inline-start" />Add Signature</Button>
-          </DialogTrigger>
+          {isIpad ? (
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-10"><Plus data-icon="inline-start" />Add Signature</Button>
+            </DialogTrigger>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} aria-label="Add signature on iPad" className="inline-flex">
+                  <Button type="button" size="sm" className="h-10" disabled><Plus data-icon="inline-start" />Add on iPad</Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{CAPTURE_ON_IPAD_TOOLTIP}</TooltipContent>
+            </Tooltip>
+          )}
           <DialogContent>
             <DialogHeader className="flex-col items-start gap-1 pr-14">
               <DialogTitle>Add ad-hoc signature</DialogTitle>
@@ -287,8 +323,8 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading || Boolean(workingCollectionId)}>
-          <RefreshCw data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
+        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading || refreshing || Boolean(workingCollectionId)}>
+          <RefreshCw data-icon="inline-start" className={loading || refreshing ? "animate-spin" : undefined} />
           Refresh
         </Button>
       </PageHeader>
@@ -389,17 +425,21 @@ export default function SignatureCollectionsPage({ isAdmin }: { isAdmin: boolean
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{isCreativeStaffRoster && !hasSyncedMembers ? "Roster status" : "Complete"}</span>
-                        <span className="font-semibold tabular-nums">{isCreativeStaffRoster && !hasSyncedMembers ? "Not synced" : `${collection.completeness.complete}/${collection.completeness.required}`}</span>
+                        <span className="text-muted-foreground">{!hasSyncedMembers ? "Roster status" : "Complete"}</span>
+                        <span className="font-semibold tabular-nums">{!hasSyncedMembers ? "Not applied" : `${collection.completeness.complete}/${collection.completeness.required}`}</span>
                       </div>
-                      <Progress value={collection.completeness.percent} className="mt-2 h-2" />
+                      <Progress
+                        value={hasSyncedMembers ? collection.completeness.percent : 0}
+                        className="mt-2 h-2"
+                        aria-label={`${signatureCollectionTitle(collection.sportCode)} readiness`}
+                      />
                       {!isCreativeStaffRoster && !isAdHocRoster && staffCompleteness.total > 0 && (
                         <div className="mt-2 text-right text-xs text-muted-foreground tabular-nums">
                           {staffCompleteness.complete}/{staffCompleteness.total} Staff
                         </div>
                       )}
                       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{isCreativeStaffRoster ? (hasSyncedMembers ? "Automatically synced" : "Syncing automatically") : `${collection.completeness.percent}% ready`}</span>
+                        <span>{isCreativeStaffRoster ? (hasSyncedMembers ? "Automatically synced" : "Syncing automatically") : hasSyncedMembers ? `${collection.completeness.percent}% ready` : "Apply a roster to begin"}</span>
                         <Link href={"/signatures/" + collection.id} className="inline-flex items-center gap-1 font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                           Open roster <ArrowRight className="size-3.5" aria-hidden="true" />
                         </Link>

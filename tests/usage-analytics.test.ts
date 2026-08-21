@@ -7,6 +7,12 @@ const dbMock = vi.hoisted(() => ({
     count: vi.fn(),
     groupBy: vi.fn(),
   },
+  userAppInstallation: {
+    upsert: vi.fn(),
+  },
+  user: {
+    findMany: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/auth", () => ({ requireAuth: vi.fn() }));
@@ -16,6 +22,7 @@ vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn().mockResolvedValue({
 import { requireAuth } from "@/lib/auth";
 import { POST as postProductEvent } from "@/app/api/product-events/route";
 import { GET as getUsageReport } from "@/app/api/reports/usage/route";
+import { GET as getAppActivityReport } from "@/app/api/settings/app-activity/route";
 import { canViewUsageAnalytics, pseudonymousAnalyticsKey } from "@/lib/usage-analytics";
 
 const owner = {
@@ -40,6 +47,7 @@ beforeEach(() => {
   dbMock.productEvent.create.mockResolvedValue({ id: "event-1" });
   dbMock.productEvent.count.mockResolvedValue(0);
   dbMock.productEvent.groupBy.mockResolvedValue([]);
+  dbMock.userAppInstallation.upsert.mockResolvedValue({ id: "installation-1" });
 });
 
 describe("private usage analytics", () => {
@@ -74,6 +82,53 @@ describe("private usage analytics", () => {
     }) });
     expect(JSON.stringify(dbMock.productEvent.create.mock.calls[0])).not.toContain(owner.id);
     expect(pseudonymousAnalyticsKey(owner.id)).not.toBe(owner.id);
+  });
+
+  it("records coarse app client identity separately from event analytics", async () => {
+    const response = await postProductEvent(request("/api/product-events", "POST", {
+      eventName: "app_opened",
+      platform: "ios",
+      surface: "home",
+      appVersion: "1.0",
+      appBuild: "27",
+      osVersion: "26.0",
+      deviceModel: "iPhone17,1",
+      releaseChannel: "testflight",
+      installationKey: "1234567890abcdef-installation",
+    }), { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(202);
+    expect(dbMock.userAppInstallation.upsert).toHaveBeenCalledWith({
+      where: {
+        userId_installationHash_platform: {
+          userId: owner.id,
+          installationHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          platform: "ios",
+        },
+      },
+      create: expect.objectContaining({
+        userId: owner.id,
+        platform: "ios",
+        appVersion: "1.0",
+        appBuild: "27",
+        osVersion: "26.0",
+        deviceModel: "iPhone17,1",
+        releaseChannel: "testflight",
+        lastOpenedAt: expect.any(Date),
+      }),
+      update: expect.objectContaining({
+        appBuild: "27",
+        releaseChannel: "testflight",
+        lastOpenedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it("keeps the named app activity report owner-only", async () => {
+    process.env.USAGE_ANALYTICS_OWNER_EMAILS = "someone-else@example.com";
+    const response = await getAppActivityReport(request("/api/settings/app-activity"), { params: Promise.resolve({}) });
+    expect(response.status).toBe(403);
+    expect(dbMock.user.findMany).not.toHaveBeenCalled();
   });
 
   it("rejects free-form properties and record identifiers", async () => {

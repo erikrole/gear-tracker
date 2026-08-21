@@ -1,0 +1,302 @@
+import Foundation
+
+/// The server-owned season window used by the profile Scoreboard.
+struct ScoreboardScope: Codable, Equatable {
+    let key: String
+    let label: String
+    let startsAt: String
+    let endsAt: String
+    let timeZone: String
+}
+
+/// One owner for how a win-loss record reads. The season summary and every
+/// breakdown row spell the same record the same way because they all come
+/// through here.
+enum ScoreboardFormat {
+    static func record(wins: Int, losses: Int) -> String { "\(wins)–\(losses)" }
+
+    /// The server has already rounded to one decimal. Whole numbers drop it, so
+    /// a clean sweep reads "100%" instead of "100.0%".
+    static func winRate(_ rate: Double?) -> String {
+        guard let rate else { return "—" }
+        if rate.rounded() == rate { return "\(Int(rate))%" }
+        return "\(rate.formatted(.number.precision(.fractionLength(1))))%"
+    }
+
+    static func games(_ count: Int) -> String { "\(count) \(count == 1 ? "game" : "games")" }
+}
+
+struct ScoreboardSummary: Codable, Equatable {
+    let eventsWorked: Int
+    let wins: Int
+    let losses: Int
+    let games: Int
+    let winRate: Double?
+
+    var recordLabel: String { ScoreboardFormat.record(wins: wins, losses: losses) }
+    var winRateLabel: String { ScoreboardFormat.winRate(winRate) }
+}
+
+struct ScoreboardBucket: Codable, Equatable, Identifiable {
+    let key: String?
+    let label: String
+    let wins: Int
+    let losses: Int
+    let games: Int
+    let winRate: Double?
+
+    var id: String { "\(key ?? "unknown")-\(label)" }
+    var recordLabel: String { ScoreboardFormat.record(wins: wins, losses: losses) }
+    var gamesLabel: String { ScoreboardFormat.games(games) }
+    var winRateLabel: String { ScoreboardFormat.winRate(winRate) }
+}
+
+struct ScoreboardEvent: Codable, Equatable, Identifiable {
+    let id: String
+    let startsAt: String
+    let allDay: Bool
+    let result: String
+    let sportCode: String?
+    let sportLabel: String?
+    let opponent: String?
+    let site: String?
+    let venue: String?
+    let shiftAreas: [String]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        startsAt = try container.decode(String.self, forKey: .startsAt)
+        allDay = try container.decodeIfPresent(Bool.self, forKey: .allDay) ?? false
+        result = try container.decode(String.self, forKey: .result)
+        sportCode = try container.decodeIfPresent(String.self, forKey: .sportCode)
+        sportLabel = try container.decodeIfPresent(String.self, forKey: .sportLabel)
+        opponent = try container.decodeIfPresent(String.self, forKey: .opponent)
+        site = try container.decodeIfPresent(String.self, forKey: .site)
+        venue = try container.decodeIfPresent(String.self, forKey: .venue)
+        // The event list was added after the initial summary response. Missing
+        // shift areas should not make an otherwise valid resolved game vanish.
+        shiftAreas = try container.decodeIfPresent([String].self, forKey: .shiftAreas) ?? []
+    }
+
+    // Parsing the timestamp used to build two `ISO8601DateFormatter`s on every
+    // access, and a row asks for its date every time it redraws. These are the
+    // same two parsers as value types, so they are made once and stay sendable.
+    private static let fractionalSeconds = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+    private static let wholeSeconds = Date.ISO8601FormatStyle()
+
+    var startsDate: Date? {
+        (try? Self.fractionalSeconds.parse(startsAt)) ?? (try? Self.wholeSeconds.parse(startsAt))
+    }
+
+    var isWin: Bool { result == "WIN" }
+
+    var resultLabel: String {
+        switch result {
+        case "WIN": "W"
+        case "LOSS": "L"
+        default: result
+        }
+    }
+
+    /// Spoken form for VoiceOver, where "W" is read as a letter.
+    var resultName: String {
+        switch result {
+        case "WIN": "Win"
+        case "LOSS": "Loss"
+        default: result
+        }
+    }
+
+    var siteLabel: String {
+        switch site {
+        case "HOME": "Home"
+        case "AWAY": "Away"
+        case "NEUTRAL": "Neutral"
+        default: "Site unknown"
+        }
+    }
+
+    /// The route trims opponent and venue to null, but the app is the surface
+    /// that would print "Football vs" with nothing after it, so blank-but-
+    /// present text is treated the same way here as a missing value.
+    var matchupLabel: String {
+        let sport = sportLabel.nonBlankText ?? "Worked event"
+        guard let opponent = opponent.nonBlankText else { return sport }
+        return "\(sport) \(site == "AWAY" ? "at" : "vs") \(opponent)"
+    }
+
+    var venueLabel: String { venue.nonBlankText ?? "Venue not recorded" }
+
+    /// `"Nov 28"`. The month heading above the row carries the year, and a
+    /// finished game's start time is not what anyone reads a record for.
+    var dayLabel: String {
+        guard let startsDate else { return "—" }
+        return startsDate.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// Sort/group key for the month heading. Undated rows keep their own group
+    /// rather than being folded into whatever month is adjacent.
+    var monthKey: String {
+        guard let startsDate else { return "undated" }
+        let parts = Calendar.current.dateComponents([.year, .month], from: startsDate)
+        return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
+    }
+
+    var monthLabel: String {
+        guard let startsDate else { return "Undated" }
+        return startsDate.formatted(.dateTime.month(.wide).year())
+    }
+
+    /// The site glyph for the metadata line, so where a game was played can be
+    /// read without parsing the sentence.
+    var siteSymbol: String {
+        switch site {
+        case "HOME": "house.fill"
+        case "AWAY": "car.fill"
+        case "NEUTRAL": "flag.fill"
+        default: "mappin.and.ellipse"
+        }
+    }
+
+    /// Server-typed area codes, named the way every other screen names them
+    /// rather than title-cased here a second time.
+    var areasLabel: String? {
+        let labels = shiftAreas.map(\.shiftAreaLabel)
+        return labels.isEmpty ? nil : labels.joined(separator: ", ")
+    }
+}
+
+struct UserScoreboard: Codable, Equatable {
+    let scope: ScoreboardScope
+    let summary: ScoreboardSummary
+    let bySport: [ScoreboardBucket]
+    let byOpponent: [ScoreboardBucket]
+    let bySite: [ScoreboardBucket]
+    let byVenue: [ScoreboardBucket]
+    let events: [ScoreboardEvent]
+    let nextCursor: String?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Scope and summary are the minimum trustworthy contract. If either is
+        // absent, fail the read instead of presenting a false season or record.
+        scope = try container.decode(ScoreboardScope.self, forKey: .scope)
+        summary = try container.decode(ScoreboardSummary.self, forKey: .summary)
+        bySport = try container.decodeIfPresent([ScoreboardBucket].self, forKey: .bySport) ?? []
+        byOpponent = try container.decodeIfPresent([ScoreboardBucket].self, forKey: .byOpponent) ?? []
+        bySite = try container.decodeIfPresent([ScoreboardBucket].self, forKey: .bySite) ?? []
+        byVenue = try container.decodeIfPresent([ScoreboardBucket].self, forKey: .byVenue) ?? []
+        events = try container.decodeIfPresent([ScoreboardEvent].self, forKey: .events) ?? []
+        nextCursor = (try? container.decode(String.self, forKey: .nextCursor))
+            ?? (try? container.decode(Int.self, forKey: .nextCursor)).map(String.init)
+    }
+
+    /// The route's cursor is the offset of the next page. A cursor that is not
+    /// an offset ends the list, rather than being read as zero and quietly
+    /// serving page one again under a "Show more" button.
+    var nextOffset: Int? { nextCursor.flatMap(Int.init) }
+}
+
+/// One month of resolved games, in the order the route returned them.
+struct ScoreboardMonth: Identifiable, Equatable {
+    let id: String
+    let label: String
+    let games: [ScoreboardEvent]
+}
+
+/// A run of the same result at the top of the game list.
+struct ScoreboardStreak: Equatable {
+    let count: Int
+    let isWin: Bool
+
+    var label: String { "\(count) straight \(isWin ? "wins" : "losses")" }
+    var tone: StatusTone { isWin ? .green : .red }
+}
+
+/// One orienting fact about a season, in the shape the highlight row draws.
+struct ScoreboardHighlight: Identifiable, Equatable {
+    let id: String
+    let label: String
+    let value: String
+    let detail: String
+}
+
+/// Season shape the route does not send: recency, streaks, and month grouping
+/// are all derivable from the game list it already returns, and they are what
+/// makes a record read like a season rather than a total.
+enum ScoreboardDigest {
+    /// Games grouped under their month heading, preserving the route's
+    /// newest-first order both between groups and inside them.
+    static func months(_ games: [ScoreboardEvent]) -> [ScoreboardMonth] {
+        var order: [String] = []
+        var grouped: [String: [ScoreboardEvent]] = [:]
+        var labels: [String: String] = [:]
+        for game in games {
+            let key = game.monthKey
+            if grouped[key] == nil {
+                order.append(key)
+                labels[key] = game.monthLabel
+            }
+            grouped[key, default: []].append(game)
+        }
+        return order.map { key in
+            ScoreboardMonth(id: key, label: labels[key] ?? key, games: grouped[key] ?? [])
+        }
+    }
+
+    /// The most recent results, newest first.
+    static func form(_ games: [ScoreboardEvent], limit: Int = 5) -> [ScoreboardEvent] {
+        Array(games.prefix(limit))
+    }
+
+    /// The current run, or nil when the last two games disagree. A run of one
+    /// is not a streak and does not get announced as one.
+    static func streak(_ games: [ScoreboardEvent]) -> ScoreboardStreak? {
+        guard let first = games.first else { return nil }
+        let run = games.prefix { $0.isWin == first.isWin }.count
+        return run >= 2 ? ScoreboardStreak(count: run, isWin: first.isWin) : nil
+    }
+}
+
+extension UserScoreboard {
+    /// Three facts worth reading before the tables: what this person works
+    /// most, where they win most, and who they see most. Empty when the season
+    /// has no resolved games to draw them from.
+    var highlights: [ScoreboardHighlight] {
+        guard summary.games > 0 else { return [] }
+        var found: [ScoreboardHighlight] = []
+
+        if let sport = bySport.first {
+            found.append(ScoreboardHighlight(
+                id: "sport",
+                label: "Most worked",
+                value: sport.label,
+                detail: sport.gamesLabel
+            ))
+        }
+        // Best by rate, then by volume, so a lone 1–0 does not outrank a 6–1.
+        let bestVenue = byVenue
+            .filter { $0.key != nil }
+            .max { left, right in
+                ((left.winRate ?? -1), left.games) < ((right.winRate ?? -1), right.games)
+            }
+        if let bestVenue {
+            found.append(ScoreboardHighlight(
+                id: "venue",
+                label: "Best venue",
+                value: bestVenue.label,
+                detail: "\(bestVenue.recordLabel) · \(bestVenue.winRateLabel)"
+            ))
+        }
+        if let opponent = byOpponent.first(where: { $0.key != nil }) {
+            found.append(ScoreboardHighlight(
+                id: "opponent",
+                label: "Top matchup",
+                value: opponent.label,
+                detail: "\(opponent.recordLabel) · \(opponent.gamesLabel)"
+            ))
+        }
+        return found
+    }
+}

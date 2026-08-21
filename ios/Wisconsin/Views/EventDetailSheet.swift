@@ -30,6 +30,10 @@ final class EventDetailViewModel {
     private(set) var hasLoaded = false
     private var loadsWorkingCopy = false
 
+    /// Set when the staff draft overlay failed but the published roster loaded.
+    /// Kept apart from `error`, which blanks the crew section.
+    var workingCopyError: String?
+
     init(event: ScheduleEvent, myShift: MyShift?) {
         self.event = event
         self.myShift = myShift
@@ -59,8 +63,21 @@ final class EventDetailViewModel {
         do {
             let group = try await APIClient.shared.shiftGroup(eventId: event.id)
             shiftGroup = group
+            workingCopyError = nil
             if loadsWorkingCopy, let group {
-                workingEditor = try await APIClient.shared.workingScheduleEditor(shiftGroupId: group.id)
+                // The working copy is a staff draft overlay on a roster that has
+                // already loaded, and `displayedShifts` falls back to the
+                // published shifts without it. Losing it must not blank the crew
+                // everyone came here to read -- the Schedule list learned the
+                // same lesson with its separate `refreshError`.
+                do {
+                    workingEditor = try await APIClient.shared.workingScheduleEditor(shiftGroupId: group.id)
+                } catch is CancellationError {
+                    workingEditor = nil
+                } catch {
+                    workingEditor = nil
+                    workingCopyError = error.localizedDescription
+                }
             } else {
                 workingEditor = nil
             }
@@ -585,7 +602,7 @@ struct EventDetailView: View {
         return eventWork?.shift.startsAt ?? myShift?.startsAt
     }
 
-    private var eventHasEnded: Bool { event.endsAt < Date() }
+    private var eventHasEnded: Bool { event.timeState == .past }
 
     /// `ScheduleEvent.status` was decoded and read nowhere in the whole iOS app,
     /// so a cancelled event looked exactly like a confirmed one.
@@ -1082,6 +1099,26 @@ struct EventDetailView: View {
                             .background(Color.statusBackground(.red), in: Capsule())
                             .foregroundStyle(Color.statusText(.red))
                     }
+                    // The Schedule row already answers "is this happening right
+                    // now" before you tap it. Cancelled outranks both: a
+                    // cancelled event is not under way whatever the clock says.
+                    if !eventIsCancelled {
+                        switch event.timeState {
+                        case .live:
+                            Text("NOW")
+                                .font(.caption2.weight(.heavy))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.brandPrimary, in: Capsule())
+                                .foregroundStyle(.white)
+                        case .past:
+                            Text("Ended")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        case .upcoming:
+                            EmptyView()
+                        }
+                    }
                 }
 
                 Text(scheduleEventDisplayTitle(event))
@@ -1107,7 +1144,11 @@ struct EventDetailView: View {
 
                     Label(event.displayAllDay ? "All day" : eventTimeText, systemImage: "clock")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(
+                            event.timeState == .live && !eventIsCancelled
+                                ? Color.brandPrimary
+                                : Color.secondary
+                        )
 
                     if let eventVenueName {
                         Label(eventVenueName, systemImage: "mappin.and.ellipse")
@@ -1234,6 +1275,31 @@ struct EventDetailView: View {
             } actions: {
                 Button("Retry") { Task { await vm.load() } }
                     .buttonStyle(.borderedProminent)
+            }
+        } else if vm.shiftGroup != nil, let workingCopyError = vm.workingCopyError {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Color.statusText(.orange))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Showing the published crew")
+                            .font(.footnote.weight(.semibold))
+                        Text(workingCopyError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Retry") { Task { await vm.load() } }
+                        .font(.footnote.weight(.semibold))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityElement(children: .combine)
+
+                crewList
             }
         } else if vm.shiftGroup == nil {
             VStack(spacing: 10) {

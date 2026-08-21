@@ -13,6 +13,8 @@ const updateBlockSchema = z.object({
   status:           z.enum(["APPROVED", "PENDING", "DENIED"]).optional(),
   dayOfWeek:        z.number().int().min(0).max(6).optional().nullable(),
   date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
+  dateEndsOn:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
+  allDay:           z.boolean().optional().default(false),
   startsAt:         z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:mm"),
   endsAt:           z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:mm"),
   label:            z.string().trim().max(80).optional().nullable(),
@@ -37,6 +39,9 @@ function assertBlockShape(body: z.infer<typeof updateBlockSchema>) {
     if (body.date) {
       throw new HttpError(400, "Weekly availability cannot include an ad hoc date");
     }
+    if (body.dateEndsOn || body.allDay) {
+      throw new HttpError(400, "Date ranges and all-day availability are only available for one-time entries");
+    }
   }
   if (body.kind === "AD_HOC") {
     if (!body.date) {
@@ -45,6 +50,9 @@ function assertBlockShape(body: z.infer<typeof updateBlockSchema>) {
     if (body.dayOfWeek !== null && body.dayOfWeek !== undefined) {
       throw new HttpError(400, "Ad hoc availability cannot include a day of week");
     }
+    if (body.dateEndsOn && body.date > body.dateEndsOn) {
+      throw new HttpError(400, "End date must be on or after the start date");
+    }
   }
   if (body.semesterStartsOn && body.semesterEndsOn && body.semesterStartsOn > body.semesterEndsOn) {
     throw new HttpError(400, "Semester end date must be on or after start date");
@@ -52,6 +60,12 @@ function assertBlockShape(body: z.infer<typeof updateBlockSchema>) {
   if (body.intent !== "TIME_OFF" && body.status && body.status !== "APPROVED") {
     throw new HttpError(400, "Only time-off requests can be pending or denied");
   }
+}
+
+function normalizedTimes(body: z.infer<typeof updateBlockSchema>) {
+  return body.allDay
+    ? { startsAt: "00:00", endsAt: "23:59" }
+    : { startsAt: body.startsAt, endsAt: body.endsAt };
 }
 
 async function findOwnedBlock(id: string, blockId: string) {
@@ -72,6 +86,8 @@ function auditShape(block: Awaited<ReturnType<typeof findOwnedBlock>>) {
     status: block.status,
     dayOfWeek: block.dayOfWeek,
     date: block.date,
+    dateEndsOn: block.dateEndsOn,
+    allDay: block.allDay,
     startsAt: block.startsAt,
     endsAt: block.endsAt,
     label: block.label,
@@ -130,6 +146,7 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
     ? body.status ?? (staffReview ? existing.status : "PENDING")
     : "APPROVED";
   const reviewed = body.intent === "TIME_OFF" && staffReview && status !== "PENDING";
+  const times = normalizedTimes(body);
 
   const block = await db.studentAvailabilityBlock.update({
     where: { id: blockId },
@@ -139,8 +156,10 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
       status,
       dayOfWeek:        body.kind === "WEEKLY" ? body.dayOfWeek : null,
       date:             body.kind === "AD_HOC" ? parseDateOnly(body.date) : null,
-      startsAt:         body.startsAt,
-      endsAt:           body.endsAt,
+      dateEndsOn:       body.kind === "AD_HOC" ? parseDateOnly(body.dateEndsOn ?? body.date) : null,
+      allDay:           body.kind === "AD_HOC" ? body.allDay : false,
+      startsAt:         times.startsAt,
+      endsAt:           times.endsAt,
       label:            body.label?.trim() || null,
       semesterLabel:    body.semesterLabel?.trim() || null,
       semesterStartsOn: parseDateOnly(body.semesterStartsOn),

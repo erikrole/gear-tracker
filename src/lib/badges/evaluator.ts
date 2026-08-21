@@ -314,6 +314,10 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
       select: {
         startsAt: true,
         kitId: true,
+        eventId: true,
+        sourceReservationId: true,
+        shiftAssignmentId: true,
+        events: { select: { eventId: true } },
         serializedItems: {
           select: {
             assetId: true,
@@ -387,7 +391,8 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
         endsAt: true,
         updatedAt: true,
         completedAt: true,
-        checkinReports: { select: { id: true }, take: 1 },
+        checkinReports: { select: { id: true, type: true } },
+        dueDateChanges: { select: { id: true }, take: 1 },
       },
     });
 
@@ -506,6 +511,21 @@ const APP_OPEN_RULES: Array<{
       || (moment.month === 1 && moment.day === 1)
     ),
   },
+  {
+    ruleKey: "local_hour_0",
+    receiptPrefix: "local-hour-0",
+    matches: (moment) => moment.hour === 0,
+  },
+  {
+    ruleKey: "local_weekend",
+    receiptPrefix: "local-weekend",
+    matches: (moment) => moment.weekday === 0 || moment.weekday === 6,
+  },
+  {
+    ruleKey: "local_leap_day",
+    receiptPrefix: "local-leap-day",
+    matches: (moment) => moment.month === 2 && moment.day === 29,
+  },
 ];
 
 /**
@@ -574,6 +594,7 @@ export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<voi
         },
       },
       select: {
+        hasConflict: true,
         callStartsAt: true,
         callEndsAt: true,
         shift: {
@@ -583,9 +604,16 @@ export async function onShiftsWorked(event: ShiftsWorkedBadgeEvent): Promise<voi
             callStartsAt: true,
             callEndsAt: true,
             area: true,
-            shiftGroup: {
-              select: { event: { select: { isHome: true, sportCode: true } } },
-            },
+            shiftGroup: { select: { event: {
+              select: {
+                isHome: true,
+                sportCode: true,
+                result: true,
+                site: true,
+                locationId: true,
+                opponent: true,
+              },
+            } } },
           },
         },
       },
@@ -625,6 +653,7 @@ export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise
         ],
       },
       select: {
+        postedByUserId: true,
         claimedByUserId: true,
         claimedAt: true,
         shiftAssignment: { select: { shift: { select: { startsAt: true } } } },

@@ -29,6 +29,36 @@
 - [x] Slice 4: Add a private web Usage report discoverable only by the configured owner.
 - [x] Slice 5: Add focused authorization, validation, aggregation, source-contract, privacy, and documentation coverage.
 
+## Follow-up: Owner App Activity & Client Report - 2026-08-21
+
+### Goal
+- Give the configured product owner a Settings report that answers which roster users have opened the app, which iOS clients they have used, their coarse device and OS identity, installed marketing/build version, and best-effort TestFlight versus App Store channel.
+- Keep the existing `/reports/usage` aggregate report unchanged. This is an explicit owner-only named-support/adoption view, not a broad behavioral analytics expansion.
+
+### Contracts
+- Add a durable `UserAppInstallation` record keyed by a secret-scoped server-HMAC of a client-generated installation key; never store UDID, serial number, IDFA, receipt contents, or raw installation keys. Keep it stable across annual event-identity rotation so one installation does not become duplicate rows every January.
+- Store only allowlisted app identity fields: platform, marketing version, build, OS version, coarse hardware model, release channel, and first/last/last-opened timestamps.
+- Compare iOS freshness only against explicitly configured `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD`; an absent target must render as unclassified rather than silently treating a build as current.
+- Owner access remains the separate `USAGE_ANALYTICS_OWNER_EMAILS` allowlist. Role, `ADMIN` status, and hidden-user access must not grant this report.
+- Telemetry remains best effort: an app-activity write failure must not block the existing product event or signed-in workflow. Channel classification may be `unknown` when the receipt signal is unavailable.
+
+### Slices
+- [x] Add `UserAppInstallation` schema/migration and update the ingestion allowlist.
+- [x] Send installation/build/device/OS/channel metadata from web and native iOS app-open events.
+- [x] Add the owner-only Settings report, navigation/search/breadcrumb guards, and focused tests.
+- [x] Update the Settings, Reports, Mobile, Privacy, decision, and risk contracts.
+
+### Verification
+- [x] Focused service, route, Settings authorization, telemetry source-contract, and iOS source-contract tests.
+- [x] `npx prisma format`, `npx prisma validate`, migration checks, TypeScript, lint, docs verification, and `npm run build:app`.
+- [x] Wisconsin build for the available `platform=iOS Simulator,OS=26.5,name=iPhone 16 Pro` destination; the unpinned destination resolves as unavailable in this Xcode install.
+- [ ] Authenticated owner/non-owner Settings proof after migration and owner configuration; report TestFlight/App Store classification on a real signed build remains a separate acceptance gate.
+
+### Review
+- Verified locally: 44 focused web/report tests, 49 native/API contract tests, Prisma validation, migration-prefix checks, TypeScript, lint, codemap/docs checks, web build, iOS project/drift checks, and the pinned iPhone 16 Pro simulator build.
+- Deferred: The local browser redirected to sign-in and the deployed host does not yet contain `/settings/app-activity`; no credentials, migration, owner environment configuration, or production data were changed.
+- Remaining acceptance: Apply migration `0129_app_activity_report`, configure `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD` and the owner allowlist, then verify owner/non-owner access in an authenticated deployment and channel classification on signed App Store/TestFlight builds.
+
 ## Verification
 - [x] Focused Vitest route, service, UI-contract, and iOS source-contract tests.
 - [x] `npx prisma format`

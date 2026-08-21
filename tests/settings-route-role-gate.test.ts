@@ -7,7 +7,7 @@ globalThis.React = React;
 
 const testState = vi.hoisted(() => ({
   pathname: "/settings",
-  currentUser: null as null | { role: string },
+  currentUser: null as null | { role: string; canViewUsageAnalytics?: boolean },
   isLoading: false,
 }));
 
@@ -32,9 +32,9 @@ const TestableSettingsLayout = SettingsLayout as React.ComponentType<{
   children?: React.ReactNode;
 }>;
 
-function renderRoute(pathname: string, role: string | null, isLoading = false) {
+function renderRoute(pathname: string, role: string | null, isLoading = false, ownerAccess = false) {
   testState.pathname = pathname;
-  testState.currentUser = role ? { role } : null;
+  testState.currentUser = role ? { role, canViewUsageAnalytics: ownerAccess } : null;
   testState.isLoading = isLoading;
 
   return renderToStaticMarkup(createElement(TestableSettingsLayout, null, restrictedChild));
@@ -71,6 +71,12 @@ describe("Settings route role registry", () => {
     expect(getSettingsRouteAccess("/settings/audit", "ADMIN").allowed).toBe(true);
   });
 
+  it("requires the separate owner allowlist for app activity", () => {
+    expect(getSettingsRouteAccess("/settings/app-activity", "ADMIN").allowed).toBe(false);
+    expect(getSettingsRouteAccess("/settings/app-activity", "ADMIN", true).allowed).toBe(true);
+    expect(getSettingsRouteAccess("/settings/app-activity", "STAFF", true).allowed).toBe(false);
+  });
+
   it("uses route boundaries and fails unknown Settings paths closed", () => {
     expect(findSettingsSection("/settings/profile-history")).toBeNull();
     expect(getSettingsRouteAccess("/settings/profile-history", "ADMIN")).toEqual({
@@ -101,6 +107,12 @@ describe("SettingsRouteContent", () => {
     expect(renderRoute("/settings/profile", "STUDENT")).toContain("RESTRICTED-CONTROL");
     expect(renderRoute("/settings/categories", "STAFF")).toContain("RESTRICTED-CONTROL");
     expect(renderRoute("/settings/audit/details", "ADMIN")).toContain("RESTRICTED-CONTROL");
+  });
+
+  it("keeps the app activity children hidden from role-only admins", () => {
+    expect(renderRoute("/settings/app-activity", "ADMIN")).toContain("Access denied");
+    expect(renderRoute("/settings/app-activity", "ADMIN")).not.toContain("RESTRICTED-CONTROL");
+    expect(renderRoute("/settings/app-activity", "ADMIN", false, true)).toContain("RESTRICTED-CONTROL");
   });
 
   it("shows distinct recovery copy and no children for unknown routes", () => {

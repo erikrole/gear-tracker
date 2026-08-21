@@ -430,7 +430,12 @@ export default function AppShell({
           fetch(`/api/users?q=${encoded}&limit=5`, { signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;
-        const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, q);
+        const merged: SearchResult[] = getVisiblePageSearchResults(
+          user?.role,
+          q,
+          8,
+          user?.canViewUsageAnalytics === true,
+        );
         const failures: string[] = [];
         if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, pathname)) return;
         if (checkoutsRes.status === "fulfilled" && handleAuthRedirect(checkoutsRes.value, pathname)) return;
@@ -503,7 +508,7 @@ export default function AppShell({
     }, 200);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [cmdQuery, isCollaborator, pathname, user?.role]);
+  }, [cmdQuery, isCollaborator, pathname, user?.canViewUsageAnalytics, user?.role]);
 
   // Recent searches (localStorage)
   const [recentSearches, setRecentSearches] = useState<string[]>([]);

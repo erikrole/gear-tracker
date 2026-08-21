@@ -16,7 +16,7 @@ describe("iOS kiosk intent routing", () => {
 
   it("routes home, event, person, reservation, and active checkout into intent", () => {
     const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
-    const hub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+    const hub = source("ios/Wisconsin/Kiosk/KioskOperatorHubView.swift");
     const event = source("ios/Wisconsin/Kiosk/KioskEventDetailSheet.swift");
     expect(idle).toContain("source: .scan");
     expect(idle).toContain("source: .event");

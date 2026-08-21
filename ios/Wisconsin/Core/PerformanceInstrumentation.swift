@@ -16,10 +16,67 @@ enum AppRuntimeMode {
         case resourcesGuides
         case resourcesUsers
         case resourcesLicenses
+        /// Licenses with nothing claimed by the viewer and a code inside the
+        /// 30-day expiry window -- the shape that exercises the Claim
+        /// affordance and the conditional per-row expiry line.
+        case resourcesLicensesOpen
         /// The Schedule list, served canned events and shifts so the real
         /// rows, headers, and control strip can be rendered and screenshotted
         /// without a signed-in session.
         case schedule
+        /// The Home dashboard, served a canned payload so the action queue,
+        /// its truncation, and the staff follow-up section can be rendered
+        /// without a signed-in session.
+        case home
+        /// Home with nothing personal outstanding but a staff draft waiting --
+        /// the shape where "You're all set" used to render directly above a
+        /// populated Drafts card.
+        case homeAllClear
+        /// The native profile Scoreboard against a canned season payload, so
+        /// its summary, filters, breakdowns, and event history can be reviewed
+        /// without a signed-in session or live network.
+        case scoreboard
+        /// The current user's Profile against canned identity, badge, and shift
+        /// payloads. The Scoreboard entry lives between Next Up and the badge
+        /// shelf, and a row's treatment can only be judged beside its neighbours.
+        case profile
+        /// The signed-out entry screens. Neither needs a session or a fixture
+        /// payload -- they are here so the two screens every user meets first
+        /// can be captured without typing a credential into the app.
+        case login
+        case passwordSetup = "password-setup"
+        /// Booking detail against a canned booking, plus its three sheets.
+        /// Extend, Edit, and Cancel are local state opened by a tap, so each
+        /// gets its own scenario rather than a tap script.
+        case bookingDetail = "booking-detail"
+        case bookingExtend = "booking-extend"
+        case bookingEdit = "booking-edit"
+        case bookingCancel = "booking-cancel"
+        /// Item detail with its edit sheet open, against a canned asset.
+        case itemEdit = "item-edit"
+        /// The reservation composer with its QR cover open. A simulator has no
+        /// camera, so this captures the permission priming a first-time user
+        /// actually meets, not a live viewfinder.
+        case createBookingScanner = "create-booking-scanner"
+        /// Global search with a query already run, so the result destinations
+        /// -- items, bookings, and people in one list -- are on screen.
+        case search
+        /// The real Items list and Reports screens, so a UI pass can look at
+        /// what ships rather than at the synthetic `items` performance list.
+        case itemsList = "items-list"
+        case reports
+        /// Search with two of its four sources deliberately failing, so the
+        /// partial-result notice can be seen rather than reasoned about.
+        case searchPartial = "search-partial"
+
+        /// The booking scenarios share one fixture and differ only in which
+        /// sheet is seeded open.
+        var isBookingDetail: Bool {
+            switch self {
+            case .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel: return true
+            default: return false
+            }
+        }
     }
 
     static var performanceScenario: PerformanceScenario? {
@@ -37,12 +94,48 @@ enum AppRuntimeMode {
         performanceScenario != nil
     }
 
+    /// Whether a capture scenario wants one of Booking detail's sheets already
+    /// open. Each is local state opened by a tap, and a tap script is exactly
+    /// what makes a capture flaky, so the scenario seeds the state instead.
+    /// Every value is `false` outside DEBUG, so release builds carry none of it.
+    enum CaptureSeed {
+        static var bookingExtend: Bool { matches(.bookingExtend) }
+        static var bookingEdit: Bool { matches(.bookingEdit) }
+        static var bookingCancel: Bool { matches(.bookingCancel) }
+        static var itemEdit: Bool { matches(.itemEdit) }
+        static var createBookingScanner: Bool { matches(.createBookingScanner) }
+        static var search: Bool { matches(.search) || matches(.searchPartial) }
+
+        /// The query a search capture types on appear. Lives here rather than
+        /// on the DEBUG-only fixture type because the call site is ordinary
+        /// view code that has to compile in Release too.
+        static var searchQuery: String? {
+            #if DEBUG
+            return search ? "fx3" : nil
+            #else
+            return nil
+            #endif
+        }
+
+        private static func matches(_ scenario: PerformanceScenario) -> Bool {
+            #if DEBUG
+            return performanceScenario == scenario
+            #else
+            return false
+            #endif
+        }
+    }
+
     /// Scenarios whose surfaces read from the API. Their requests are served by
     /// `FixtureAPIProtocol` rather than the network.
     static var usesFixtureAPI: Bool {
 #if DEBUG
         switch performanceScenario {
-        case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .schedule:
+        case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .resourcesLicensesOpen,
+             .schedule, .home, .homeAllClear, .scoreboard, .profile,
+             .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel,
+             .itemEdit, .createBookingScanner, .search, .searchPartial,
+             .itemsList, .reports:
             return true
         default:
             return false

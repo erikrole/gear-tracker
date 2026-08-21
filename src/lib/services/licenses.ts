@@ -1,4 +1,5 @@
-import { LicenseCodeStatus, Prisma } from "@prisma/client";
+import { LicenseCodeStatus, Prisma, type Role } from "@prisma/client";
+import { createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPushToUser } from "@/lib/services/notifications";
@@ -106,70 +107,104 @@ export async function releaseCode(
   codeId: string,
   requesterId: string,
   isAdmin: boolean,
-  opts: { claimId?: string; releaseAll?: boolean } = {}
+  opts: { claimId?: string; releaseAll?: boolean } = {},
+  actorRole: Role,
 ) {
-  return db.$transaction(async (tx) => {
-    if (opts.releaseAll) {
-      if (!isAdmin) throw new HttpError(403, "Only admins can release all slots.");
-      const allActive = await tx.licenseCodeClaim.findMany({
-        where: { licenseCodeId: codeId, releasedAt: null },
-        select: { id: true },
-      });
-      if (allActive.length === 0) throw new HttpError(409, "No active claims to release.");
-      const now = new Date();
-      await tx.licenseCodeClaim.updateMany({
-        where: { licenseCodeId: codeId, releasedAt: null },
-        data: { releasedAt: now, releasedById: requesterId },
-      });
-      return tx.licenseCode.update({
-        where: { id: codeId },
-        data: { status: LicenseCodeStatus.AVAILABLE, claimedById: null, claimedAt: null, nagSentAt: null },
-      });
-    }
+  return withSerializationRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        if (opts.releaseAll) {
+          if (!isAdmin) throw new HttpError(403, "Only admins can release all slots.");
+          const allActive = await tx.licenseCodeClaim.findMany({
+            where: { licenseCodeId: codeId, releasedAt: null },
+            select: { id: true },
+          });
+          if (allActive.length === 0) throw new HttpError(409, "No active claims to release.");
+          const now = new Date();
+          await tx.licenseCodeClaim.updateMany({
+            where: { licenseCodeId: codeId, releasedAt: null },
+            data: { releasedAt: now, releasedById: requesterId },
+          });
+          const code = await tx.licenseCode.update({
+            where: { id: codeId },
+            data: { status: LicenseCodeStatus.AVAILABLE, claimedById: null, claimedAt: null, nagSentAt: null },
+          });
+          await createAuditEntryTx(tx, {
+            actorId: requesterId,
+            actorRole,
+            entityType: "license_code",
+            entityId: codeId,
+            action: "release",
+            after: {
+              status: code.status,
+              claimId: opts.claimId ?? null,
+              releaseAll: true,
+              releasedById: isAdmin ? requesterId : null,
+            },
+          });
+          return code;
+        }
 
-    let claim;
-    if (opts.claimId) {
-      if (!isAdmin) throw new HttpError(403, "Only admins can release by claim ID.");
-      claim = await tx.licenseCodeClaim.findUnique({ where: { id: opts.claimId } });
-      if (!claim || claim.licenseCodeId !== codeId || claim.releasedAt) {
-        throw new HttpError(404, "Active claim not found.");
-      }
-    } else {
-      claim = await tx.licenseCodeClaim.findFirst({
-        where: { licenseCodeId: codeId, userId: requesterId, releasedAt: null },
-      });
-      if (!claim) throw new HttpError(404, "No active claim found for your account.");
-    }
+        let claim;
+        if (opts.claimId) {
+          if (!isAdmin) throw new HttpError(403, "Only admins can release by claim ID.");
+          claim = await tx.licenseCodeClaim.findUnique({ where: { id: opts.claimId } });
+          if (!claim || claim.licenseCodeId !== codeId || claim.releasedAt) {
+            throw new HttpError(404, "Active claim not found.");
+          }
+        } else {
+          claim = await tx.licenseCodeClaim.findFirst({
+            where: { licenseCodeId: codeId, userId: requesterId, releasedAt: null },
+          });
+          if (!claim) throw new HttpError(404, "No active claim found for your account.");
+        }
 
-    const now = new Date();
-    await tx.licenseCodeClaim.update({
-      where: { id: claim.id },
-      data: {
-        releasedAt: now,
-        releasedById: claim.userId !== requesterId ? requesterId : null,
+        const now = new Date();
+        await tx.licenseCodeClaim.update({
+          where: { id: claim.id },
+          data: {
+            releasedAt: now,
+            releasedById: claim.userId !== requesterId ? requesterId : null,
+          },
+        });
+
+        const remaining = await tx.licenseCodeClaim.findMany({
+          where: { licenseCodeId: codeId, releasedAt: null },
+          orderBy: { claimedAt: "asc" },
+        });
+
+        const newStatus =
+          remaining.length === 0 ? LicenseCodeStatus.AVAILABLE
+          : remaining.length < MAX_SLOTS ? LicenseCodeStatus.PARTIAL
+          : LicenseCodeStatus.CLAIMED;
+
+        const code = await tx.licenseCode.update({
+          where: { id: codeId },
+          data: {
+            status: newStatus,
+            claimedById: remaining[0]?.userId ?? null,
+            claimedAt: remaining[0]?.claimedAt ?? null,
+            nagSentAt: null,
+          },
+        });
+        await createAuditEntryTx(tx, {
+          actorId: requesterId,
+          actorRole,
+          entityType: "license_code",
+          entityId: codeId,
+          action: "release",
+          after: {
+            status: code.status,
+            claimId: opts.claimId ?? claim.id,
+            releaseAll: false,
+            releasedById: isAdmin ? requesterId : null,
+          },
+        });
+        return code;
       },
-    });
-
-    const remaining = await tx.licenseCodeClaim.findMany({
-      where: { licenseCodeId: codeId, releasedAt: null },
-      orderBy: { claimedAt: "asc" },
-    });
-
-    const newStatus =
-      remaining.length === 0 ? LicenseCodeStatus.AVAILABLE
-      : remaining.length < MAX_SLOTS ? LicenseCodeStatus.PARTIAL
-      : LicenseCodeStatus.CLAIMED;
-
-    return tx.licenseCode.update({
-      where: { id: codeId },
-      data: {
-        status: newStatus,
-        claimedById: remaining[0]?.userId ?? null,
-        claimedAt: remaining[0]?.claimedAt ?? null,
-        nagSentAt: null,
-      },
-    });
-  });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
 }
 
 export async function addUnknownOccupant(codeId: string, label: string) {

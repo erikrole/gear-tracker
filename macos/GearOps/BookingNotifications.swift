@@ -131,6 +131,7 @@ protocol BookingNotificationDelivering: Sendable {
     func requestAuthorization() async
     func authorization() async -> BookingNotificationAuthorization
     func deliver(_ change: BookingChange, playsSound: Bool) async
+    func clearPrivateNotifications() async
 }
 
 private final class BookingNotificationPresenter: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
@@ -165,7 +166,10 @@ actor BookingNotificationCenter: BookingNotificationDelivering {
     }
 
     func requestAuthorization() async {
-        _ = try? await center.requestAuthorization(options: [.alert])
+        // Sound remains opt-in at delivery, but requesting the capability up
+        // front means turning that preference on later works without a second,
+        // surprising authorization dead end.
+        _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
     func authorization() async -> BookingNotificationAuthorization {
@@ -196,5 +200,13 @@ actor BookingNotificationCenter: BookingNotificationDelivering {
             trigger: nil
         )
         try? await center.add(request)
+    }
+
+    func clearPrivateNotifications() async {
+        // Booking titles, requester names, and source timestamps are useful
+        // while signed in but should not remain in Notification Center after
+        // the account leaves this Mac.
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
     }
 }

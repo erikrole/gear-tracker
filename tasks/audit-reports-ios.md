@@ -60,8 +60,8 @@ Resolution: both endpoints now return optional additive `partialFailures`. Nativ
 ## Verification ledger
 
 - [x] `tests/ios-reports-resilience.test.ts`
-- [ ] `ios/WisconsinTests/ReportModelsTests.swift`: implemented; execution requires the blocked simulator gate
-- [ ] `ios/WisconsinTests/ReportsViewModelTests`: implemented; execution requires the blocked simulator gate
+- [x] `ios/WisconsinTests/ReportModelsTests.swift`: **passed 2026-08-20 — 10 tests, 0 failures.** Executed 2026-08-20: the simulator gate that blocked this is no longer in force.
+- [x] `ios/WisconsinTests/ReportsViewModelTests`: **passed 2026-08-20 — 3 tests, 0 failures.** Executed 2026-08-20: the simulator gate that blocked this is no longer in force.
 - [x] Swift syntax parse for the changed view, models, and XCTest source
 - [x] `npm run drift:ios`
 - [x] `npm run audit:ios:gaps`: 54/54 covered, 0 missing, 0 unregistered
@@ -71,3 +71,12 @@ Resolution: both endpoints now return optional additive `partialFailures`. Nativ
 ## Decision
 
 Source behavior is accepted by the passing repository gates. Native compilation, XCTest execution, and authenticated visual behavior remain named proof gaps, not source-level claims.
+
+## 2026-08-21 UI Pass
+
+Captured through the new `GT_PERFORMANCE_SCENARIO=reports` scenario on iPhone 16 Pro in light and dark. The screen renders correctly in both: the 30d/90d window control, a utilization/checkouts/overdue summary with a trend delta, the overdue drill-in row, the Swift Charts activity line, and the status donut. Nothing visually wrong was found.
+
+- [ ] [Hardening] **`custody` is optional but `custody.topUsed` is not, so a partial server payload fails the whole report.** `UtilizationReport.custody` is `UtilizationCustody?` and its doc comment states the intent plainly -- "A shipped build can outrun the server it talks to" -- but `UtilizationCustody.topUsed` is a non-optional `[UtilizationTopUsedAsset]`. A server that sends the custody block without `topUsed` therefore fails to decode the entire response, and the screen shows "Utilization could not refresh" rather than the utilization rate it did receive.
+      Found by construction rather than by inspection: the first fixture omitted `topUsed`, which is exactly the shape an older or partial server would send, and the report died on it.
+      `ios/Wisconsin/Models/Models.swift` -- `UtilizationCustody`.
+      Suggested fix: `let topUsed: [UtilizationTopUsedAsset]?` with an empty-array fallback at the read site, matching the tolerance the surrounding model already claims.

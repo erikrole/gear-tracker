@@ -1,6 +1,6 @@
 # Tasks Index
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Start Here
 
@@ -37,6 +37,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Active Follow-up Ledgers
 
+- `macos-companion-hardening-polish-plan.md` - shipped Developer ID/notarized macOS 1.0.0 companion with event-driven refresh, projection/session privacy hardening, and native interaction/accessibility polish; native XCTest, full smoke, and real APNs proof remain.
 - `repository-audit-improvement-plan.md` - current whole-repository evidence-first audit, ranked repair, verification, and proof-boundary ledger.
 - `overdue-notification-hardening-plan.md` - durable five-stage checkout escalation is implemented locally; migration, responder configuration, deployment, and authenticated channel/timing proof remain.
 - `schedule-mvp-end-to-end-plan.md` - implementation and source/build verification are complete; authenticated web and native Trade Board runtime inspection remains.
@@ -54,7 +55,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 - `bulk-battery-followups.md` - remaining battery-adjacent future slices.
 - `internal-public-beta-release-cut-followup.md` - release cut work that requires a clean worktree and explicit shipping approval.
 - `repo-public-surface-plan-2026-08-15.md` - public README, GitHub About metadata, and conservative web-release posture.
-- `signature-capture-micro-app-plan.md` - Men’s Basketball pen-only signature capture, roster snapshots, deterministic private artifacts, and rollout proof.
+- `signature-capture-micro-app-plan.md` - Signatures execution ledger for supported team, Creative Staff, Administration, and one-off rosters; pen-only capture, private artifacts, hardening, and rollout proof.
 - `software-vault-plan-2026-08-19.md` - encrypted shared software access above the existing Photo Mechanic license pool, with migration, key, and authenticated runtime rollout gates.
 
 ## Archive Buckets

@@ -53,6 +53,10 @@ const SIGNATURE_SAVE_STALE_MS = 60_000;
 const SIGNATURE_ZIP_MAX_ENTRIES = 1_000;
 const SIGNATURE_ZIP_MAX_BYTES = 50 * 1024 * 1024;
 const SIGNATURE_ZIP_READ_CONCURRENCY = 8;
+const SIGNATURE_CLEANUP_CONCURRENCY = 8;
+const SIGNATURE_DETAIL_PRIOR_REVISION_LIMIT = 5;
+const SIGNATURE_ROSTER_APPLY_MAX_WAIT_MS = 10_000;
+const SIGNATURE_ROSTER_APPLY_TIMEOUT_MS = 30_000;
 const STALE_SIGNATURE_CAPTURE_MESSAGE = "This person was already signed or changed on another iPad; this iPad's draft was kept. Return to the roster before trying again";
 const CREATIVE_STAFF_TITLE_MARKERS = ["Creative", "Digital Media"] as const;
 const creativeStaffTitleFilters = CREATIVE_STAFF_TITLE_MARKERS.map((marker) => ({
@@ -97,6 +101,8 @@ function publicArtifact(revision: {
   };
 }
 
+type PublicSignatureArtifact = NonNullable<ReturnType<typeof publicArtifact>>;
+
 type SignatureCompletenessMember = { active: boolean; artifactReady: boolean };
 
 function collectionCompleteness(members: SignatureCompletenessMember[], emptyPercent = 100) {
@@ -119,7 +125,6 @@ const collectionInclude = {
   members: {
     orderBy: { name: "asc" as const },
     include: {
-      sourceSnapshot: { select: { entries: true } },
       capture: {
         include: {
           currentRevision: {
@@ -128,7 +133,13 @@ const collectionInclude = {
           revisions: {
             where: { state: SignatureArtifactState.READY },
             orderBy: { revision: "desc" as const },
+            take: SIGNATURE_DETAIL_PRIOR_REVISION_LIMIT + 1,
             select: artifactRevisionSelect,
+          },
+          _count: {
+            select: {
+              revisions: { where: { state: SignatureArtifactState.READY } },
+            },
           },
         },
       },
@@ -142,14 +153,25 @@ const canonicalCaptureInclude = {
   },
   member: { select: { id: true, active: true, linkedUserId: true } },
   currentRevision: { select: artifactRevisionSelect },
+} satisfies Prisma.SignatureCaptureInclude;
+
+const canonicalDetailCaptureInclude = {
+  ...canonicalCaptureInclude,
   revisions: {
     where: { state: SignatureArtifactState.READY },
     orderBy: { revision: "desc" as const },
+    take: SIGNATURE_DETAIL_PRIOR_REVISION_LIMIT + 1,
     select: artifactRevisionSelect,
+  },
+  _count: {
+    select: {
+      revisions: { where: { state: SignatureArtifactState.READY } },
+    },
   },
 } satisfies Prisma.SignatureCaptureInclude;
 
 type CanonicalSignatureCapture = Prisma.SignatureCaptureGetPayload<{ include: typeof canonicalCaptureInclude }>;
+type CanonicalSignatureDetailCapture = Prisma.SignatureCaptureGetPayload<{ include: typeof canonicalDetailCaptureInclude }>;
 
 const saveOperationInclude = {
   revision: true,
@@ -350,7 +372,7 @@ export async function getSignatureCollection(collectionId: string) {
       collection: { sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE, season: collection.season },
       member: { active: true, linkedUserId: { in: linkedUserIds } },
     },
-    include: canonicalCaptureInclude,
+    include: canonicalDetailCaptureInclude,
   });
   const canonicalByUserId = new Map(canonicalCaptures
     .filter((capture) => capture.member.linkedUserId)
@@ -360,23 +382,13 @@ export async function getSignatureCollection(collectionId: string) {
 
 function serializeSignatureCollection(
   collection: Prisma.SignatureCollectionGetPayload<{ include: typeof collectionInclude }>,
-  canonicalByUserId: Map<string, CanonicalSignatureCapture>,
+  canonicalByUserId: Map<string, CanonicalSignatureDetailCapture>,
 ) {
   const members = visibleSignatureMembers(collection.sportCode, collection.members);
   const sourceOrderByExternalId = new Map<string, number>();
   const latestSnapshotEntries = signatureRosterEntrySchema.array().safeParse(collection.snapshots[0]?.entries);
   if (latestSnapshotEntries.success) {
     latestSnapshotEntries.data.forEach((entry, index) => sourceOrderByExternalId.set(entry.sourceExternalId, index));
-  }
-  if (sourceOrderByExternalId.size === 0) {
-    for (const member of members) {
-      if (!member.sourceSnapshot) continue;
-      const snapshotEntries = signatureRosterEntrySchema.array().safeParse(member.sourceSnapshot.entries);
-      if (!snapshotEntries.success) continue;
-      snapshotEntries.data.forEach((entry, index) => {
-        if (!sourceOrderByExternalId.has(entry.sourceExternalId)) sourceOrderByExternalId.set(entry.sourceExternalId, index);
-      });
-    }
   }
 
   const serializedMembers = [...members]
@@ -386,6 +398,15 @@ function serializeSignatureCollection(
       const captureSettings = canonicalCapture
         ? penSettingsSchema.parse(canonicalCapture.collection.penSettings)
         : penSettingsSchema.parse(collection.penSettings);
+      const artifact = capture?.currentRevision ? publicArtifact(capture.currentRevision) : null;
+      const priorRevisions = capture?.revisions
+        .map((revision) => publicArtifact(revision))
+        .filter((revision): revision is PublicSignatureArtifact => revision !== null && revision.id !== artifact?.id)
+        .slice(0, SIGNATURE_DETAIL_PRIOR_REVISION_LIMIT) ?? [];
+      const revisions = artifact
+        ? [artifact, ...priorRevisions].sort((left, right) => right.revision - left.revision)
+        : priorRevisions;
+      const revisionCount = capture?._count.revisions ?? 0;
       return {
         id: member.id,
         name: member.name,
@@ -399,8 +420,10 @@ function serializeSignatureCollection(
         captureVersion: capture?.captureVersion ?? 0,
         settingsVersion: capture?.settingsVersion ?? collection.settingsVersion,
         captureSettings,
-        artifact: capture?.currentRevision ? publicArtifact(capture.currentRevision) : null,
-        revisions: capture?.revisions.map((revision) => publicArtifact(revision)).filter((revision) => revision !== null) ?? [],
+        artifact,
+        revisions,
+        revisionCount,
+        revisionHistoryTruncated: revisionCount > revisions.length,
         athleteProfile: serializeAthleteProfile(member),
         athleteProfileComplete: member.roleGroup !== SignatureMemberGroup.PLAYER || Boolean(member.birthday && member.hometown),
       };
@@ -427,6 +450,94 @@ function serializeSignatureCollection(
       total: staffMembers.length,
     },
     members: serializedMembers,
+  };
+}
+
+const signatureCaptureBootstrapSelect = {
+  captureVersion: true,
+  settingsVersion: true,
+  currentRevision: { select: { id: true, state: true } },
+  collection: {
+    select: {
+      sportCode: true,
+      season: true,
+      status: true,
+      settingsVersion: true,
+      penSettings: true,
+    },
+  },
+} satisfies Prisma.SignatureCaptureSelect;
+
+export async function getSignatureMemberCaptureBootstrap(collectionId: string, memberId: string) {
+  const member = await db.signatureMember.findFirst({
+    where: { id: memberId, collectionId },
+    select: {
+      id: true,
+      name: true,
+      jerseyNumber: true,
+      title: true,
+      roleGroup: true,
+      active: true,
+      linkedUserId: true,
+      birthday: true,
+      hometown: true,
+      instagramHandle: true,
+      tiktokHandle: true,
+      xHandle: true,
+      collection: {
+        select: {
+          id: true,
+          sportCode: true,
+          season: true,
+          status: true,
+          collectionVersion: true,
+        },
+      },
+      capture: { select: signatureCaptureBootstrapSelect },
+    },
+  });
+  if (!member || visibleSignatureMembers(member.collection.sportCode, [member]).length === 0) {
+    throw new HttpError(404, "Signature member not found");
+  }
+
+  const canonicalCapture = !member.linkedUserId || member.collection.sportCode === SIGNATURE_CREATIVE_STAFF_SPORT_CODE
+    ? null
+    : await db.signatureCapture.findFirst({
+        where: {
+          collection: {
+            sportCode: SIGNATURE_CREATIVE_STAFF_SPORT_CODE,
+            season: member.collection.season,
+          },
+          member: { active: true, linkedUserId: member.linkedUserId },
+        },
+        select: signatureCaptureBootstrapSelect,
+      });
+  const capture = canonicalCapture ?? member.capture;
+  if (!capture) throw new HttpError(404, "Signature member is not ready for capture");
+
+  return {
+    collection: {
+      id: member.collection.id,
+      season: member.collection.season,
+      status: member.collection.status,
+      collectionVersion: member.collection.collectionVersion,
+    },
+    member: {
+      id: member.id,
+      name: member.name,
+      jerseyNumber: member.jerseyNumber,
+      title: member.title,
+      roleGroup: member.roleGroup,
+      active: member.active,
+      captureVersion: capture.captureVersion,
+      settingsVersion: capture.settingsVersion,
+      captureSettings: penSettingsSchema.parse(capture.collection.penSettings),
+      artifact: capture.currentRevision?.state === SignatureArtifactState.READY
+        ? { id: capture.currentRevision.id }
+        : null,
+      athleteProfile: serializeAthleteProfile(member),
+      athleteProfileComplete: member.roleGroup !== SignatureMemberGroup.PLAYER || Boolean(member.birthday && member.hometown),
+    },
   };
 }
 
@@ -457,6 +568,11 @@ export async function updateSignatureAthleteProfile(input: {
         instagramHandle: true,
         tiktokHandle: true,
         xHandle: true,
+        capture: {
+          select: {
+            currentRevision: { select: { state: true } },
+          },
+        },
         collection: { select: { id: true, status: true, collectionVersion: true } },
       },
     });
@@ -470,6 +586,9 @@ export async function updateSignatureAthleteProfile(input: {
     }
     if (member.collection.collectionVersion !== parsed.expectedCollectionVersion) {
       throw new HttpError(409, "Roster changed since this profile was opened");
+    }
+    if (member.capture?.currentRevision?.state !== SignatureArtifactState.READY) {
+      throw new HttpError(409, "Save this student-athlete's signature before editing the website profile");
     }
 
     const nextProfile = {
@@ -764,7 +883,11 @@ export async function applySignatureRosterSnapshot(input: {
       after: { collectionVersion: collection.collectionVersion, candidateCount: snapshot.candidateCount },
     });
     return { collectionId: collection.id, collectionVersion: collection.collectionVersion, memberCount: members.length };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    maxWait: SIGNATURE_ROSTER_APPLY_MAX_WAIT_MS,
+    timeout: SIGNATURE_ROSTER_APPLY_TIMEOUT_MS,
+  }));
   return result;
 }
 
@@ -1395,18 +1518,47 @@ async function markSaveFailed(input: {
 }
 
 async function cleanupSignatureRevisions(revisions: Array<{ id: string; pngPath: string; svgPath: string }>) {
-  const failed: Array<{ id: string; pngPath: string; svgPath: string }> = [];
-  for (const revision of revisions) {
+  if (revisions.length === 0) return { cleaned: 0, failed: [] as typeof revisions };
+
+  const outcomes = await mapWithConcurrency(revisions, SIGNATURE_CLEANUP_CONCURRENCY, async (revision) => {
     try {
       await deletePrivateSignatureArtifacts([revision.pngPath, revision.svgPath]);
-      await db.signatureArtifactRevision.updateMany({ where: { id: revision.id, state: SignatureArtifactState.PENDING_DELETE }, data: { state: SignatureArtifactState.DELETED, deletedAt: new Date() } });
+      return { revision, cleaned: true };
     } catch {
       // Pending-delete is deliberately durable and retryable. A later cleanup
       // pass can safely attempt the same paths again.
-      failed.push(revision);
+      return { revision, cleaned: false };
     }
+  });
+  const cleaned = outcomes.filter((outcome) => outcome.cleaned).map((outcome) => outcome.revision);
+  const failed = outcomes.filter((outcome) => !outcome.cleaned).map((outcome) => outcome.revision);
+  if (cleaned.length === 0) return { cleaned: 0, failed };
+
+  try {
+    await db.signatureArtifactRevision.updateMany({
+      where: { id: { in: cleaned.map((revision) => revision.id) }, state: SignatureArtifactState.PENDING_DELETE },
+      data: { state: SignatureArtifactState.DELETED, deletedAt: new Date() },
+    });
+  } catch {
+    // Blob deletion succeeded but the durable state transition did not. Keep
+    // those rows retryable so the next pass can reconcile the database.
+    return { cleaned: 0, failed: [...failed, ...cleaned] };
   }
-  return { cleaned: revisions.length - failed.length, failed };
+  return { cleaned: cleaned.length, failed };
+}
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const run = async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => run()));
+  return results;
 }
 
 export async function saveSignatureCapture(input: { actor: Actor; collectionId: string; memberId: string; request: CaptureSaveRequest }) {
@@ -1490,11 +1642,22 @@ export async function saveSignatureCapture(input: { actor: Actor; collectionId: 
     try {
       await uploadPrivateSignatureArtifact({ path: pngPath, body: artifacts.png, contentType: "image/png", allowOverwrite: Boolean(existingOperation) });
       await uploadPrivateSignatureArtifact({ path: svgPath, body: Buffer.from(artifacts.svg, "utf8"), contentType: "image/svg+xml", allowOverwrite: Boolean(existingOperation) });
-      await db.signatureSaveOperation.updateMany({
+      const finalizedForCommit = await db.signatureSaveOperation.updateMany({
         where: { id: operationId, status: SignatureSaveStatus.UPLOADING },
         data: { status: SignatureSaveStatus.FINALIZING },
       });
+      if (finalizedForCommit.count === 0) {
+        // Delete/reset can fail this operation while the Blob uploads are in
+        // flight. The row may be gone by now, so the uploader must fence itself
+        // and remove the paths it just created instead of relying on the DB row
+        // for later cleanup.
+        try { await deletePrivateSignatureArtifacts([pngPath, svgPath]); } catch { /* pending cleanup owns retry when the row still exists */ }
+        throw new HttpError(409, "This signature save was cancelled; return to the roster before trying again");
+      }
     } catch (error) {
+      if (error instanceof HttpError && error.status === 409 && error.message === "This signature save was cancelled; return to the roster before trying again") {
+        throw error;
+      }
       const failedCount = await markSaveFailed({ actor: input.actor, captureId: target.id, requestId: input.request.requestId, revisionId, operationId, stage: "UPLOAD", error });
       // If the status update failed after the finalizer committed, the
       // operation is already the current capture. Never delete those paths
@@ -1740,15 +1903,6 @@ export async function cleanupPendingSignatureArtifacts(limit = 50) {
     take: limit,
     select: { id: true, pngPath: true, svgPath: true },
   });
-  let deleted = 0;
-  for (const revision of revisions) {
-    try {
-      await deletePrivateSignatureArtifacts([revision.pngPath, revision.svgPath]);
-      await db.signatureArtifactRevision.updateMany({ where: { id: revision.id, state: SignatureArtifactState.PENDING_DELETE }, data: { state: SignatureArtifactState.DELETED, deletedAt: new Date() } });
-      deleted++;
-    } catch {
-      // Leave pending rows durable for the next retry.
-    }
-  }
-  return { abandoned: abandoned.count, attempted: revisions.length, deleted };
+  const cleanup = await cleanupSignatureRevisions(revisions);
+  return { abandoned: abandoned.count, attempted: revisions.length, deleted: cleanup.cleaned };
 }

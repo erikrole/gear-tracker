@@ -161,6 +161,17 @@ describe("visibleSiblingsForRole", () => {
     ]);
     expect(visibleSiblingsForRole(gated, undefined)).toEqual([]);
   });
+
+  it("keeps owner-only siblings hidden without the explicit owner gate", () => {
+    const ownerOnly: SiblingItem[] = [
+      { href: "/settings/database", label: "Database diagnostics" },
+      { href: "/settings/app-activity", label: "App activity", ownerOnly: true },
+    ];
+    expect(visibleSiblingsForRole(ownerOnly, "ADMIN").map((s) => s.href)).toEqual([
+      "/settings/database",
+    ]);
+    expect(visibleSiblingsForRole(ownerOnly, "ADMIN", true)).toEqual(ownerOnly);
+  });
 });
 
 describe("recent entities storage", () => {

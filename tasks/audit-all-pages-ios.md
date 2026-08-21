@@ -58,10 +58,14 @@
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_e45515c8-a2b3-47a9-a4d5-314427e60f6c.jpg`
   - Fix shipped: default empty All scope now shows a single centered `New Reservation` action instead of duplicating it in the toolbar.
   - Files: `ios/Wisconsin/Views/BookingsView.swift`, `tasks/audit-bookings-list-ios.md`
-- [ ] Booking Detail
-- [ ] Edit Booking sheet
-- [ ] Extend Booking sheet
-- [ ] Cancel Booking confirmation
+- [x] Booking Detail
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=booking-detail`. Served one canned open checkout with serialized gear, bulk gear, a linked event, and notes.
+- [x] Edit Booking sheet
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=booking-edit`.
+- [x] Extend Booking sheet
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=booking-extend`.
+- [x] Cancel Booking confirmation
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=booking-cancel`. Seeded after load, because a confirmation dialog needs a state transition rather than a true initial value.
 - [x] Create Booking sheet, Details step
   - Screenshots: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_be781ccb-539a-46a8-9157-454cc6a581be.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_42458b1d-e7e6-4b76-ae41-ff4f3c8faf55.jpg`, `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_727630f0-9885-4808-841f-db79be8dd194.jpg`
   - Fix shipped: shared picker rows no longer force short labels into a 40-point column, linked all-day events now show date-only `All day` header copy instead of midnight times across selected and prefilled event paths, and picker rows expose full-width hit targets.
@@ -82,7 +86,8 @@
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_c8210064-1527-4329-8815-eb2938572791.jpg`
   - Result: clean. Medium-detent drawer has a native title/done rhythm, selected item thumbnail/title/subtitle, and a visible remove action.
   - Files: `ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentPicker.swift`, `ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift`, `tasks/audit-create-booking-ios.md`
-- [ ] Create Booking QR scanner cover
+- [x] Create Booking QR scanner cover
+  - Captured 2026-08-20 via `GT_PERFORMANCE_SCENARIO=create-booking-scanner`. A simulator has no camera, so this is the permission-priming state a first-time user meets, not a live viewfinder. The viewfinder itself still needs a device.
 - [x] Create Booking Confirm step
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_93ea3475-ab44-4f38-8d60-0d3b3a4cbdba.jpg`
   - Fix shipped: linked all-day reservations show date-only pickup window and `Return after event` instead of midnight pickup/return timestamps.
@@ -103,7 +108,8 @@
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_4c06d113-c53c-4962-b37b-903a41398c84.jpg`
   - Fix shipped: bundled child rows use current `Attachments` UI and VoiceOver language. Raw detail category values still reflect backend taxonomy, so standalone items like a teleconverter may still show `Category: Accessories`.
   - Files: `ios/Wisconsin/Views/ItemDetailView.swift`, `tasks/audit-item-detail-ios.md`
-- [ ] Edit Asset sheet
+- [x] Edit Asset sheet
+  - Captured 2026-08-20 via `GT_PERFORMANCE_SCENARIO=item-edit`, served one canned camera body at `/api/assets/{id}`.
 - [x] Item image zoom cover
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_6045a110-481b-485e-8c1e-09fa727cf417.jpg`
   - Result: clean. Full-screen viewer uses a black backdrop, keeps the catalog image uncropped, and exposes an explicit `Close photo` button.
@@ -148,7 +154,8 @@
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_a057ded1-fb07-4631-9e5d-c3ca8a2b5cf1.jpg`
   - Result: clean for Simulator/unsupported-camera path. Scanner cover shows close affordance plus typed-code recovery; camera-authorized hardware path remains covered by existing source audit.
   - Files: `ios/Wisconsin/Views/Search/QRScannerSheet.swift`, `tasks/audit-scan-ios.md`
-- [ ] Search result destinations
+- [x] Search result destinations
+  - Captured 2026-08-20 via `GT_PERFORMANCE_SCENARIO=search`. All four fan-out endpoints are served, so the capture shows items, a reservation, a checkout, and people ranked into one list rather than a single result type.
 - [x] QR scanner manual-entry sheet
   - Screenshot: `/var/folders/_x/t6hvydvd77167wrmgclk3nc1bq8t3g/T/screenshot_optimized_95a10250-6bd7-4d5a-bfb5-cc8e52715702.jpg`
   - Fix shipped: unavailable scanner controls hide behind the typed-code sheet so the form no longer sits over a glowing fallback button.
@@ -189,30 +196,46 @@
 - [x] Overdue Report
   - Source-audited. Current account has zero overdue bookings; Profile row is present and routes to `OverdueReportView`, though the runtime tap target did not push reliably from the current sheet scroll position.
   - Files: `ios/Wisconsin/Views/OverdueReportView.swift`, `tasks/audit-overdue-report-ios.md`
-- [ ] Login
-- [ ] Password Setup
+- [x] Login
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=login`. Signed-out screen, so it needs no session and no fixture payload.
+- [x] Password Setup
+  - Captured 2026-08-20 on iPhone 16 Pro, iOS 26.5, via `GT_PERFORMANCE_SCENARIO=password-setup`. Rendered with a fixture email; no credential is entered.
 - [x] Scan legacy lookup screen, if still reachable
   - Resolved 2026-07-08 during Snow Leopard Slice 5/6: confirmed `ScanView.swift` (the old dedicated Scan tab this item was asking about) was fully unreachable — nothing instantiated it after the 2026-06-30 Search-tab migration. Deleted it; the live scanner is `Search/QRScannerSheet.swift` behind the Search tab. See `tasks/ios-snow-leopard-release-plan.md` and `tasks/audit-scan-ios.md`'s superseded note.
 
 ## Kiosk-Only Screens
 
-- [ ] Kiosk activation
-- [ ] Kiosk idle dashboard
-- [ ] Kiosk event detail sheet
-- [ ] Kiosk active checkout detail sheet
-- [ ] Kiosk student hub
-- [ ] Kiosk checkout setup
-- [ ] Kiosk checkout scan mode
-- [ ] Kiosk checkout scanner help sheet
-- [ ] Kiosk checkout camera sheet
-- [ ] Kiosk pickup
-- [ ] Kiosk pickup camera sheet
-- [ ] Kiosk return
-- [ ] Kiosk return camera sheet
-- [ ] Kiosk success
-- [ ] Kiosk sleep mode
-- [ ] Kiosk inactivity warning overlay
-- [ ] Kiosk resume splash
+- [x] Kiosk activation
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=activation`.
+- [x] Kiosk idle dashboard
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=idle`.
+- [x] Kiosk event detail sheet
+  - Captured 2026-08-20 via `GT_KIOSK_SCENARIO=event-detail`, added the same day. That scenario is the only one whose dashboard fixture carries an event, so the idle capture is unchanged.
+- [x] Kiosk active checkout detail sheet
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=checkout-sheet`.
+- [x] Kiosk student hub
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=operator-hub`.
+- [x] Kiosk checkout setup
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=checkout-details, checkout-details-linked, keyboard-tip`.
+- [x] Kiosk checkout scan mode
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=scanning, scan-accepted`.
+- [x] Kiosk checkout scanner help sheet
+  - Captured 2026-08-20 via `GT_KIOSK_SCENARIO=scanner-help`, added the same day. The sheet is seeded open because it is reached only by tapping a control; it renders over the checkout details step rather than the scan step.
+- [ ] Kiosk checkout camera sheet — needs a real camera; no simulator path.
+- [x] Kiosk pickup
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=pickup`.
+- [ ] Kiosk pickup camera sheet — needs a real camera; no simulator path.
+- [x] Kiosk return
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=return, return-accepted`.
+- [ ] Kiosk return camera sheet — needs a real camera; no simulator path.
+- [x] Kiosk success
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=badge`.
+- [x] Kiosk sleep mode
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=sleep`.
+- [x] Kiosk inactivity warning overlay
+  - Captured 2026-08-20 on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=inactivity`.
+- [x] Kiosk resume splash
+  - Captured 2026-08-20 via `GT_KIOSK_SCENARIO=resume`, added the same day. Drives `KioskStore.isResuming` rather than a screen case.
 
 ## Active Findings And Fixes
 
@@ -276,3 +299,41 @@
 - `tasks/audit-licenses-ios.md`
 - `tasks/audit-search-ios.md`
 - `tasks/audit-scan-ios.md`
+
+## 2026-08-20 Fixture Harness Extension
+
+Six more main-app screens were captured without an account existing anywhere. The blocker recorded against these rows was "needs a signed-in session"; the answer was to extend `PerformanceTestHarness` rather than to provision credentials, which keeps captures repeatable, offline, and free of any real identity.
+
+- `login` and `password-setup` render the signed-out screens directly. Neither needs a session or a fixture payload, so they were only ever blocked by nobody trying.
+- `booking-detail` serves one canned open checkout through `BookingFixtureAPI` at `/api/bookings/{id}`, sized to fill every block the screen renders: requester, location, serialized and bulk gear, a linked event, notes, and `allowedActions`.
+- `booking-extend`, `booking-edit`, and `booking-cancel` reuse that same fixture and differ only in which sheet is seeded open, via `AppRuntimeMode.CaptureSeed`. That enum is `false` outside DEBUG, so release builds carry none of it.
+
+Two things worth carrying forward:
+
+- A `confirmationDialog` will not present from a `true` initial value; it needs a state transition. The cancel capture flips its flag after `loadBooking()` finishes instead. `.sheet` has no such problem, which is why Extend and Edit work as plain initial state.
+- No account was created and no password was entered to produce any of these. That is the point of the harness, not a limitation of it.
+
+Remaining main-app rows are Assign Student, Edit Shift Times, Create Booking QR scanner cover, Edit Asset, and Search result destinations. The first two need Schedule event context, the last three need composer or search state; all are the same shape of work as the booking slice above.
+
+### Follow-on 2026-08-20
+
+Two more rows closed the same way. `item-edit` serves a canned asset and seeds `ItemDetailView.showEdit`; `create-booking-scanner` seeds the composer's QR cover.
+
+The scanner seed had to move from an initial value to an `onAppear` transition, because `tests/ios-create-booking-picker-parity.test.ts` asserts the literal `@State private var showScanner = false` to guard that the cover starts closed. The contract is right and was left alone. That is now twice this pattern has come up -- the kiosk idle load and this -- so prefer a transition over a seeded initial value whenever the surface has a source contract.
+
+Three main-app rows remain, each needing more fixture surface than a single payload:
+
+- **Assign Student sheet** -- four endpoints: `workingScheduleCandidateScores`, `shiftCandidateScores`, `shiftConflicts`, and `users`. The sheet also takes eleven constructor values, all plain, so the harness wrapper is trivial once the endpoints exist.
+- **Edit Shift Times sheet** -- lives inside `EventDetailSheet` and needs a working-copy event context rather than a standalone payload.
+- **Search result destinations** -- `SearchService` fans out to `/api/assets`, `/api/reservations`, `/api/checkouts`, and `/api/users`. The last is already served and the middle two can reuse the `BookingFixtureAPI` shape, so this is the cheapest of the three.
+
+### Search capture note 2026-08-20
+
+`SearchFixtureAPI` answers `/api/assets`, `/api/reservations`, and `/api/checkouts`; `/api/users` was already served and is reused. All four match the same query on purpose, because a search returning one kind of result does not exercise the ranking this screen exists to show.
+
+Two capture-only details worth knowing before reusing this scenario:
+
+- The query is typed into `query` on appear rather than seeded as an initial value, so the debounce and the real result path run exactly as they do for a person typing.
+- Focus is dropped 2.5 seconds later, because the software keyboard otherwise covers the Checkouts and People sections, which are the point of this row. The trade is that the committed query text is no longer visible in the collapsed search field. The destinations were judged the subject; if a future capture needs the query text on screen, keep focus and accept a shorter list.
+
+The simulator's continuous-path keyboard tutorial also covered the results on first run. `xcrun simctl spawn <udid> defaults write com.apple.Preferences DidShowContinuousPathIntroduction -bool true` clears it, and is worth running on any fresh simulator before a capture pass.

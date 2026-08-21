@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-19
+- Last Updated: 2026-08-21
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -59,6 +59,8 @@
 - D-050: Signature capture uses external roster members and private deterministic artifacts
 - D-051: Email-first discovery for invite-gated onboarding
 - D-052: Shared software credentials use a dedicated encrypted vault boundary
+- D-053: Accessibility text sizes are supported, not designed for
+- D-054: App activity is an owner-only named client-presence report
 
 ---
 
@@ -724,6 +726,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Recognition should not compete with operational profile signals such as role, availability, overdue gear, or admin actions.
 - Decision:
   - Automatic operational badge events are emitted only from durable domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, a confirmed assigned shift ends, and trade status flips to `COMPLETED`.
+  - Shift recognition remains assignment-based, never attendance-based. Rules may derive from source-of-truth `CalendarEvent.result`, `site`, `sportCode`, `locationId`, and `opponent`, plus `ShiftAssignment.hasConflict`; missing fields contribute no credit.
+  - New catalog goals should avoid redundant raw-total ladders. Prefer compound or sustained rules that combine schedule facts, checkout context, return quality, trade roles, or meaningful gear/event depth; a threshold of one is acceptable only when the rule itself represents a compound outcome.
+  - Checkout context rules may use the immutable opened receipt's `Booking.eventId`/`BookingEvent`, `sourceReservationId`, and `shiftAssignmentId`; return-problem rules belong to the current custodian and use check-in report types, due-date changes, and the existing 15-minute late boundary.
   - Successful kiosk scanning is the expected baseline, not an achievement metric. Existing scan definitions and awards remain as retired history, but scan requests no longer emit badge events or change badge streaks.
   - Hidden easter eggs may use a signed-in app foreground event when the server, not the client, evaluates the rule. App-open events accept no client clock or timezone and must be idempotent through `BadgeEventReceipt`.
   - `BADGES_ENABLED !== "true"` returns before evaluator work, badge database queries, or side effects.
@@ -1063,7 +1068,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Raw-event retention must remain bounded to 90 days or less before production enablement.
 - Consequences:
   - Badge progress remains derived from server-authoritative operational evidence, never product telemetry.
-  - Usage reporting exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history.
+  - The existing `/reports/usage` exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history. The narrow owner-only named client-presence exception is defined by D-054.
 - Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_REPORTS.md`, and `src/app/privacy/page.tsx`.
 
 ## D-049: Web Releases Use Monthly CalVer Tags and GitHub Releases
@@ -1102,6 +1107,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   `docs/RELEASE_VERIFICATION.md`.
 
 ## Change Log
+- 2026-08-21: Added D-054 for the owner-only named App activity report. The narrow client-presence exception shows user/device/build/channel/launch context while preserving pseudonymous aggregate analytics, default-deny access, and the no-content/device-identifier boundary. Migration, environment, authenticated browser, and signed-client rollout proof remain pending.
+- 2026-08-21: Amended D-034 for the locally verified, rebalanced 50-definition automatic catalog expansion. New goals avoid redundant raw-total ladders and use sustained or compound checkout, return, trade, and schedule facts; schedule-derived recognition may use confirmed ended assignment result/site/sport/opponent/mapped venue/conflict facts; checkout and return context rules remain on immutable/opened/current-custodian boundaries; app-open rules remain server-time receipt-claimed and no history is backfilled. Production deployment/runtime proof remains pending.
+- 2026-08-20: Amended D-052 so `/licenses` is one Software destination with explicit Shared logins and Photo Mechanic licenses tabs. The default Shared logins view does not render or suggest Photo Mechanic pool controls; local transaction, response-minimization, POST reveal, and responsive-pool hardening remain rollout-proof gates.
 - 2026-08-19: Added D-052 for the shared Software Vault: dedicated AES-256-GCM ciphertext, a required `SOFTWARE_VAULT_KEY`, audience-gated internal/collaborator access, explicit audited/rate-limited password reveal, and no secret values in list responses or audit records. Migrations `0125`/`0126` and the admin runtime surface are live; student/collaborator and secret-lifecycle acceptance remain.
 - 2026-08-17: Added D-051 for rate-limited email-first discovery across web and native iOS. The existing allowlist and registration transaction remain authoritative; discovery returns only onboarding/password flow state, and old registration links now redirect to the app login surface.
 - 2026-08-15: Added D-049 for monthly `YYYY.M.N` web release versioning,
@@ -1227,16 +1235,16 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Date: 2026-08-19
 - Status: Accepted; implemented locally, rollout proof pending
 - Context:
-  - The team needs one Software surface for shared department accounts such as Photo Mechanic, Envato Elements, APM Music, and Motion Array.
+  - The team needs one Software destination for ordinary shared department logins and a distinct Photo Mechanic two-slot activation-license workflow.
   - The existing `LicenseCode` model is a two-slot Photo Mechanic custody pool and must not become a general plaintext credential store.
 - Decision:
   - Store shared software accounts in a separate `SoftwareCredential` model with application-encrypted account email and password ciphertext. Use AES-256-GCM with a dedicated base64-encoded 32-byte `SOFTWARE_VAULT_KEY`; missing or malformed key configuration fails closed.
   - Allow authenticated ADMIN, STAFF, and STUDENT users to discover active records and request password reveal/copy when their role is included in the record audience. ADMIN and STAFF retain management visibility; STUDENT requires the `STUDENT` audience. External `COLLABORATOR` users require both the default-deny `SOFTWARE_VAULT_VIEW` capability and the `COLLABORATOR` audience. Limit create, edit, restore, and archive to ADMIN and STAFF.
   - Return account email in the authorized list response only after server-side audience filtering, but never return password or ciphertext there. Password access is a separate rate-limited authenticated request with `private, no-store` response headers and the same audience boundary.
   - Audit create, update, archive/restore, and password reveal actions without writing secret values to before/after snapshots, errors, exports, or source fixtures. Archive is reversible; permanent deletion is not part of V1.
-  - Keep the vault above the existing Photo Mechanic pool on `/licenses`, while presenting the sidebar and page as Software for product clarity and route compatibility.
+  - Keep one `/licenses` destination for route compatibility, but present explicit URL-addressable **Shared logins** and **Photo Mechanic licenses** tabs. Shared logins is the default; Photo Mechanic pool controls and actions render only in its own tab, and the two models remain independent.
 - Consequences:
-  - Shared credentials have one discoverable internal home without changing Photo Mechanic claim/expiry semantics.
+  - Shared credentials and Photo Mechanic activations have one discoverable Software destination without collapsing their distinct mental models or changing Photo Mechanic claim/expiry semantics.
   - Key replacement requires an operational re-encryption procedure before rotation; there is no self-service key-rotation UI in V1.
   - Production rollout requires migrations `0125_software_credentials` and `0126_software_credential_visibility`, environment-key configuration, collaborator policy review, admin-entered credentials, and authenticated browser proof before real account data is used.
 - Guardrails:
@@ -1244,3 +1252,45 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Never add the password to list payloads, audit JSON, error text, or client source.
   - Keep reveal rate limits and audit events at the server boundary; client masking is defense in depth, not authorization.
 - Reference: `docs/AREA_SOFTWARE.md`, `src/lib/software-vault-crypto.ts`, `src/app/api/software/[id]/secret/route.ts`, and `prisma/migrations/0125_software_credentials/migration.sql`.
+
+## D-053: Accessibility Text Sizes Are Supported, Not Designed For
+
+- Date: 2026-08-20
+- Status: Accepted
+- Context:
+  - Gear Tracker serves a known, bounded population: roughly 30-60 Wisconsin Athletics creative staff and students, not an open App Store audience.
+  - The 2026-08-20 Schedule capture matrix found real layout breakage at `accessibility-extra-large` and fixing the worst of it cost the venue line, which invited a larger `EventRow` layout rewrite.
+  - Owner decision: no current user is expected to run accessibility text sizes, so that rewrite is not worth its cost or its regression risk.
+- Decision:
+  - Design and verify against the default and the standard larger text sizes. Treat the accessibility sizes (`AX1`-`AX5`) as supported-but-not-optimized: the app must remain usable and must not crash or lose function, but layout perfection at those sizes is explicitly out of scope.
+  - Do not run the accessibility-size pass as a standing part of visual review. Light and dark remain required.
+  - Keep the cheap safeguards already in place. Semantic `Font` styles, `@ScaledMetric` widths where they already exist, and VoiceOver labels stay; they cost nothing and carry the real accessibility value for this audience.
+  - Revisit if the audience changes: a public release, an accessibility complaint from an actual user, or an institutional accessibility requirement each reopen this.
+- Consequences:
+  - `EventRow` keeps its side-by-side layout. The known consequence is that the venue line yields to the time column at accessibility sizes; this is accepted, not a defect to track.
+  - Open Dynamic Type findings in `tasks/audit-schedule-ios.md` are retired under this decision rather than left as visible backlog.
+  - Future audits should not re-raise accessibility-size layout as a finding without citing a trigger from the revisit list above.
+- Guardrails:
+  - This narrows layout scope only. It does not weaken VoiceOver, contrast, tap-target size, or Reduce Motion support, which serve this audience and stay in the ship bar.
+- Reference: `tasks/audit-schedule-ios.md` (2026-08-20 Accessibility Capture Follow-up) and `docs/AREA_MOBILE.md`.
+
+## D-054: App Activity Is an Owner-Only Named Client-Presence Report
+- Date: 2026-08-21
+- Status: Accepted; implemented locally, migration/configuration and rollout proof pending
+- Context:
+  - The product owner needs to answer practical support and adoption questions that aggregate usage cannot answer: which user launched the app, which device and OS they used, which build/channel they have, and whether they are stale.
+  - This is useful operational identity context, but it is more sensitive than the existing pseudonymous aggregate report and must not become a role-granted staff analytics surface.
+- Decision:
+  - Add `/settings/app-activity` and `GET /api/settings/app-activity` behind the separate default-deny `USAGE_ANALYTICS_OWNER_EMAILS` allowlist. ADMIN status, staff permissions, breadcrumb visibility, global search, and direct route access do not grant it.
+  - Join the non-hidden roster to a current `UserAppInstallation` record keyed by a secret-scoped server HMAC of a client-generated installation key. This keeps one installation row stable across annual event-identity rotation without exposing a hardware identifier. Store only platform, marketing version, build, OS version, coarse hardware model, best-effort release channel, and first/last/last-opened timestamps.
+  - Compare iOS builds only when `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD` is configured. Report `Latest`, `Stale`, `Newer`, or `Compare unavailable`; never infer “latest” from the absence of configuration.
+  - Treat TestFlight/App Store classification as best effort. Native DEBUG builds report `development`; Release builds use the receipt path when available and otherwise report `unknown`.
+- Guardrails:
+  - Never store or accept UDID, hardware serial number, IDFA, raw installation keys, raw receipts, URLs, search text, record IDs, scanned values, or content.
+  - Keep app-activity writes best effort so a missing migration or telemetry write failure cannot block product-event acceptance or an operational workflow.
+  - Keep the current aggregate Usage report and 90-day raw-event retention contract unchanged; this report is current client presence, not replay or broad behavioral analytics.
+- Consequences:
+  - The owner can identify stale clients and target support/release follow-up without granting named usage visibility to the broader staff/admin population.
+  - Reinstalling an app creates a new pseudonymous installation row; this is an installation-presence view, not a guaranteed device census or cross-install identity.
+  - Production rollout requires migration `0129_app_activity_report`, owner/build environment configuration, authenticated owner/non-owner browser proof, and signed TestFlight/App Store client readback.
+- Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_SETTINGS.md`, `docs/AREA_REPORTS.md`, `docs/AREA_MOBILE.md`, and `src/app/privacy/page.tsx`.

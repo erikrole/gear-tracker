@@ -15,7 +15,7 @@ struct GearOpsApp: App {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: model.menuBarSymbol)
-                if model.appPreferences.showsMenuBarCount, let count = model.snapshot?.stats.checkedOut {
+                if model.appPreferences.showsMenuBarCount, let count = model.custodyCount {
                     Text(count, format: .number)
                         .monospacedDigit()
                         .contentTransition(.numericText())

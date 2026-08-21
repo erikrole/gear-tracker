@@ -34,8 +34,8 @@ struct KioskIdentityView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(intent?.heroTitle ?? "Who are you?")
                         .font(.gothamBlack(size: 36)).foregroundStyle(KioskText.primary)
-                    Text(intent?.expectedRequester.map { "Confirm \($0.name) to continue. Scan their Wiscard or tap their name." }
-                         ?? "Scan your Wiscard or choose your name.")
+                    Text(intent?.expectedRequester.map { "Confirm \($0.name) to continue — tap their name." }
+                         ?? "Choose your name to continue.")
                         .font(.title3).foregroundStyle(KioskText.secondary)
                 }
                 TextField("Search roster", text: $query)
@@ -104,24 +104,35 @@ struct KioskIdentityView: View {
                 .kioskButtonRole(.secondary)
             }
         } else {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
+            // The same roster tile and fit-to-screen grid the idle screen uses.
+            //
+            // This screen had its own second implementation: full names at
+            // `.headline` with no `lineLimit` and no `minimumScaleFactor`, in a
+            // 210pt cell already holding a 52pt avatar and a chevron. Names
+            // longer than about eleven characters hyphenated across three lines
+            // — "Priya Ra-machan dran", "Silas Bergstro m" — on the screen
+            // whose entire job is letting someone recognise their own name.
+            // It also scrolled while the idle roster had learned to fit.
+            GeometryReader { proxy in
+                let labels = disambiguatedLabels(for: visibleUsers)
+                let metrics = KioskRosterMetrics.resolve(count: visibleUsers.count, in: proxy.size)
+                let grid = LazyVGrid(columns: metrics.gridColumns, spacing: KioskRosterMetrics.gap) {
                     ForEach(visibleUsers) { user in
-                        Button { choose(user) } label: {
-                            HStack(spacing: 12) {
-                                KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 52)
-                                Text(user.name).font(.headline).foregroundStyle(KioskText.primary)
-                                Spacer()
-                                Image(systemName: "chevron.right").foregroundStyle(KioskText.muted)
-                            }
-                            .padding(16)
-                            .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.lg, stroke: KioskStroke.standard)
+                        UserRow(
+                            user: user,
+                            displayName: labels[user.id] ?? user.name,
+                            metrics: metrics,
+                            accessibilityHintText: "Select \(user.name)"
+                        ) {
+                            choose(user)
                         }
-                        .buttonStyle(KioskPressStyle())
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(user.name)
-                        .accessibilityHint("Select \(user.name)")
                     }
+                }
+
+                if metrics.fitsOnOneScreen {
+                    grid.frame(maxHeight: .infinity, alignment: .top)
+                } else {
+                    ScrollView { grid }.scrollIndicators(.visible)
                 }
             }
         }
@@ -153,7 +164,7 @@ struct KioskIdentityView: View {
 
                 guard result.kind == "identity", let user = result.user else {
                     finishIdentityRequest(requestToken)
-                    message = result.message ?? "Scan a Wiscard to confirm your name."
+                    message = result.message ?? "That scan didn't match anyone. Tap your name instead."
                     Haptics.warning()
                     return
                 }
@@ -163,7 +174,7 @@ struct KioskIdentityView: View {
             } catch {
                 guard ownsIdentityRequest(requestToken) else { return }
                 finishIdentityRequest(requestToken)
-                message = (error as? APIError)?.errorDescription ?? "Could not read that Wiscard."
+                message = (error as? APIError)?.errorDescription ?? "Could not read that scan."
                 Haptics.error()
             }
         }
@@ -182,7 +193,7 @@ struct KioskIdentityView: View {
 
     private func choose(_ user: KioskUser) {
         cancelIdentityRequest()
-        guard var intent else { store.screen = .studentHub(user); return }
+        guard var intent else { store.screen = .operatorHub(user); return }
         guard KioskFlowIntentReducer.canIdentify(user, for: intent) else {
             message = "This flow requires \(intent.expectedRequester?.name ?? "the expected requester")."
             Haptics.warning(); return
@@ -197,7 +208,7 @@ struct KioskIdentityView: View {
         case .return:
             guard let id = intent.targetBooking?.id else { message = "That checkout is no longer available."; return }
             store.screen = .return(bookingId: id, userId: user.id)
-        case .manage: store.screen = .studentHub(user)
+        case .manage: store.screen = .operatorHub(user)
         }
     }
 
@@ -241,6 +252,11 @@ struct KioskScannerStatusPill: View {
 
     private var isVisible: Bool {
         #if DEBUG
+        // A capture scenario is reviewing what a student sees, so it gets
+        // release behaviour. Without this every kiosk screenshot carried a
+        // "Scanner ready" pill that never ships, sitting next to the
+        // per-screen readiness badge and reading as duplicated status.
+        if KioskFixtureScenario.active != nil { return !store.scanner.isNominal }
         return true  // keep the flow-inspector tap target during development
         #else
         return !store.scanner.isNominal

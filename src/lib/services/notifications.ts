@@ -6,6 +6,9 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { loadUserPrefs, normalizePrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { formatAppDateTime } from "@/lib/app-time";
+import { primaryChange, type ScheduleWorkerChange } from "@/lib/services/schedule-notification-diff";
+import { scheduleChangeCopy } from "@/lib/services/schedule-notification-copy";
 import {
   categoryForScheduleNotificationType,
   scheduleNotificationPayload,
@@ -575,12 +578,7 @@ export async function createShiftGearUpNotification(
     ? `${event.isHome === false ? "at" : "vs"} ${event.opponent}`
     : event.summary;
 
-  const shiftTime = new Date(assignment.shift.startsAt).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const shiftTime = formatAppDateTime(assignment.shift.startsAt);
 
   const title = "Gear up for your shift";
   const body = `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`;
@@ -644,12 +642,7 @@ type ShiftScheduleEvent =
   | "personal_call_time_changed";
 
 function formatShiftNotifyTime(dt: Date): string {
-  return dt.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatAppDateTime(dt);
 }
 
 function shiftScheduleNotificationCopy(args: {
@@ -1465,4 +1458,89 @@ function formatRelative(dueAt: Date, now: Date): string {
   if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
   const days = Math.round(hours / 24);
   return `${days} day${days > 1 ? "s" : ""} ago`;
+}
+
+/**
+ * Deliver one message per worker for a flushed batch of schedule changes.
+ *
+ * Callers hand over a diff that has already been reduced to net effect, so a
+ * worker whose assignment churned and landed back where it started is simply
+ * absent from it. Everyone present gets exactly one row, one push, and one
+ * email, keyed to the flush so a retry cannot double-send.
+ */
+export async function notifyScheduleChanges(args: {
+  shiftGroupId: string;
+  eventId: string;
+  eventTitle: string;
+  flushVersion: number;
+  byUser: Map<string, ScheduleWorkerChange[]>;
+}): Promise<{ notified: string[] }> {
+  const userIds = [...args.byUser.keys()].sort();
+  if (userIds.length === 0) return { notified: [] };
+
+  const users = await db.user.findMany({
+    where: { id: { in: userIds }, active: true },
+    select: { id: true, email: true },
+  });
+
+  const notified: string[] = [];
+
+  await Promise.allSettled(users.map(async (user) => {
+    const changes = args.byUser.get(user.id) ?? [];
+    const lead = primaryChange(changes);
+    if (!lead) return;
+
+    const copy = scheduleChangeCopy({
+      eventTitle: args.eventTitle,
+      change: lead,
+      alsoCount: changes.length - 1,
+    });
+    const category = categoryForScheduleNotificationType(copy.type) ?? "schedule";
+    const payload = scheduleNotificationPayload({
+      eventId: args.eventId,
+      shiftId: lead.kind === "removed" ? lead.before.shiftId : lead.after.shiftId,
+    });
+    const dedupeKey = `schedule_flush:${args.shiftGroupId}:v${args.flushVersion}:${user.id}`;
+
+    try {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          type: copy.type,
+          title: copy.title,
+          body: copy.body,
+          payload,
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey,
+        },
+      });
+    } catch (error) {
+      // A duplicate means an earlier attempt already told this person.
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") return;
+      throw error;
+    }
+
+    notified.push(user.id);
+    deferPush(sendPushToUser(user.id, {
+      title: copy.title,
+      body: copy.body,
+      payload,
+      category,
+    }));
+
+    if (user.email) {
+      await sendEmailToUser(user.id, {
+        to: user.email,
+        subject: `${copy.title} - schedule update`,
+        html: buildNotificationEmail({
+          title: copy.title,
+          body: copy.body,
+          bookingTitle: args.eventTitle,
+        }),
+      }, category);
+    }
+  }));
+
+  return { notified };
 }

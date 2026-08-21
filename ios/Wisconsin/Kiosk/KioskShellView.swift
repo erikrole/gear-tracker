@@ -13,7 +13,7 @@ struct KioskShellView: View {
         switch store.screen {
         case .activation: return "activation"
         case .idle: return "idle"
-        case .studentHub(let user): return "hub-\(user.id)"
+        case .operatorHub(let user): return "hub-\(user.id)"
         case .identity: return "identity"
         case .checkout(let user): return "checkout-\(user.id)"
         case .pickup(let bookingId, _): return "pickup-\(bookingId)"
@@ -34,6 +34,28 @@ struct KioskShellView: View {
             )
     }
 
+    /// What this person actually loses if the kiosk resets, in their words.
+    ///
+    /// The warning used to say "Tap to keep your scans" everywhere it appeared,
+    /// including on the operator hub, where nothing has been scanned — so the
+    /// one sentence explaining the stake named something that did not exist.
+    private var inactivityStake: String {
+        switch store.screen {
+        case .checkout(let user):
+            let count = store.cart(for: user.id).count
+            if count > 0 {
+                return "Your \(count) scanned item\(count == 1 ? "" : "s") will be kept for a moment, but this screen will close."
+            }
+            return "This checkout will close without saving."
+        case .pickup, .return:
+            return "Your scan progress on this booking will be lost."
+        case .operatorHub, .identity:
+            return "You'll be signed out of this kiosk session."
+        default:
+            return "This screen will close."
+        }
+    }
+
     var body: some View {
         ZStack {
             KioskBackdrop()
@@ -47,8 +69,8 @@ struct KioskShellView: View {
                         KioskActivationView()
                     case .idle:
                         KioskIdleView()
-                    case .studentHub(let user):
-                        KioskStudentHubView(user: user)
+                    case .operatorHub(let user):
+                        KioskOperatorHubView(user: user)
                     case .identity:
                         KioskIdentityView()
                     case .checkout(let user):
@@ -66,13 +88,24 @@ struct KioskShellView: View {
             .transition(screenTransition)
 
             if store.inactivityWarningVisible {
-                InactivityWarningOverlay {
-                    store.dismissInactivityWarning()
-                }
+                InactivityWarningOverlay(
+                    atRisk: inactivityStake,
+                    onStay: { store.dismissInactivityWarning() },
+                    onFinish: { store.finishSessionNow() }
+                )
                 .transition(.opacity)
             }
 
-            if store.isActive, !store.isResuming, store.screen != .activation {
+            // One keyboard popup for the whole kiosk. Every text field already
+            // reports focus through `scanner.setEditing`, so the shell can own
+            // this instead of each field mounting its own copy.
+            KioskKeyboardHint(
+                isFieldFocused: store.scanner.isEditing,
+                isScannerConnected: store.scanner.hardwareConnected
+            )
+
+            // Not during standby: see `KioskStore.isStandbyVisible`.
+            if store.isActive, !store.isResuming, store.screen != .activation, !store.isStandbyVisible {
                 KioskScannerStatusPill()
                     .padding(20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -215,7 +248,9 @@ private struct KioskResumeSplash: View {
 }
 
 private struct InactivityWarningOverlay: View {
+    let atRisk: String
     let onStay: () -> Void
+    let onFinish: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -234,30 +269,41 @@ private struct InactivityWarningOverlay: View {
                 Text("Still here?")
                     .font(.title2.bold())
                     .foregroundStyle(KioskText.primary)
-                Text("Tap to keep your scans. Otherwise this will reset to the home screen in 30 seconds.")
+                Text(atRisk)
                     .font(.subheadline)
                     .foregroundStyle(KioskText.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
                 InactivityCountdown(reduceMotion: reduceMotion)
                     .padding(.horizontal, 30)
-                Button {
-                    onStay()
-                } label: {
-                    Text("Stay")
-                        .font(.headline)
-                        .foregroundStyle(KioskText.primary)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.kioskRed, Color.kioskRed.opacity(0.85)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            in: RoundedRectangle(cornerRadius: KioskRadius.lg)
-                        )
+                VStack(spacing: 10) {
+                    Button {
+                        onStay()
+                    } label: {
+                        Text("Keep going")
+                            .font(.headline)
+                            .foregroundStyle(KioskText.primary)
+                            .frame(maxWidth: .infinity, minHeight: 56)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.kioskRed, Color.kioskRed.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                in: RoundedRectangle(cornerRadius: KioskRadius.lg)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    // The counter has a queue. Someone who is finished should
+                    // not have to wait out thirty seconds or walk away from a
+                    // screen still holding their name for the next person.
+                    Button("I'm done", action: onFinish)
+                        .font(KioskType.chip)
+                        .kioskButtonRole(.secondary)
+                        .controlSize(.large)
+                        .accessibilityLabel("I'm done — return to the home screen now")
                 }
-                .buttonStyle(.plain)
                 .padding(.horizontal, 30)
             }
             .padding(40)
