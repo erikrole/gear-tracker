@@ -101,3 +101,55 @@ export function normalizeAllDayToUtcMidnight(instant: Date, timeZone: string = e
   const { year, month, day } = appTzYmd(instant, timeZone);
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+/**
+ * A date and time the way a worker reads it, in the app's timezone.
+ *
+ * Notification copy must go through this rather than a bare `toLocaleString`:
+ * on the server that has no timezone of its own, so call times render in UTC
+ * and land five or six hours off the shift they describe. The weekday is
+ * included because these are scanned on a lock screen, where "Sat Oct 12"
+ * answers the question "is that today?" and "Oct 12" does not.
+ */
+export function formatAppDateTime(
+  value: Date | string,
+  timeZone: string = env.appTimezone,
+): string {
+  return toDate(value).toLocaleString("en-US", {
+    timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** The clock time alone, for the closing half of a window. */
+export function formatAppTime(
+  value: Date | string,
+  timeZone: string = env.appTimezone,
+): string {
+  return toDate(value).toLocaleString("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** A call window, collapsed to a single time when it has no duration. */
+export function formatAppWindow(
+  start: Date | string,
+  end: Date | string | null | undefined,
+  timeZone: string = env.appTimezone,
+): string {
+  const startsAt = toDate(start);
+  if (!end) return formatAppDateTime(startsAt, timeZone);
+  const endsAt = toDate(end);
+  if (startsAt.getTime() === endsAt.getTime()) return formatAppDateTime(startsAt, timeZone);
+  return `${formatAppDateTime(startsAt, timeZone)} - ${formatAppTime(endsAt, timeZone)}`;
+}

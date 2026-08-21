@@ -6,6 +6,7 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { loadUserPrefs, normalizePrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { formatAppDateTime } from "@/lib/app-time";
 import {
   categoryForScheduleNotificationType,
   scheduleNotificationPayload,
@@ -575,12 +576,7 @@ export async function createShiftGearUpNotification(
     ? `${event.isHome === false ? "at" : "vs"} ${event.opponent}`
     : event.summary;
 
-  const shiftTime = new Date(assignment.shift.startsAt).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const shiftTime = formatAppDateTime(assignment.shift.startsAt);
 
   const title = "Gear up for your shift";
   const body = `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`;
@@ -644,12 +640,7 @@ type ShiftScheduleEvent =
   | "personal_call_time_changed";
 
 function formatShiftNotifyTime(dt: Date): string {
-  return dt.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatAppDateTime(dt);
 }
 
 function shiftScheduleNotificationCopy(args: {
