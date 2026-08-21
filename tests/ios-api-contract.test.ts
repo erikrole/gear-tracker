@@ -247,10 +247,16 @@ describe("iOS API contracts — asset lookup item families", () => {
     expect(searchService).toContain("var itemFamilies: [AssetFamilySearchResult] = []");
     expect(searchService).toContain("api.assets(search: q, qr: rawScan, limit: 10)");
     expect(searchService).not.toContain("qr: rawScan ?? q");
-    expect(searchService).toContain("itemsResp.bulkItems");
+    expect(searchService).toContain("itemsResp?.bulkItems");
     expect(searchService).toContain("let isDirectScan = rawScan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false");
-    expect(searchService).toContain("let visibleItems = isDirectScan ? itemsResp.data : itemsResp.data.filter(Self.isSearchVisibleAsset)");
-    expect(searchService).toContain("let visibleFamilies = isDirectScan ? itemsResp.bulkItems : itemsResp.bulkItems.filter(Self.isSearchVisibleFamily)");
+    // The guarantee is that a direct scan bypasses the accessory filter while a
+    // typed search applies it. The sources are read through optionals now that
+    // each search source is awaited independently, so the filtering happens on
+    // the unwrapped locals rather than on the response directly.
+    expect(searchService).toContain("let rawItems = itemsResp?.data ?? []");
+    expect(searchService).toContain("let rawFamilies = itemsResp?.bulkItems ?? []");
+    expect(searchService).toContain("let visibleItems = isDirectScan ? rawItems : rawItems.filter(Self.isSearchVisibleAsset)");
+    expect(searchService).toContain("let visibleFamilies = isDirectScan ? rawFamilies : rawFamilies.filter(Self.isSearchVisibleFamily)");
     expect(searchService).toContain("private static func isHiddenAttachmentCategory(_ title: String?) -> Bool");
     expect(searchService).toContain("normalized == \"accessories\"");
     expect(searchService).toContain("normalized.hasSuffix(\"/accessories\")");

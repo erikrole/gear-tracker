@@ -17,7 +17,11 @@ _None._
 
 ## P2 - post-MVP
 
-- [ ] [Hardening] Native Search still treats fan-out failures as one error. Web Search supports partial results per source; consider bringing that behavior to native after the screen inventory pass.
+- [x] [Hardening] **Fixed 2026-08-20.** Native Search treated fan-out failures as one error. Each of the four sources is now awaited independently, so a failure in one no longer discards the three that answered.
+
+      A partial answer says so rather than under-reporting silently: `SearchResults.unavailableSources` names which sources failed and `partialResultNotice` renders as "Check-outs and People didn't load. Showing everything else." The results branch also fires when the surviving sources matched nothing, because "No matches" would be false when the sources that could have matched are exactly the ones that failed. All four failing still throws, so a real outage reads as an outage instead of an empty list.
+
+      Proved at runtime with `GT_PERFORMANCE_SCENARIO=search-partial`, which leaves `/api/checkouts` and `/api/users` unmapped so the fixture protocol answers 404 and those two sources throw. Items and Reservations render with the notice above them. Guarded by `tests/ios-search-partial-results.test.ts`.
 
 ## Acceptance criteria status
 
