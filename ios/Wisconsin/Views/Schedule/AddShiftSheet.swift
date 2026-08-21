@@ -360,6 +360,10 @@ enum ShiftAreaOption: String, CaseIterable {
     case graphics = "GRAPHICS"
     case social = "SOCIAL"
     case comms = "COMMS"
+    // The server's `ShiftArea` enum and the web's `AREA_LABELS` both carry this
+    // one; the native picker stopped at Comms, so a Live Production shift could
+    // not be created from the app at all.
+    case liveProduction = "LIVE_PRODUCTION"
 
     var label: String {
         switch self {
@@ -368,6 +372,7 @@ enum ShiftAreaOption: String, CaseIterable {
         case .graphics: "Graphics"
         case .social: "Social"
         case .comms: "Comms"
+        case .liveProduction: "Live Production"
         }
     }
 
@@ -378,6 +383,7 @@ enum ShiftAreaOption: String, CaseIterable {
         case .graphics: "paintbrush.fill"
         case .social: "person.2.fill"
         case .comms: "wave.3.right"
+        case .liveProduction: "dot.radiowaves.left.and.right"
         }
     }
 }
