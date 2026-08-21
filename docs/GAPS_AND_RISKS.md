@@ -71,7 +71,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 
 ## Change Log
 
-- 2026-08-21: Follow-up to the macOS companion restart report: startup now preserves the last trusted local projection when the data-protection Keychain is not ready, then retries on session activation/menu presentation before confirming a logout. Source contracts, Swift parsing, and focused native regression coverage are added; signed release and cold-restart acceptance remain open until the replacement build is installed and exercised.
+- 2026-08-21: Follow-up to the macOS companion restart report: startup now preserves the last trusted local projection when the data-protection Keychain is not ready, then retries on session activation/menu presentation before confirming a logout. Source contracts, Swift parsing, and 62 passing native XCTest cases are complete; signed/notarized release `macos-v1.0.2` is installed and running, while cold-restart acceptance remains open until the user signs in once and restarts macOS.
 
 - 2026-08-21: Added GAP-70 for the locally implemented owner-only App activity report. The source/schema and focused gates pass, but migration application, owner/latest-build configuration, authenticated browser proof, and signed TestFlight/App Store acceptance remain open.
 

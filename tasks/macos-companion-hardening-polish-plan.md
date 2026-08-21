@@ -1,6 +1,6 @@
 # macOS companion hardening and polish
 
-Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof remain
+Status: ACTIVE — macOS 1.0.2 shipped; cold-restart and full interaction proof remain
 
 ## Scope and authority
 
@@ -39,11 +39,11 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 
 ## Verification
 
-- [ ] Focused macOS XCTest suite (testmanagerd communication is blocked by the restricted runner).
+- [x] Focused macOS XCTest suite (62 tests, 0 failures with the local macro sandbox workaround).
 - [x] Focused macOS companion Vitest source contracts.
 - [x] `xcrun swiftc -parse macos/GearOps/*.swift` and test sources.
 - [x] XcodeGen regeneration is reviewed and deterministic.
-- [x] Unsigned Debug test compilation and Release archive with Xcode 26.6 (both pass with the local macro sandbox workaround; XCTest execution remains blocked when the runner cannot communicate with `testmanagerd`).
+- [x] Unsigned Debug test compilation, Release archive, and XCTest execution with Xcode 26.6 (all pass with the local macro sandbox workaround).
 - [ ] Matched `gt-ui-review` before/after page from deterministic, non-production fixtures.
 - [ ] Installed clean Release smoke: menu, Settings focus, launch approval, notifications, VoiceOver, keyboard, Reduce Motion, sleep/wake, sign-out cleanup.
 - [x] Signed archive checks: Hardened Runtime, production APNs entitlement authorized by the embedded Developer ID profile, no test frameworks/debug dylibs/test entitlements, strict signature, notarization, and stapling.
@@ -52,8 +52,8 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 ## Current proof boundary
 
 - Baseline macOS source contracts passed 21/21. The hardened source/security contracts now pass 28/28, including rolling credential renewal, the event-driven pending-revocation retry path, and the no-Neon session route. Companion store/route tests pass 8/8 in the focused run.
-- The direct shared `.icon` resource was replaced with the shared compiled `AppIcon.appiconset`; Xcode reaches Swift compilation. `xcodebuild build-for-testing` passes with `OTHER_SWIFT_FLAGS=-disable-sandbox` to work around the local macro-plugin sandbox, while `xcodebuild test` remains blocked when the runner cannot communicate with `testmanagerd`.
-- The shipped archive includes the explicit `AppIcon.icns`, production APNs entitlement, and Developer ID provisioning profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; the installed app is accepted by Gatekeeper and running from `/Users/role/Applications/Wisconsin Creative.app`. Full menu/Settings/VoiceOver/Reduce Motion/sleep-wake/sign-out smoke and the native XCTest runner remain unverified.
+- The direct shared `.icon` resource was replaced with the shared compiled `AppIcon.appiconset`; Xcode reaches Swift compilation. `xcodebuild build-for-testing` and `xcodebuild test` pass with `OTHER_SWIFT_FLAGS=-disable-sandbox` to work around the local macro-plugin sandbox; the native suite reports 62/62 passing.
+- The shipped archive includes the explicit `AppIcon.icns`, production APNs entitlement, and Developer ID provisioning profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; the installed 1.0.2 build is accepted by Gatekeeper and running from `/Users/role/Applications/Wisconsin Creative.app`. Full menu/Settings/VoiceOver/Reduce Motion/sleep-wake/sign-out smoke and cold-restart acceptance remain unverified.
 
 ## Release execution (2026-08-20)
 
@@ -63,12 +63,19 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 - Canonical release asset: `Wisconsin-Creative-1.0.0-macos.zip`, SHA-256 `6dbc6dc28fa7f6b40c45290eb3e28bfae4fca6b246c082b536916ccf2b555f94`. The old profile-less asset was removed after its restricted APNs entitlement was killed at launch.
 - The corrected app was installed over the prior debug/profile-less copies, which were preserved under `/private/tmp`, and the signed process is running from the installed Release bundle.
 
+## Release execution (2026-08-21)
+
+- Source commit: `0ecf2802`; tag: `macos-v1.0.2`; [GitHub release](https://github.com/erikrole/wisconsin-creative/releases/tag/macos-v1.0.2).
+- Notary submission `30a15061-dcdc-4b57-bc77-9a23ec9f2f1c` was accepted; stapler validation, Gatekeeper (`Notarized Developer ID`), and strict code-signature verification passed.
+- Canonical release asset: `Wisconsin-Creative-1.0.2-macos-profile.zip`, SHA-256 `10b9231550843c353bd3ffc87b4b61ef2967a9613e7c13277812fae6c950bc6f`.
+- The prior installed 1.0.1 bundle was preserved under `/private/tmp`; the signed 1.0.2 build (version 1.0.2, build 3) is installed and running from `/Users/role/Applications/Wisconsin Creative.app`.
+
 ## Session persistence follow-up (2026-08-20)
 
 - **Observed contract:** `issueCompanionSession` creates a 90-day bearer credential, while the macOS client has no refresh route. A 401 therefore signs the user out even when the account and local Keychain are otherwise healthy.
 - **Bounded fix:** add an authenticated Upstash-only renewal endpoint that issues a replacement credential without touching Neon; the client saves the replacement first, then revokes the old credential through the existing durable pending-revocation path. Projection failures still preserve the last trusted local data, and a failed renewal falls back to the current credential rather than signing out.
 - **Verification target:** server route/store tests, macOS source contracts, native renewal/revocation regression coverage, Swift parse/build-for-testing, and focused Vitest suites. A fresh signed/notarized release is a separate shipping action after source verification.
-- **Current evidence:** focused Vitest (36 tests), TypeScript, lint, web build, Swift parse, and macOS build-for-testing pass. The native test runner remains blocked by the restricted `testmanagerd` service; the installed notarized 1.0.0 app has not been replaced by this source-only fix.
+- **Current evidence:** focused Vitest source/security contracts (28 tests), TypeScript, lint, web build, Swift parse, macOS build-for-testing, and the native XCTest suite (62 tests) pass. The installed notarized 1.0.2 build now contains the source fix; cold-restart acceptance remains a user/device gate.
 
 ## Restart recovery follow-up (2026-08-21)
 
