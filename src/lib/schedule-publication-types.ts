@@ -43,3 +43,17 @@ export function isShiftAssignmentAcknowledged(
 ) {
   return Boolean(publishedAt && acknowledgedAt);
 }
+
+/**
+ * Parse a stored snapshot back out of JSON.
+ *
+ * A row written before the current shape, or hand-edited into nonsense, reads as
+ * null rather than throwing: callers treat that as "workers have been told
+ * nothing yet", which over-notifies once instead of losing the schedule.
+ */
+export function normalizeStoredSnapshot(value: unknown): SchedulePublicationSnapshot | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as { shifts?: unknown };
+  if (!Array.isArray(candidate.shifts)) return null;
+  return value as SchedulePublicationSnapshot;
+}

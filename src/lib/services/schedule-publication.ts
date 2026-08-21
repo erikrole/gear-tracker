@@ -13,9 +13,10 @@ import { withSerializationRetry } from "@/lib/serialization";
 import { checkTimeConflict, findTimeConflict } from "@/lib/services/shift-assignments";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import type {
-  SchedulePublicationSnapshot,
-  SchedulePublicationState,
+import {
+  normalizeStoredSnapshot,
+  type SchedulePublicationSnapshot,
+  type SchedulePublicationState,
 } from "@/lib/schedule-publication-types";
 
 type SnapshotShift = {
@@ -82,12 +83,7 @@ function effectiveCurrentWindow(
   };
 }
 
-function normalizeStoredSnapshot(value: Prisma.JsonValue | null | undefined): SchedulePublicationSnapshot | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const candidate = value as { shifts?: unknown };
-  if (!Array.isArray(candidate.shifts)) return null;
-  return value as SchedulePublicationSnapshot;
-}
+
 
 function visibleAssignmentWindow(
   shift: SchedulePublicationSnapshot["shifts"][number],
@@ -306,6 +302,8 @@ const availabilityBlockSelect = {
   status: true,
   dayOfWeek: true,
   date: true,
+  dateEndsOn: true,
+  allDay: true,
   startsAt: true,
   endsAt: true,
   label: true,
@@ -556,7 +554,15 @@ export async function publishShiftGroup(
   actorId: string,
   expectedWorkingVersion?: number,
   actorRole?: Role,
+  /**
+   * Reconciling the schedule and telling workers about it are two different
+   * jobs. Pass `advanceNotificationMark: false` to do only the first: the live
+   * rows become truth immediately, while `lastPublishedSnapshot` stays where it
+   * was so the debounced flush can still see what workers have yet to hear.
+   */
+  options: { advanceNotificationMark?: boolean } = {},
 ) {
+  const advanceNotificationMark = options.advanceNotificationMark ?? true;
   return withSerializationRetry(() => db.$transaction(async (tx) => {
     let group = await findGroupForPublication(shiftGroupId, tx);
     const before = getSchedulePublicationState(group);
@@ -648,6 +654,8 @@ export async function publishShiftGroup(
                 status: true,
                 dayOfWeek: true,
                 date: true,
+                dateEndsOn: true,
+                allDay: true,
                 startsAt: true,
                 endsAt: true,
                 label: true,
@@ -813,6 +821,8 @@ export async function publishShiftGroup(
                 status: true,
                 dayOfWeek: true,
                 date: true,
+                dateEndsOn: true,
+                allDay: true,
                 startsAt: true,
                 endsAt: true,
                 label: true,
@@ -877,7 +887,9 @@ export async function publishShiftGroup(
         publishedAt,
         publishedById: actorId,
         publishedVersion: { increment: 1 },
-        lastPublishedSnapshot: snapshot as unknown as Prisma.InputJsonValue,
+        ...(advanceNotificationMark
+          ? { lastPublishedSnapshot: snapshot as unknown as Prisma.InputJsonValue }
+          : {}),
       },
       select: {
         id: true,
