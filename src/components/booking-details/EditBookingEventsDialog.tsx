@@ -104,12 +104,12 @@ export function EditBookingEventsDialog({
     if (!open) return;
 
     const controller = new AbortController();
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const endDate = new Date(Date.now() + 120 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const endDate = new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
-      startDate: startDate.toISOString(),
+      startDate: now.toISOString(),
       endDate: endDate.toISOString(),
-      includePast: "true",
+      includePast: "false",
       limit: "200",
     });
 
