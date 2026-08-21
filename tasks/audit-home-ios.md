@@ -82,8 +82,11 @@ bulk units) is correct, logging is count-only (no PII).
 - [x] [Polish] **Fixed 2026-08-19.** Overdue is no longer capped at all; the other
       lanes end in a `QueueOverflowRow` naming what is left and which tab holds it.
       The old behaviour could show `Overdue 4` in the stat strip above three rows.
-- [ ] [Polish] `TradeBoardSheet(myShifts: [], ...)` from Home (`HomeView.swift:292-298`)
-      gives the trades sheet no shift context when opened via a notification.
+- [x] [Polish] **Fixed 2026-08-20.** `TradeBoardSheet(myShifts: [], ...)` from Home gave the trades sheet no shift context, so Post a Trade had nothing to offer even though the identical sheet worked when opened from Schedule.
+
+      The dashboard's own `myShifts` rows could not stand in: `DashboardShift` carries no `status` or `gear`, both of which `MyShift` requires and Post filters on, so converting would have meant inventing values. Home now loads the real list from `/api/my-shifts`.
+
+      Loaded with the sheet rather than on every Home render, because Home is the landing screen and most people never open the Trade Board. Failure is deliberately quiet: browse and claim do not need this list, and an error banner over a just-opened sheet would be worse than a Post step with nothing in it. Guarded by `tests/ios-home-trade-board-context.test.ts`.
 
 ## Acceptance criteria status (AREA_MOBILE.md)
 

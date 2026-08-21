@@ -134,6 +134,12 @@ struct HomeView: View {
     @State private var pendingUserId: String?
     @State private var pendingShowTrades = false
     @State private var selectedEventWork: DashboardEventWork?
+    /// Shifts the viewer could offer for trade. Home opened the Trade Board
+    /// with an empty list, which left Post a Trade with nothing to post while
+    /// the same sheet worked from Schedule. The dashboard's own shift rows
+    /// cannot stand in: they carry no status or gear, and Post filters on
+    /// both, so this loads the real list rather than fabricating one.
+    @State private var tradeMyShifts: [MyShift] = []
     @State private var firstUsefulRenderStartedAt = Date()
     @State private var firstUsefulRenderSignpost: OSSignpostIntervalState?
     @State private var didLogFirstUsefulRender = false
@@ -193,6 +199,15 @@ struct HomeView: View {
             dashboardScrollView(dash)
                 .onAppear { logFirstUsefulRender(dash) }
         }
+    }
+
+    /// The shifts this person could offer for trade. Failure is deliberately
+    /// quiet: the Trade Board's browse and claim paths do not need this list,
+    /// and an error banner over a sheet the user just opened would be worse
+    /// than a Post step that has nothing to offer.
+    private func loadTradeMyShifts() async {
+        guard tradeMyShifts.isEmpty, let userId = session.currentUser?.id, !userId.isEmpty else { return }
+        tradeMyShifts = (try? await APIClient.shared.myShifts(userId: userId)) ?? []
     }
 
     private func logFirstUsefulRender(_ dash: DashboardData) {
@@ -434,10 +449,14 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showTrades) {
                 TradeBoardSheet(
-                    myShifts: [],
+                    myShifts: tradeMyShifts,
                     currentUserId: session.currentUser?.id ?? "",
                     currentUserRole: session.currentUser?.role ?? ""
                 )
+                // Loaded with the sheet rather than on every Home render, so a
+                // screen most people never open costs nothing. Browsing and
+                // claiming still work if it fails; only Post needs this list.
+                .task { await loadTradeMyShifts() }
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
