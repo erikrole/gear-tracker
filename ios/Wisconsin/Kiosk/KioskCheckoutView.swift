@@ -49,7 +49,10 @@ struct KioskCheckoutView: View {
     @State private var checkoutContextReady = false
     @State private var scannerCaptureEnabled = true
     @State private var scannerHasFocus = false
-    @State private var showScannerHelp = false
+    // Seeded open for the `scanner-help` capture scenario, which has no other
+    // way in: the sheet is local state opened by a tap, and taps are exactly
+    // what is unreliable on a kiosk simulator. Always false in release.
+    @State private var showScannerHelp = KioskCaptureSeed.scannerHelp
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
     @State private var pendingScanIdentities: Set<String> = []

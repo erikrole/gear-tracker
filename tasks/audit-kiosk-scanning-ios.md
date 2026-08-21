@@ -114,7 +114,7 @@ The current uncommitted five-minute idle polling and heartbeat changes are not t
 - [x] Replace the deferred `ViewThatFits` / `ForEach` chip builder with one wrapping unit-tag summary.
 - [x] Add a source-contract regression that bans the async-renderer crash shape from `KioskUnitChips` while preserving pickup and return wiring.
 - [x] Run focused Vitest coverage, iOS drift/gap/project checks, the dedicated kiosk Xcode verification, and `git diff --check`. Docs verification is blocked by unrelated dirty codemaps already present in the worktree.
-- [ ] Re-run numbered-battery pickup and return on the managed M2 iPad Air. Source/build proof does not replace that device confirmation.
+- [ ] **Hardware-gated.** Re-run numbered-battery pickup and return on the managed M2 iPad Air. Source/build proof does not replace that device confirmation. The kiosk XCTest suite passed on simulator 2026-08-20 (6 tests), which covers the model layer but not the physical scanner.
 
 ### Verification evidence
 

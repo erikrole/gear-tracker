@@ -65,7 +65,16 @@ struct WisconsinKioskApp: App {
             kioskStore.screen = .idle
         case .operatorHub, .checkoutSheet:
             kioskStore.screen = .operatorHub(kioskUser)
-        case .scanning, .scanAccepted:
+        case .resume:
+            // The splash is a store state, not a screen, so it is the one
+            // scenario that re-enters a phase the shell has already left.
+            kioskStore.screen = .idle
+            kioskStore.isResuming = true
+        case .eventDetail:
+            // The sheet binds to a dashboard event, so `KioskIdleView` seeds it
+            // once its own load finishes; nothing to set here but the screen.
+            kioskStore.screen = .idle
+        case .scanning, .scanAccepted, .scannerHelp:
             kioskStore.setCart(KioskFixtures.cart, for: kioskUser.id)
             kioskStore.setIntent(KioskFlowIntent(
                 action: .checkout, source: .person, identifiedUser: kioskUser,
@@ -246,6 +255,34 @@ extension Font {
     }
 }
 
+/// Whether a capture scenario wants a sheet already open when its screen
+/// appears. Two kiosk surfaces are reachable only by tapping a control, and
+/// synthetic taps are the one thing that does not work reliably on a kiosk
+/// simulator, so the capture seeds their state instead.
+///
+/// This type is compiled in every configuration on purpose: the call sites sit
+/// in ordinary view code, and guarding each one with `#if DEBUG` would put
+/// build-configuration noise in files that should not care. Every property is
+/// hard-coded `false` outside DEBUG, so a release build carries no fixture
+/// behaviour and no reference to the harness.
+enum KioskCaptureSeed {
+    static var scannerHelp: Bool {
+        #if DEBUG
+        return KioskFixtureScenario.active == .scannerHelp
+        #else
+        return false
+        #endif
+    }
+
+    static var eventDetail: Bool {
+        #if DEBUG
+        return KioskFixtureScenario.active == .eventDetail
+        #else
+        return false
+        #endif
+    }
+}
+
 #if DEBUG
 // MARK: - Fixture harness (DEBUG only)
 //
@@ -296,7 +333,13 @@ enum KioskFixtureScenario: String {
     /// Roster-first identity confirmation.
     case identity = "identity"
     /// The un-activated iPad: 6-digit code entry.
-    case activation = "activation"
+    case activation
+    /// The scan stage with the scanner help sheet open over it.
+    case scannerHelp = "scanner-help"
+    /// The idle dashboard with an event's detail sheet open over it.
+    case eventDetail = "event-detail"
+    /// The cold-launch splash shown while a stored session is revalidated.
+    case resume = "resume"
 
     static var active: KioskFixtureScenario? {
         ProcessInfo.processInfo.environment["GT_KIOSK_SCENARIO"]
@@ -323,14 +366,43 @@ enum KioskFixtures {
         let affiliationBadge: String?
     }
 
-    /// Fixed clock so a capture taken at 9am and one taken at 5pm produce the
-    /// same relative labels ("Due Today", "Overdue", the greeting overline).
-    /// Everything time-relative is derived from launch, not from the wall
-    /// clock, exactly as the main app's harness requires.
-    static let launch = Date()
+    /// The capture reference, snapped down to the top of the hour.
+    ///
+    /// This cannot be a fixed calendar instant. The kiosk decides "Due Today"
+    /// with `Calendar.isDateInToday` and refuses a checkout whose due-back is
+    /// not in the future (`KioskIdleView`, `KioskCheckoutView`), so pinning to
+    /// a past date would change what the screens mean rather than just what
+    /// they say. What it *can* do is drop the minutes: an unsnapped launch was
+    /// what produced `1:05 AM` and `Aug 21, 2026 at 6:06 AM` in review shots.
+    ///
+    /// Consequence worth knowing before you read a capture: future-dated
+    /// fixtures still shift with the wall clock, so an evening run shows
+    /// after-hours times. Capture during the working day for material that
+    /// reads like a real gear room. Past-dated fixtures use `at(_:_:_:)`
+    /// instead and stay put whenever you run them.
+    static let launch: Date = {
+        let calendar = Calendar.current
+        let now = Date()
+        let parts = calendar.dateComponents([.year, .month, .day, .hour], from: now)
+        return calendar.date(from: parts) ?? now
+    }()
 
     static func hours(_ value: Double) -> Date {
         launch.addingTimeInterval(value * 3600)
+    }
+
+    /// A fixed wall-clock time on a day offset from today, for fixtures that
+    /// are unambiguously in the past. Overdue rows read the same at every
+    /// capture time because nothing about them depends on how late it is.
+    static func at(_ dayOffset: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        let calendar = Calendar.current
+        let day = calendar.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+        return calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: calendar.startOfDay(for: day)
+        ) ?? day
     }
 
     static func iso(_ date: Date) -> String {
@@ -478,7 +550,7 @@ enum KioskFixtures {
           {"id":"co-2","title":"Hockey B-Roll","requesterName":"Dashiell Okonkwo",
            "requesterId":"u-3","requesterAvatarUrl":null,"requesterInitials":"DO",
            "items":[{"name":"Canon R5"},{"name":"RF 70-200mm"}],
-           "itemCount":2,"endsAt":"\(iso(hours(-20)))","isOverdue":true},
+           "itemCount":2,"endsAt":"\(iso(at(-1, 17, 0)))","isOverdue":true},
           {"id":"co-3","title":"Recruiting Visit Shoot","requesterName":"Priya Ramachandran",
            "requesterId":"u-16","requesterAvatarUrl":null,"requesterInitials":"PR",
            "items":[{"name":"DJI RS 4"},{"name":"Aputure 600d"},{"name":"V-Mount Battery #4"},{"name":"C-Stand"}],
@@ -494,7 +566,7 @@ enum KioskFixtures {
           {"id":"ai-2","name":"Canon R5","tagName":"CAM-021","imageUrl":null,"bulkSkuId":null,
            "unitNumber":null,"checkoutId":"co-2","checkoutTitle":"Hockey B-Roll",
            "requesterId":"u-3","requesterName":"Dashiell Okonkwo","requesterAvatarUrl":null,
-           "endsAt":"\(iso(hours(-20)))","isOverdue":true}
+           "endsAt":"\(iso(at(-1, 17, 0)))","isOverdue":true}
         ]
         """
         // Standby is suppressed while anything is actually out — that check is
@@ -515,7 +587,22 @@ enum KioskFixtures {
          "standby":{"sleepMode":\(forcesSleep),"reason":"\(forcesSleep ? "night_hours" : "active_window")",
                     "nightHours":\(forcesSleep),
                     "nearbyEventCount":\(forcesSleep ? 0 : 2),"nearbyBookingWindowCount":\(forcesSleep ? 0 : 1)},
-         "events":[],"activeItems":\(activeItems),"checkouts":\(checkouts)}
+         "events":\(dashboardEvents),"activeItems":\(activeItems),"checkouts":\(checkouts)}
+        """
+    }
+
+    /// The idle dashboard deliberately ships no events, because the screen it
+    /// was built to capture is the roster and custody view. The `event-detail`
+    /// scenario needs one to open its sheet against, so it -- and only it --
+    /// gets a populated list rather than changing what `idle` looks like.
+    private static var dashboardEvents: String {
+        guard KioskFixtureScenario.active == .eventDetail else { return "[]" }
+        return """
+        [
+          {"id":"ev-1","title":"Volleyball vs Minnesota","startsAt":"\(iso(hours(2)))",
+           "endsAt":"\(iso(hours(5)))","allDay":false,"venue":"UW Field House",
+           "sport":"Volleyball","classification":"HOME","workers":[],"callTimes":[]}
+        ]
         """
     }
 
@@ -532,7 +619,7 @@ enum KioskFixtures {
            {"id":"co-4","title":"Football Practice Cutups","refNumber":"CO-1039",
             "items":[{"name":"Canon R5","tagName":"CAM-021"},
                      {"name":"V-Mount Battery #4","tagName":"BAT-004"}],
-            "endsAt":"\(iso(hours(-4)))","isOverdue":true}
+            "endsAt":"\(iso(at(-1, 15, 30)))","isOverdue":true}
          ],
          "pendingPickups":[
            {"id":"pk-1","title":"Wrestling Duals Kit","refNumber":"RS-2201",

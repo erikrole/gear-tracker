@@ -252,6 +252,11 @@ struct KioskScannerStatusPill: View {
 
     private var isVisible: Bool {
         #if DEBUG
+        // A capture scenario is reviewing what a student sees, so it gets
+        // release behaviour. Without this every kiosk screenshot carried a
+        // "Scanner ready" pill that never ships, sitting next to the
+        // per-screen readiness badge and reading as duplicated status.
+        if KioskFixtureScenario.active != nil { return !store.scanner.isNominal }
         return true  // keep the flow-inspector tap target during development
         #else
         return !store.scanner.isNominal

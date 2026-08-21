@@ -74,3 +74,10 @@ There is no `AREA_KIOSK_ACTIVATION` doc; AC inferred from `AREA_KIOSK.md` and th
 - [x] Hardening
 - [x] Parity (web has no parallel surface; admin code-gen flow informs paste UX)
 - [x] Accessibility
+
+## 2026-08-20 First Visual Capture
+
+First screenshot of this screen. Captured on iPad Pro 13-inch (M5), iOS 26.5, via `GT_KIOSK_SCENARIO=activation`, so it needed no un-activated physical iPad.
+
+- [ ] [UI polish] **The layout hugs the top of a 13-inch iPad and leaves the lower half empty.** The identity block (mark, `Gear Room Kiosk`, `Activate this iPad`, instruction line) sits in the upper-left and the keypad card pins to the upper-right; below roughly the 45% line the screen is empty black across the full width. This is the first screen anyone sees when commissioning a kiosk, and on the largest iPad it reads as unfinished rather than deliberate.
+      Confirm against the iPad model actually used at the counter before changing anything — the imbalance scales with screen height, so an 11-inch device may already look correct and a fix tuned on 13-inch could unbalance it.

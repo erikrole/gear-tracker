@@ -91,6 +91,13 @@ struct KioskIdleView: View {
             }
         }
         .task { await loadAll() }
+        // The event sheet binds to a loaded dashboard event, so the capture
+        // scenario can only open it once that data exists. Kept out of the
+        // `.task` above so the single-load polling contract stays literal.
+        .onChange(of: dashboard == nil) { _, isEmpty in
+            guard !isEmpty, KioskCaptureSeed.eventDetail, selectedEvent == nil else { return }
+            selectedEvent = dashboard?.events.first
+        }
         .onAppear { store.scanner.claim(.home) { handleIdentityScan($0) } }
         .onChange(of: shouldShowSleepMode, initial: true) { _, isStandby in
             store.isStandbyVisible = isStandby
