@@ -1272,6 +1272,24 @@ Plan: `tasks/student-availability-scheduling-contract-plan.md`
 
 ---
 
+## Active: Student availability experience (2026-08-21)
+
+Plan: `tasks/student-availability-experience-plan.md`
+
+- [x] Add rollout-safe inclusive one-off date ranges and all-day time-away fields without changing advisory or approved-time-off policy.
+- [x] Make the web Availability tab lead with recurring class schedules and distinct one-off day/range actions.
+- [x] Bring native iOS editing to the same range/all-day/optional-term contract.
+- [x] Add focused route, conflict-helper, web-contract, and iOS-contract coverage.
+- [x] Run Prisma generation/validation, migration-prefix, TypeScript, iOS drift/project, focused tests, `npm run build:app`, and the pinned iPhone 16 Pro iOS 26.5 build.
+- [ ] Apply the additive migration, deploy compatible web/API code, and prove the authenticated web Availability tab in the intended environment.
+- [ ] Inspect the authenticated native My Availability editor in-app; source/build proof is complete but does not replace runtime visual acceptance.
+
+### Review
+
+- 2026-08-21: Local implementation now makes weekly class windows the primary path on web and iOS, supports one-off single dates or inclusive ranges, and treats all-day ranges as unavailable at any call time on covered dates. Legacy single-date/timed rows remain valid, and new iOS fields decode optionally. Focused availability tests, Prisma validation/generation, TypeScript, migration-prefix, iOS drift/project checks, codemap/docs verification, `npm run build:app`, whitespace, and the iPhone 16 Pro iOS 26.5 build pass. The additive migration, authenticated browser proof, and authenticated in-app visual proof remain deferred by the repository's rollout gates.
+
+---
+
 ## Active: Trade Board Open Work hardening (2026-06-30)
 
 Plan: `tasks/trade-board-open-work-hardening-plan.md`

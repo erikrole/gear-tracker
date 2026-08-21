@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-18
+- Last Updated: 2026-08-21
 - Status: Active
 - Version: V1
 
@@ -18,6 +18,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 3. Each sub-page uses `SettingsPageShell`: compact intro rail (title + description) and main content for forms, tables, loading states, and errors.
 4. Mutations should provide immediate feedback via toast notifications and visible form-level errors for create/add forms.
 5. Personal-group preferences belong in **Personal** (top group). System configuration belongs in **People · Inventory · Scheduling · Devices · System**.
+6. **App activity** is a separate owner-only support/adoption report. The Settings rail, command palette, breadcrumbs, direct route, and API all require the configured `USAGE_ANALYTICS_OWNER_EMAILS` identity; ADMIN role alone is not sufficient.
 
 ## Sub-Pages
 
@@ -135,6 +136,13 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Checks: migration table, tables, enums, extensions, column drift.
 - Shows remediation steps when issues detected.
 
+### App activity (`/settings/app-activity`) — System, configured product owner only
+- Read-only dashboard of every active or inactive user that is visible in the roster, with whether the app has reported an app-open event and the last launch time.
+- Each user lists the pseudonymous client installations that have reported: coarse device model, iOS version, marketing version, build number, best-effort `TestFlight` / `App Store` channel, first/last seen, and last launch.
+- iOS clients are marked `Latest`, `Stale`, `Newer`, or `Compare unavailable` against `IOS_LATEST_APP_VERSION` and `IOS_LATEST_APP_BUILD` when those server settings are configured. The report never presents an unconfigured comparison as current.
+- `GET /api/settings/app-activity` is owner-allowlisted and returns no hidden-roster users. The durable installation key is server-HMACed; the app does not store or send a UDID, serial number, IDFA, raw receipt, or raw installation key in the database.
+- Loading, refresh, error, and no-client states preserve the existing roster/report context. This page does not expose mutation controls.
+
 ### Locations (`/settings/locations`)
 - Admin-only catalog of physical locations referenced by items, kiosks, calendar events, and venue mappings.
 - Add a location with optional address; toggle isHomeVenue inline; rename inline by clicking the name.
@@ -199,6 +207,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-11: Departments: staff/admin CRUD surface for inventory ownership groups
 - [x] AC-12: Sports: separate Staff and Student staffing counts plus default call-time copy
 - [x] AC-13: Audit auto-refresh stops requests for hidden, offline, or two-minute-idle sessions and checks immediately when activity resumes.
+- [ ] AC-14: App activity passes migrated, configured, authenticated owner/non-owner acceptance, including a signed TestFlight/App Store client and stale/latest build comparison.
 
 ## Breadcrumb Roadmap
 
@@ -207,6 +216,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+
+- 2026-08-21: Added the owner-only **App activity** Settings page. It joins visible users to HMAC-keyed current client installations and shows app-open adoption, last launch/seen, device model, iOS version, build, release channel, and configurable stale/latest build state. Local schema, route, source-contract, and TypeScript gates pass; migration application, owner configuration, authenticated browser proof, and signed-client channel acceptance remain open.
 
 - 2026-08-18: **Allowed Emails gained safer batch recovery.** Operators can upload the existing `email, role` CSV shape, and an unconfirmed response now stays visible as a retryable failed-row result instead of collapsing into generic form error copy. Existing persistence, duplicate-skip, and role-boundary contracts are unchanged; broader roster-field CSV support and durable failed status remain open.
 

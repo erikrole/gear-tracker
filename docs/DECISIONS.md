@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-08-20
+- Last Updated: 2026-08-21
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -60,6 +60,7 @@
 - D-051: Email-first discovery for invite-gated onboarding
 - D-052: Shared software credentials use a dedicated encrypted vault boundary
 - D-053: Accessibility text sizes are supported, not designed for
+- D-054: App activity is an owner-only named client-presence report
 
 ---
 
@@ -725,6 +726,9 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Recognition should not compete with operational profile signals such as role, availability, overdue gear, or admin actions.
 - Decision:
   - Automatic operational badge events are emitted only from durable domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, a confirmed assigned shift ends, and trade status flips to `COMPLETED`.
+  - Shift recognition remains assignment-based, never attendance-based. Rules may derive from source-of-truth `CalendarEvent.result`, `site`, `sportCode`, `locationId`, and `opponent`, plus `ShiftAssignment.hasConflict`; missing fields contribute no credit.
+  - New catalog goals should avoid redundant raw-total ladders. Prefer compound or sustained rules that combine schedule facts, checkout context, return quality, trade roles, or meaningful gear/event depth; a threshold of one is acceptable only when the rule itself represents a compound outcome.
+  - Checkout context rules may use the immutable opened receipt's `Booking.eventId`/`BookingEvent`, `sourceReservationId`, and `shiftAssignmentId`; return-problem rules belong to the current custodian and use check-in report types, due-date changes, and the existing 15-minute late boundary.
   - Successful kiosk scanning is the expected baseline, not an achievement metric. Existing scan definitions and awards remain as retired history, but scan requests no longer emit badge events or change badge streaks.
   - Hidden easter eggs may use a signed-in app foreground event when the server, not the client, evaluates the rule. App-open events accept no client clock or timezone and must be idempotent through `BadgeEventReceipt`.
   - `BADGES_ENABLED !== "true"` returns before evaluator work, badge database queries, or side effects.
@@ -1064,7 +1068,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Raw-event retention must remain bounded to 90 days or less before production enablement.
 - Consequences:
   - Badge progress remains derived from server-authoritative operational evidence, never product telemetry.
-  - Usage reporting exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history.
+  - The existing `/reports/usage` exposes aggregates only and stays separate from staff reports, user profiles, accountability, and audit history. The narrow owner-only named client-presence exception is defined by D-054.
 - Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_REPORTS.md`, and `src/app/privacy/page.tsx`.
 
 ## D-049: Web Releases Use Monthly CalVer Tags and GitHub Releases
@@ -1103,6 +1107,8 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   `docs/RELEASE_VERIFICATION.md`.
 
 ## Change Log
+- 2026-08-21: Added D-054 for the owner-only named App activity report. The narrow client-presence exception shows user/device/build/channel/launch context while preserving pseudonymous aggregate analytics, default-deny access, and the no-content/device-identifier boundary. Migration, environment, authenticated browser, and signed-client rollout proof remain pending.
+- 2026-08-21: Amended D-034 for the locally verified, rebalanced 50-definition automatic catalog expansion. New goals avoid redundant raw-total ladders and use sustained or compound checkout, return, trade, and schedule facts; schedule-derived recognition may use confirmed ended assignment result/site/sport/opponent/mapped venue/conflict facts; checkout and return context rules remain on immutable/opened/current-custodian boundaries; app-open rules remain server-time receipt-claimed and no history is backfilled. Production deployment/runtime proof remains pending.
 - 2026-08-20: Amended D-052 so `/licenses` is one Software destination with explicit Shared logins and Photo Mechanic licenses tabs. The default Shared logins view does not render or suggest Photo Mechanic pool controls; local transaction, response-minimization, POST reveal, and responsive-pool hardening remain rollout-proof gates.
 - 2026-08-19: Added D-052 for the shared Software Vault: dedicated AES-256-GCM ciphertext, a required `SOFTWARE_VAULT_KEY`, audience-gated internal/collaborator access, explicit audited/rate-limited password reveal, and no secret values in list responses or audit records. Migrations `0125`/`0126` and the admin runtime surface are live; student/collaborator and secret-lifecycle acceptance remain.
 - 2026-08-17: Added D-051 for rate-limited email-first discovery across web and native iOS. The existing allowlist and registration transaction remain authoritative; discovery returns only onboarding/password flow state, and old registration links now redirect to the app login surface.
@@ -1267,3 +1273,24 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Guardrails:
   - This narrows layout scope only. It does not weaken VoiceOver, contrast, tap-target size, or Reduce Motion support, which serve this audience and stay in the ship bar.
 - Reference: `tasks/audit-schedule-ios.md` (2026-08-20 Accessibility Capture Follow-up) and `docs/AREA_MOBILE.md`.
+
+## D-054: App Activity Is an Owner-Only Named Client-Presence Report
+- Date: 2026-08-21
+- Status: Accepted; implemented locally, migration/configuration and rollout proof pending
+- Context:
+  - The product owner needs to answer practical support and adoption questions that aggregate usage cannot answer: which user launched the app, which device and OS they used, which build/channel they have, and whether they are stale.
+  - This is useful operational identity context, but it is more sensitive than the existing pseudonymous aggregate report and must not become a role-granted staff analytics surface.
+- Decision:
+  - Add `/settings/app-activity` and `GET /api/settings/app-activity` behind the separate default-deny `USAGE_ANALYTICS_OWNER_EMAILS` allowlist. ADMIN status, staff permissions, breadcrumb visibility, global search, and direct route access do not grant it.
+  - Join the non-hidden roster to a current `UserAppInstallation` record keyed by a secret-scoped server HMAC of a client-generated installation key. This keeps one installation row stable across annual event-identity rotation without exposing a hardware identifier. Store only platform, marketing version, build, OS version, coarse hardware model, best-effort release channel, and first/last/last-opened timestamps.
+  - Compare iOS builds only when `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD` is configured. Report `Latest`, `Stale`, `Newer`, or `Compare unavailable`; never infer “latest” from the absence of configuration.
+  - Treat TestFlight/App Store classification as best effort. Native DEBUG builds report `development`; Release builds use the receipt path when available and otherwise report `unknown`.
+- Guardrails:
+  - Never store or accept UDID, hardware serial number, IDFA, raw installation keys, raw receipts, URLs, search text, record IDs, scanned values, or content.
+  - Keep app-activity writes best effort so a missing migration or telemetry write failure cannot block product-event acceptance or an operational workflow.
+  - Keep the current aggregate Usage report and 90-day raw-event retention contract unchanged; this report is current client presence, not replay or broad behavioral analytics.
+- Consequences:
+  - The owner can identify stale clients and target support/release follow-up without granting named usage visibility to the broader staff/admin population.
+  - Reinstalling an app creates a new pseudonymous installation row; this is an installation-presence view, not a guaranteed device census or cross-install identity.
+  - Production rollout requires migration `0129_app_activity_report`, owner/build environment configuration, authenticated owner/non-owner browser proof, and signed TestFlight/App Store client readback.
+- Reference: `tasks/private-usage-analytics-plan.md`, `docs/AREA_SETTINGS.md`, `docs/AREA_REPORTS.md`, `docs/AREA_MOBILE.md`, and `src/app/privacy/page.tsx`.

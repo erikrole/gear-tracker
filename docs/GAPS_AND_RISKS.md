@@ -3,7 +3,7 @@
 ## Document Control
 
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-20
+- Last Updated: 2026-08-21
 - Status: Active registry
 - Purpose: Track only open gaps, pending decisions, active risks, and intentionally deferred scope.
 - Historical record: [GAPS_AND_RISKS_HISTORY.md](archive/GAPS_AND_RISKS_HISTORY.md)
@@ -30,6 +30,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | GAP-67 | Broader roster CSV and profile preload contract | AREA_USERS / AREA_SETTINGS | Active | The operator upload currently accepts the existing `email, role` shape. `AllowedEmail` can persist student name, primary/secondary areas, and sport codes, but the shared dialog does not expose those fields; location and student-year preload are not represented by the current invitation model. Reconcile the CSV columns, registration-time materialization, validation, and migration needs before expanding the upload contract. Source: `docs/BRIEF_ONBOARDING_V1.md` and D-037. |
 | GAP-68 | Persisted failed-invitation lifecycle status | AREA_USERS / AREA_SETTINGS | Active | The current invite service returns created/skipped outcomes and does not write failed rows. The web dialog now preserves unconfirmed HTTP, response-parse, and network attempts as a transient retryable state, but durable per-row failure reason, status-page visibility, and retry audit semantics still need an explicit service contract. Source: `tasks/email-first-onboarding-plan-2026-08-17.md`. |
 | GAP-69 | Software Vault role, secret lifecycle, and key rotation proof | AREA_SOFTWARE / AREA_LICENSES | Active | Production code, production-only Sensitive key, migrations `0125`/`0126`, and authenticated admin desktop/narrow proof are complete. The 2026-08-20 first-class tab separation and local hardening (transactional audits, POST reveal, minimized student DTOs, serializable release, private export, and mobile pool cards) is source/build verified only and has not been claimed as deployed. Student/collaborator role filtering and real-credential reveal/copy/archive/restore acceptance remain, along with a coordinated key-rotation procedure; no secret will be exposed or fabricated for proof. Source: `docs/AREA_SOFTWARE.md` and `tasks/software-vault-plan-2026-08-19.md`. |
+| GAP-70 | Owner-only app activity report rollout proof | AREA_SETTINGS / AREA_REPORTS / AREA_MOBILE | Active | Local schema/migration `0129_app_activity_report`, web/iOS ingestion, owner route, report UI, and focused source/type gates pass. Apply the migration before runtime use, configure `USAGE_ANALYTICS_OWNER_EMAILS` plus `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD`, then prove owner/non-owner access and a signed TestFlight/App Store client. Channel classification remains best-effort and may be unknown. Source: `tasks/private-usage-analytics-plan.md`. |
 
 ## Deferred Product Scope
 
@@ -37,7 +38,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 |---|---|---|
 | Reservation and checkout templates | AREA_RESERVATIONS | Phase C; defer until repeatable operator habits justify template ownership. |
 | Board or operations view for game-day coordinators | AREA_DASHBOARD | Phase C; do not add another command surface before current queues prove insufficient. |
-| Advanced behavioral analytics | NORTH_STAR | Phase C; operational workflows and trustworthy history take priority. The private first-party usage counter is intentionally limited to normalized adoption, surface, version, and workflow events and does not authorize broad analytics or replay. |
+| Advanced behavioral analytics | NORTH_STAR | Phase C; operational workflows and trustworthy history take priority. D-054 permits a narrow owner-only named client-presence/support report, while the private first-party counter remains limited to normalized adoption, surface, version, and workflow events and does not authorize broad analytics or replay. |
 | Public accountability publishing | AREA_REPORTS | The ADMIN-only evidence and cleanup workflow must prove trustworthy first. Public identity, anonymization, institutional policy, and the safe public response contract require a separate accepted decision before any unauthenticated route ships. |
 | Multi-source event ingestion beyond UW Badgers ICS | AREA_EVENTS | Defer until another source is operationally required. |
 | Box or external signature-file integration | AREA_SIGNATURES | Deferred by D-050 until the private app-managed workflow proves reliable. |
@@ -49,6 +50,7 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Risk | Early Signal | Defense | Owner |
 |---|---|---|---|
 | Analytics creep | Chart requests arrive before a workflow has a clear decision owner | Apply the Phase C filter in NORTH_STAR and keep reports read-only and operationally grounded | Product |
+| App activity rollout skew | Server code, migration, owner/build configuration, or a signed client reaches an environment out of order | Apply `0129` before enabling the report, configure the separate owner allowlist and latest-build target, then verify owner/non-owner access plus TestFlight/App Store channel and stale/latest readback | Engineering |
 | Status drift | A feature writes to a stored status as authoritative | Enforce D-001 in review and keep derived status tests close to allocation logic | Engineering |
 | Generic inventory thinking | A feature could ship unchanged for any business | Ask whether it reflects athletics operations, custody, events, crews, batteries, or staffed handoffs | Product |
 | Mobile as afterthought | Web or dashboard changes omit native iOS review | Review AREA_MOBILE and the relevant iOS contract before closing the slice | Engineering |
@@ -68,6 +70,10 @@ No open pending decisions are currently tracked here. Accepted decisions and the
 | Software vault rollout skew | The schema, vault key, audience policy, app code, or authenticated UI reaches an environment out of order, or a key is rotated without re-encrypting stored ciphertext | Apply migrations `0125` and `0126` before use, configure one stable 32-byte key per environment, review collaborator policy grants, enter credentials only after readback, audit reveal actions, and rehearse coordinated re-encryption before rotation | Engineering |
 
 ## Change Log
+
+- 2026-08-21: Added GAP-70 for the locally implemented owner-only App activity report. The source/schema and focused gates pass, but migration application, owner/latest-build configuration, authenticated browser proof, and signed TestFlight/App Store acceptance remain open.
+
+- 2026-08-21: Reconciled the student availability experience slice without adding a new product or policy gap. Web and native iOS now support clearer recurring class input plus inclusive one-off ranges and all-day time away; focused route/helper/source-contract tests, TypeScript, iOS drift/project checks, and the pinned iPhone 16 Pro iOS 26.5 build pass locally. The additive migration is intentionally not applied here, and authenticated web plus in-app runtime inspection remain rollout proof gates.
 
 - 2026-08-20: Reconciled the macOS companion follow-up with the shipped Developer ID release. Wisconsin Creative now uses event-driven external-projection refresh, durable pending revocation cleanup, validated bounded projections, privacy cleanup on sign-out, canonical count/health presentation, and Release Hardened Runtime configuration. Source contracts, Swift parsing, build-for-testing, strict signing, notarization, stapling, Gatekeeper assessment, and installed-process proof pass locally. Native test-runner communication, full interaction/accessibility smoke, and real APNs delivery remain open under the Companion delivery gap.
 
