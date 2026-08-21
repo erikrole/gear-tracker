@@ -158,8 +158,8 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 ## settings
 
 - Doc: `docs/AREA_SETTINGS.md`
-- Pages: `/settings/allowed-emails`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`, `/settings/collaborator-access`
-- APIs: `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/non-game-schedule`, `/api/settings/reservation-rules`
+- Pages: `/settings/allowed-emails`, `/settings/app-activity`, `/settings/appearance`, `/settings/audit`, `/settings/bookings`, `/settings/calendar-sources`, `/settings/categories`, `/settings/checkout-policies`
+- APIs: `/api/settings/app-activity`, `/api/settings/checkout-policies`, `/api/settings/escalation`, `/api/settings/extend-presets`, `/api/settings/non-game-schedule`, `/api/settings/reservation-rules`
 - Services: _none matched_
 - Tests: `tests/ios-settings-detail-menus.test.ts`, `tests/ios-settings-first-class.test.ts`, `tests/settings-allowed-emails-display.test.ts`, `tests/settings-audit-command-surface-source.test.ts`, `tests/settings-audit-filters.test.ts`, `tests/settings-audit-pagination.test.ts`, `tests/settings-calendar-sources-load-state.test.ts`, `tests/settings-kiosk-devices-location-state.test.ts`
 
@@ -169,7 +169,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/bulk-assignment/apply`, `/api/schedule/bulk-assignment/preview`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/schedule/published/[id]/follow`, `/api/schedule/published/[id]`, `/api/schedule/published`
 - Services: `src/lib/services/bulk-schedule-assignment.ts`, `src/lib/services/collaborator-schedule.ts`, `src/lib/services/non-game-schedule-defaults.ts`, `src/lib/services/reservation-schedule.ts`, `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-call-time-sync.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`
-- Tests: `tests/badge-shift-breadth.test.ts`, `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`
+- Tests: `tests/badge-shift-breadth.test.ts`, `tests/bulk-schedule-assignment-source.test.ts`, `tests/collaborator-schedule-follow.test.ts`, `tests/ios-collaborator-published-schedule-redesign.test.ts`, `tests/ios-home-shifts-deep-link.test.ts`, `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-availability-trade-redesign.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`
 
 ## signatures
 

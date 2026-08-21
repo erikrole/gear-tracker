@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 109 | 5 |
+| `User` | 110 | 5 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `PasskeyCredential` | 12 | 2 |
@@ -38,6 +38,7 @@
 | `OverrideEvent` | 8 | 4 |
 | `AuditLog` | 9 | 4 |
 | `ProductEvent` | 12 | 6 |
+| `UserAppInstallation` | 15 | 4 |
 | `SignatureCollection` | 21 | 4 |
 | `SignatureRosterSnapshot` | 16 | 4 |
 | `SignatureMember` | 25 | 5 |
@@ -77,7 +78,7 @@
 | `SoftwareCredential` | 10 | 2 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
-| `ShiftGroup` | 17 | 3 |
+| `ShiftGroup` | 20 | 4 |
 | `ShiftGroupWorkingCopy` | 15 | 3 |
 | `ScheduleBulkAssignment` | 13 | 3 |
 | `ScheduleBulkAssignmentItem` | 12 | 3 |
@@ -86,7 +87,7 @@
 | `StudentSportAssignment` | 6 | 3 |
 | `StudentAreaAssignment` | 6 | 3 |
 | `ShiftTrade` | 14 | 4 |
-| `StudentAvailabilityBlock` | 20 | 6 |
+| `StudentAvailabilityBlock` | 22 | 7 |
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |
 | `KioskDevice` | 19 | 3 |
