@@ -83,7 +83,7 @@ export function DashboardBookingRow({
   return (
     <div
       className={cn(
-        "group flex min-h-16 items-center gap-2.5 border-l-[3px] px-4 py-2.5 pl-[13px] transition-colors [&+&]:border-t [&+&]:border-border/40",
+        "group flex min-h-16 items-center gap-2.5 border-l-[3px] px-4 py-2.5 pl-[13px] transition-colors [&+&]:border-t [&+&]:border-t-border/40",
         accentClasses[accent],
       )}
     >

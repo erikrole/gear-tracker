@@ -34,4 +34,15 @@ describe("dashboardEventTitle", () => {
       }),
     ).toBe("Women's Soccer vs TCU");
   });
+
+  it("keeps imported matchup qualifiers out of the primary dashboard title", () => {
+    expect(
+      dashboardEventTitle({
+        title: "Women's Soccer vs Marquette- Camper Reunion/Youth Sports Day",
+        sportCode: "WSOC",
+        opponent: "Marquette - Camper Reunion/Youth Sports Day",
+        isHome: true,
+      }),
+    ).toBe("Women's Soccer vs Marquette");
+  });
 });
