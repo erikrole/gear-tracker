@@ -386,11 +386,27 @@ final class GearOpsModel {
             }
         }
 
+        var requestToken = companionToken
         repeat {
             refreshQueued = false
+            requestToken = self.companionToken ?? requestToken
             do {
-                let projection = try await client.companionProjection(token: companionToken)
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                do {
+                    requestToken = try await renewCredential(
+                        token: requestToken,
+                        expectedGeneration: generation
+                    )
+                } catch GearOpsClientError.unauthorized {
+                    throw GearOpsClientError.unauthorized
+                } catch {
+                    // Renewal is best-effort while the current credential is
+                    // still valid. Keep using it through a network or Keychain
+                    // interruption instead of turning a refresh failure into a
+                    // sign-out.
+                }
+
+                let projection = try await client.companionProjection(token: requestToken)
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 try projection.validate()
 
                 if installedProjection == projection {
@@ -401,18 +417,18 @@ final class GearOpsModel {
                         deliverNotifications: true,
                         expectedGeneration: generation
                     )
-                    guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                    guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 }
-                scheduleSupplementarySetup(expectedGeneration: generation, token: companionToken)
+                scheduleSupplementarySetup(expectedGeneration: generation, token: requestToken)
             } catch GearOpsClientError.unauthorized {
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 await signOut(message: "Companion enrollment expired. Sign in again.")
                 return
             } catch {
-                guard sessionIsCurrent(generation: generation, token: companionToken) else { return }
+                guard sessionIsCurrent(generation: generation, token: requestToken) else { return }
                 statusMessage = "Updates are unavailable. Showing the last confirmed data."
             }
-        } while refreshQueued && sessionIsCurrent(generation: generation, token: companionToken)
+        } while refreshQueued && sessionIsCurrent(generation: generation, token: requestToken)
     }
 
     func openDashboard() {
@@ -531,6 +547,35 @@ final class GearOpsModel {
             guard self.sessionIsCurrent(generation: expectedGeneration, token: token) else { return }
             await self.registerCurrentDeviceToken(expectedGeneration: expectedGeneration)
         }
+    }
+
+    /// Rotate a still-valid companion credential before reading the external
+    /// projection. The old credential remains valid on the server until the
+    /// replacement is durable in Keychain, so a failed save never strands the
+    /// account. Old-session cleanup uses the same durable retry path as sign-out.
+    private func renewCredential(token: String, expectedGeneration: UInt64) async throws -> String {
+        let renewedToken = try await client.renewCompanion(token: token)
+        guard !renewedToken.isEmpty else { throw GearOpsClientError.invalidResponse }
+        guard sessionIsCurrent(generation: expectedGeneration, token: token) else {
+            await discardIssuedCredential(renewedToken)
+            throw CancellationError()
+        }
+        guard renewedToken != token else { return token }
+
+        do {
+            try await credentialStore.saveToken(renewedToken)
+        } catch {
+            await discardIssuedCredential(renewedToken)
+            throw error
+        }
+
+        guard sessionIsCurrent(generation: expectedGeneration, token: token) else {
+            await discardIssuedCredential(renewedToken)
+            throw CancellationError()
+        }
+        companionToken = renewedToken
+        await discardIssuedCredential(token)
+        return renewedToken
     }
 
     private func revokeCredential(_ token: String) async -> Bool {

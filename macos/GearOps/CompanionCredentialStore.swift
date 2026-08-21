@@ -22,7 +22,9 @@ actor CompanionCredentialStore: CompanionCredentialStoring {
             let token = try decodeToken(data)
             // A previous build may have left the same credential in the
             // legacy macOS keychain, where accessibility classes do not apply.
-            try deleteItem(account: tokenAccount, dataProtection: false)
+            // Cleanup is deliberately best-effort: a readable hardened token
+            // must never be discarded because an old item is unavailable.
+            try? deleteItem(account: tokenAccount, dataProtection: false)
             return token
         }
 
@@ -30,8 +32,11 @@ actor CompanionCredentialStore: CompanionCredentialStoring {
             return nil
         }
         let token = try decodeToken(legacyData)
-        try saveHardenedData(legacyData, account: tokenAccount)
-        try deleteItem(account: tokenAccount, dataProtection: false)
+        // Keep a valid legacy credential usable even if migration is delayed
+        // by a transient Keychain or entitlement problem. The next restore
+        // retries the hardened copy and cleanup.
+        try? saveHardenedData(legacyData, account: tokenAccount)
+        try? deleteItem(account: tokenAccount, dataProtection: false)
         return token
     }
 

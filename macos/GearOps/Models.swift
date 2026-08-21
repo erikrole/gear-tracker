@@ -283,6 +283,10 @@ struct LoginResponse: Decodable, Sendable {
     let companionProjection: CompanionProjection
 }
 
+struct CompanionSessionResponse: Decodable, Sendable {
+    let companionToken: String
+}
+
 struct MeResponse: Decodable, Sendable {
     let user: GearOpsUser
 }

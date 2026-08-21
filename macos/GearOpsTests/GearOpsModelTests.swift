@@ -46,6 +46,29 @@ final class GearOpsModelTests: XCTestCase {
         XCTAssertEqual(restored.snapshot?.stats.checkedOut, 11)
     }
 
+    func testRefreshRenewsCredentialBeforeReadingProjection() async {
+        let client = MockGearOpsClient()
+        let credentials = InMemoryCredentialStore()
+        let model = GearOpsModel(
+            client: client,
+            defaults: isolatedDefaults(),
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: credentials,
+            autoStart: false
+        )
+
+        await model.signIn(email: "admin@wisc.edu", password: "password")
+        await client.setNextRenewedToken("renewed-credential")
+        await model.refresh()
+
+        let storedToken = await credentials.loadToken()
+        let revokedCredentials = await client.revokedCredentials()
+        XCTAssertEqual(storedToken, "renewed-credential")
+        XCTAssertEqual(revokedCredentials, ["credential-admin@wisc.edu"])
+        XCTAssertEqual(model.user?.email, "admin@wisc.edu")
+        XCTAssertEqual(model.snapshot?.stats.checkedOut, 12)
+    }
+
     func testCountPartialFailureDoesNotInstallFallbackZeroes() async {
         let client = MockGearOpsClient()
         let model = GearOpsModel(client: client, defaults: isolatedDefaults(), bookingNotifications: NoopBookingNotifier(), credentialStore: InMemoryCredentialStore(), autoStart: false)
@@ -657,12 +680,14 @@ private final class ProjectionGETURLProtocol: URLProtocol, @unchecked Sendable {
 private actor MockGearOpsClient: GearOpsServing {
     private var projectionError: GearOpsClientError?
     private var revocationError: GearOpsClientError?
+    private var nextRenewedToken: String?
     private var nextProjection: CompanionProjection?
     private var activities = [makeBookingActivity()]
     private var kioskDevices: [KioskDevice] = []
     private var checkedOut = 12
     private var revision = 0
     private var registrations: [String] = []
+    private var revocations: [String] = []
     private let kioskAccess: String
 
     init(kioskAccess: String = "available") {
@@ -675,6 +700,10 @@ private actor MockGearOpsClient: GearOpsServing {
 
     func setRevocationError(_ error: GearOpsClientError?) {
         revocationError = error
+    }
+
+    func setNextRenewedToken(_ token: String?) {
+        nextRenewedToken = token
     }
 
     func setBookingActivity(_ activity: BookingActivitySnapshot, changed: Bool) {
@@ -720,6 +749,12 @@ private actor MockGearOpsClient: GearOpsServing {
         )
     }
 
+    func renewCompanion(token: String) async throws -> String {
+        let renewed = nextRenewedToken ?? token
+        nextRenewedToken = nil
+        return renewed
+    }
+
     func companionProjection(token: String) async throws -> CompanionProjection {
         if let projectionError { throw projectionError }
         if let nextProjection {
@@ -739,9 +774,11 @@ private actor MockGearOpsClient: GearOpsServing {
         registrations.append(credential)
     }
     func revokeCompanion(credential: String) async throws {
+        revocations.append(credential)
         if let revocationError { throw revocationError }
     }
     func registeredCredentials() -> [String] { registrations }
+    func revokedCredentials() -> [String] { revocations }
 
     func waitForRegistrations(count: Int) async {
         while registrations.count < count {
@@ -887,6 +924,8 @@ private actor SuspendedGearOpsClient: GearOpsServing {
         }
         return response
     }
+
+    func renewCompanion(token: String) async throws -> String { token }
 
     func companionProjection(token: String) async throws -> CompanionProjection {
         if shouldSuspendProjection {

@@ -248,6 +248,25 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(source("macos/GearOps/MenuBarContentView.swift")).toContain("await model.refresh()");
   });
 
+  it("renews the companion lease without waking Neon or losing the old credential", () => {
+    const client = source("macos/GearOps/GearOpsClient.swift");
+    const model = source("macos/GearOps/GearOpsModel.swift");
+    const route = source("src/app/api/companion/session/route.ts");
+    const store = source("src/lib/companion-store.ts");
+
+    expect(client).toContain("func renewCompanion(token: String) async throws -> String");
+    expect(client).toContain('makeRequest(path: "/api/companion/session", method: "POST")');
+    expect(model).toContain("requestToken = try await renewCredential(");
+    expect(model).toContain("try await credentialStore.saveToken(renewedToken)");
+    expect(model).toContain("await discardIssuedCredential(token)");
+    expect(model).toContain("Renewal is best-effort while the current credential is");
+    expect(route).toContain("renewCompanionSession(req)");
+    expect(route).toContain("companion:session:ip:");
+    expect(route).not.toContain("@/lib/db");
+    expect(store).toContain("export async function renewCompanionSession(req: Request)");
+    expect(store).toContain("return issueCompanionSession(");
+  });
+
   it("keeps every automatic companion read outside Neon", () => {
     const projectionRoute = source("src/app/api/companion/projection/route.ts");
     const deviceRoute = source("src/app/api/companion/devices/route.ts");

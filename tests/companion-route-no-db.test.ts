@@ -19,6 +19,14 @@ vi.mock("@upstash/redis", () => ({
     }
 
     async eval(_script: string, keys: string[], args: string[]): Promise<number> {
+      if (keys.length === 3 && args.length === 4) {
+        const [epochKey = "", sessionKey = ""] = keys;
+        const [expectedEpoch = "0", rawRecord = "{}"] = args;
+        if (Number(state.values.get(epochKey) ?? 0) !== Number(expectedEpoch)) return 0;
+        state.values.set(sessionKey, JSON.parse(rawRecord));
+        return 1;
+      }
+
       const [sessionKey = "", epochKey = "", devicesKey = ""] = keys;
       const [expectedEpoch = "0", token = "", rawRecord = "{}"] = args;
       if (!state.values.has(sessionKey)) return 0;
@@ -63,6 +71,7 @@ vi.mock("@upstash/ratelimit", () => ({
 }));
 
 import { DELETE, POST } from "@/app/api/companion/devices/route";
+import { POST as RENEW } from "@/app/api/companion/session/route";
 import { GET } from "@/app/api/companion/projection/route";
 import { resetCompanionRedisForTests } from "@/lib/companion-store";
 
@@ -150,6 +159,10 @@ describe("automatic companion route dependency boundary", () => {
       }),
       { params: Promise.resolve({}) },
     );
+    const renewalResponse = await RENEW(
+      request("/api/companion/session", credential, { method: "POST" }),
+      { params: Promise.resolve({}) },
+    );
     const signOutResponse = await DELETE(
       request("/api/companion/devices", credential, { method: "DELETE" }),
       { params: Promise.resolve({}) },
@@ -160,6 +173,10 @@ describe("automatic companion route dependency boundary", () => {
       data: { kioskAccess: "restricted", kioskDevices: [] },
     });
     expect(registrationResponse.status).toBe(200);
+    expect(renewalResponse.status).toBe(200);
+    await expect(renewalResponse.json()).resolves.toMatchObject({
+      companionToken: expect.any(String),
+    });
     expect(signOutResponse.status).toBe(200);
     expect(state.hashes.get("gear-tracker:companion:devices:v1")?.size ?? 0).toBe(0);
     expect(state.dbModuleLoaded).toBe(false);

@@ -20,6 +20,7 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 - Settings updates can reactivate the accessory app and steal focus.
 - Launch-at-login approval looks off, unavailable registration remains interactive, and state does not refresh after System Settings.
 - Release configuration does not encode Hardened Runtime, and the installed copy is a Debug/XCTest host rather than a distribution artifact.
+- Companion credentials are issued for 90 days but have no renewal path, so a normally used menu-bar session eventually falls back to the login screen.
 
 ## Implementation slices
 
@@ -34,6 +35,7 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 - [x] Prevent settings focus theft; refresh system-owned state on app activation; represent pending launch approval honestly.
 - [x] Respect Reduce Motion, add accessibility headings/live error announcements, and request sound capability for the opt-in sound setting.
 - [x] Enable Hardened Runtime for Release without changing signing or distribution authority.
+- [x] Add an Upstash-only rolling credential renewal path; rotate only after the replacement is durable in Keychain and keep failed old-session cleanup retryable.
 
 ## Verification
 
@@ -49,7 +51,7 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 
 ## Current proof boundary
 
-- Baseline macOS source contracts passed 21/21. The hardened source/security contracts now pass 27/27, including the event-driven pending-revocation retry path.
+- Baseline macOS source contracts passed 21/21. The hardened source/security contracts now pass 28/28, including rolling credential renewal, the event-driven pending-revocation retry path, and the no-Neon session route. Companion store/route tests pass 8/8 in the focused run.
 - The direct shared `.icon` resource was replaced with the shared compiled `AppIcon.appiconset`; Xcode reaches Swift compilation. `xcodebuild build-for-testing` passes with `OTHER_SWIFT_FLAGS=-disable-sandbox` to work around the local macro-plugin sandbox, while `xcodebuild test` remains blocked when the runner cannot communicate with `testmanagerd`.
 - The shipped archive includes the explicit `AppIcon.icns`, production APNs entitlement, and Developer ID provisioning profile `4f4171d8-f959-4ed5-be70-7cc663253d52`; the installed app is accepted by Gatekeeper and running from `/Users/role/Applications/Wisconsin Creative.app`. Full menu/Settings/VoiceOver/Reduce Motion/sleep-wake/sign-out smoke and the native XCTest runner remain unverified.
 
@@ -60,3 +62,10 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 - Notary submission `8aece3a6-de79-447c-8920-2d1f0a105286` was accepted; stapler validation, Gatekeeper (`Notarized Developer ID`), and strict code-signature verification passed.
 - Canonical release asset: `Wisconsin-Creative-1.0.0-macos.zip`, SHA-256 `6dbc6dc28fa7f6b40c45290eb3e28bfae4fca6b246c082b536916ccf2b555f94`. The old profile-less asset was removed after its restricted APNs entitlement was killed at launch.
 - The corrected app was installed over the prior debug/profile-less copies, which were preserved under `/private/tmp`, and the signed process is running from the installed Release bundle.
+
+## Session persistence follow-up (2026-08-20)
+
+- **Observed contract:** `issueCompanionSession` creates a 90-day bearer credential, while the macOS client has no refresh route. A 401 therefore signs the user out even when the account and local Keychain are otherwise healthy.
+- **Bounded fix:** add an authenticated Upstash-only renewal endpoint that issues a replacement credential without touching Neon; the client saves the replacement first, then revokes the old credential through the existing durable pending-revocation path. Projection failures still preserve the last trusted local data, and a failed renewal falls back to the current credential rather than signing out.
+- **Verification target:** server route/store tests, macOS source contracts, native renewal/revocation regression coverage, Swift parse/build-for-testing, and focused Vitest suites. A fresh signed/notarized release is a separate shipping action after source verification.
+- **Current evidence:** focused Vitest (36 tests), TypeScript, lint, web build, Swift parse, and macOS build-for-testing pass. The native test runner remains blocked by the restricted `testmanagerd` service; the installed notarized 1.0.0 app has not been replaced by this source-only fix.
