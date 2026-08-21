@@ -16,7 +16,7 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 - [x] `npm run audit:ios:gaps` -> 34/34 audit-worthy surfaces covered, `✓ no audit gaps`.
 - [x] XcodeBuildMCP simulator build -> `SUCCEEDED`, zero warnings/errors, target `Wisconsin` on iOS Simulator.
 - [x] Exact shell build -> `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` -> `** BUILD SUCCEEDED **`.
-- [ ] Real-device build/install/signing remains to be run on the TestFlight candidate.
+- [x] Real-device build/install/signing verified 2026-08-20 on Erik's iPhone (iPhone 16 Pro, iPhone17,1, paired). Build 27 compiled for `platform=iOS` in both Debug and Release with `Apple Development: Erik Role`, and the Release `.app` installed via `xcrun devicectl device install app`. The Release binary contains none of `GT_PERFORMANCE_SCENARIO`, `GT_KIOSK_SCENARIO`, or `SearchFixtureAPI`, confirming the DEBUG capture harness compiles out of a shipping build rather than merely being inert.
 
 ### Build + install
 
