@@ -94,3 +94,14 @@ AREA_ITEMS.md (iOS surface only):
 - Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - The bookings audit just shipped a `loadTask` cancellation pattern + `pageError` retry row + `EditAssetSheet`-style discard confirm. The fixes here should be the same shape — quick to land.
 - GAP-36 remains the expected V1 deferral for web-only admin lifecycle actions on item detail. It is not a TestFlight blocker for student floor operations.
+
+## 2026-08-21 UI Pass
+
+Captured through the new `GT_PERFORMANCE_SCENARIO=items-list` scenario on iPhone 16 Pro in light and dark. This renders the shipping `ItemsView`, not the synthetic `items` performance list. Search field, sort/filter/favorite toolbar, status rails, and status badges all render correctly in both appearances.
+
+Confirmed deliberate, not a defect: an item's location line appears only when `computedStatus == .available` (`shouldShowLocation`). A checked-out item's shelf location is not where the item is, so hiding it is right.
+
+- [ ] [UX] **The row's accessibility label names who has the item; the visible row never does.** `rowAccessibilityLabel` appends `"\(activeLabel) by \(name)"` from `activeBooking?.requesterName` for checked-out, pending-pickup, and reserved items, so a VoiceOver user hears "CAM-014, A-cam body, checked out by Imani Brooks". A sighted user sees the tag, the subtitle, and a `Checked Out` badge with no holder anywhere.
+      That asymmetry runs the wrong way. The accessibility label is usually the reduced view of a richer row; here it is the richer one, and it already demonstrates both that the data is loaded and that someone judged it the most useful thing to say about a checked-out item. In a gear room "who has it" is the question the list is most often opened to answer.
+      Note the visible gap is real but was not captured: the fixture carries `activeBooking: null`, so this is read from source. A capture needs a fixture asset with an active booking attached.
+      `ios/Wisconsin/Views/ItemsView.swift` -- `assetCopy(lineLimit:)` versus `rowAccessibilityLabel`.

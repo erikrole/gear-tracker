@@ -74,3 +74,7 @@ Per `AREA_USERS.md` and the prior schedule audit (slice 1 shipped Users tab pari
 - [x] Hardening
 - [x] Parity (web has create/edit/bulk; iOS view-only by design per `feedback_ios_vs_web_role.md`)
 - [x] Accessibility
+
+## 2026-08-21 UI Pass
+
+Captured through `GT_PERFORMANCE_SCENARIO=resourcesUsers` on iPhone 16 Pro in light and dark, and on iPad Pro 13-inch. No defects found. Role chips (Staff/Admin/Student), the per-row status rail, the secondary title/area line, and the separate `Inactive` chip all render correctly, and the iPad layout widens rows rather than stretching phone chrome.

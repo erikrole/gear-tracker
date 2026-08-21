@@ -53,6 +53,10 @@ enum AppRuntimeMode {
         /// Global search with a query already run, so the result destinations
         /// -- items, bookings, and people in one list -- are on screen.
         case search
+        /// The real Items list and Reports screens, so a UI pass can look at
+        /// what ships rather than at the synthetic `items` performance list.
+        case itemsList = "items-list"
+        case reports
         /// Search with two of its four sources deliberately failing, so the
         /// partial-result notice can be seen rather than reasoned about.
         case searchPartial = "search-partial"
@@ -122,7 +126,8 @@ enum AppRuntimeMode {
         case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .resourcesLicensesOpen,
              .schedule, .home, .homeAllClear,
              .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel,
-             .itemEdit, .createBookingScanner, .search, .searchPartial:
+             .itemEdit, .createBookingScanner, .search, .searchPartial,
+             .itemsList, .reports:
             return true
         default:
             return false

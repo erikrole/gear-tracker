@@ -69,6 +69,10 @@ struct PerformanceTestRootView: View {
             CreateBookingScannerHarnessView()
         case .search, .searchPartial:
             GlobalSearchHarnessView()
+        case .itemsList:
+            ItemsListHarnessView()
+        case .reports:
+            ReportsHarnessView()
         }
     }
 }
@@ -83,6 +87,33 @@ struct GlobalSearchHarnessView: View {
     var body: some View {
         GlobalSearchSheet()
             .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// The real `ItemsView`, not the synthetic performance list. The `items`
+/// scenario renders a hand-built List of AssetRow for scroll measurement; this
+/// one is the shipping screen with its search, filters, and row treatments.
+struct ItemsListHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        ItemsView()
+            .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// The real `ReportsView` against canned utilization and activity payloads.
+/// Swift Charts failures are invisible to a compiler and to model tests -- an
+/// empty series renders a blank box that still builds -- so this exists to be
+/// looked at.
+struct ReportsHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        NavigationStack {
+            ReportsView()
+        }
+        .onAppear { session.currentUser = ScheduleFixtures.staffUser }
     }
 }
 
@@ -297,6 +328,8 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
         case "/api/bookings/\(BookingFixtureAPI.bookingId)": return BookingFixtureAPI.booking
         case "/api/assets/\(AssetFixtureAPI.assetId)": return AssetFixtureAPI.asset
         case "/api/assets": return SearchFixtureAPI.assets
+        case "/api/reports/utilization": return ReportsFixtureAPI.utilization
+        case "/api/reports/checkouts": return ReportsFixtureAPI.checkouts
         case "/api/reservations": return SearchFixtureAPI.reservations
         // Left unmapped in the partial scenario so the protocol answers 404 and
         // those two sources throw, exactly as a real outage would.
@@ -304,6 +337,55 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
             return AppRuntimeMode.performanceScenario == .searchPartial ? nil : SearchFixtureAPI.checkouts
         default: return nil
         }
+    }
+}
+
+/// Report payloads sized so every element of the screen has something to draw:
+/// a status mix with more than one slice, a custody block, and a daily trend
+/// long enough to read as a line rather than a dot.
+enum ReportsFixtureAPI {
+    static var utilization: Data {
+        // No `data` envelope: unlike the other routes served here, the report
+        // endpoints decode straight into their model.
+        Data("""
+        {
+          "days":30,"activeAssets":186,"partialFailures":null,"totalAssets":214,
+          "statusCounts":{"AVAILABLE":142,"CHECKED_OUT":48,"RESERVED":16,"MAINTENANCE":6,"RETIRED":2},
+          "custody":{"utilizationRate":0.63,"custodyDays":1184.5,"assetsUsed":134,
+                     "checkoutCount":417,"idleCount":52,"neverCheckedOutCount":28,
+                     "topUsed":[
+                       {"assetId":"a-1","assetTag":"CAM-014","name":"Sony FX3","checkouts":38,
+                        "custodyDays":112.5,"utilizationRate":0.81},
+                       {"assetId":"a-2","assetTag":"AUD-007","name":"Sennheiser MKE 600","checkouts":31,
+                        "custodyDays":88.0,"utilizationRate":0.72},
+                       {"assetId":"a-3","assetTag":"SUP-031","name":"Manfrotto 504X Tripod","checkouts":27,
+                        "custodyDays":74.5,"utilizationRate":0.64}
+                     ]}
+        }
+        """.utf8)
+    }
+
+    static var checkouts: Data {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = .current
+        // A shape with a visible weekly rhythm rather than noise, so the chart
+        // reads as a real gear room: quiet midweek, heavy on event days.
+        let counts = [4, 6, 3, 9, 21, 27, 11, 5, 7, 4, 12, 24, 31, 14,
+                      6, 5, 8, 10, 19, 29, 12, 7, 4, 6, 11, 22, 26, 13, 8, 9]
+        let points = counts.enumerated().map { offset, count -> String in
+            let day = calendar.date(byAdding: .day, value: offset - (counts.count - 1), to: today) ?? today
+            return "{\"date\":\"\(formatter.string(from: day))\",\"count\":\(count)}"
+        }.joined(separator: ",")
+        return Data("""
+        {
+          "days":30,"partialFailures":null,"totalCheckouts":417,
+          "previousTotalCheckouts":362,"overdueCheckouts":3,
+          "dailyTrend":[\(points)]
+        }
+        """.utf8)
     }
 }
 
