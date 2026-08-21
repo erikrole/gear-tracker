@@ -2220,6 +2220,12 @@ struct EventRow: View {
     var contextDay: Date? = nil
     var showsCrewCoverage = true
 
+    /// The time column grows with Dynamic Type. Held at a fixed 62pt, the
+    /// gutter clipped its own value at accessibility sizes -- `11:00 AM` read
+    /// as `11:…`, which removes the one thing the column exists to show.
+    /// Same treatment as `CrewTypeLabel`'s name column.
+    @ScaledMetric(relativeTo: .subheadline) private var gutterScale: CGFloat = 1
+
     /// When this row represents one day of a multi-day event, its 1-based
     /// position and the total span length.
     private var segment: (index: Int, total: Int)? {
@@ -2352,7 +2358,7 @@ struct EventRow: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
-        .frame(width: 62, alignment: .trailing)
+        .frame(width: 62 * gutterScale, alignment: .trailing)
         .accessibilityHidden(true)
     }
 

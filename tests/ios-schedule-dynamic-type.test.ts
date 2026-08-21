@@ -56,4 +56,35 @@ describe("iOS Schedule Dynamic Type", () => {
     expect(crewRow).toContain(".font(.caption.weight(.semibold).monospacedDigit())");
     expect(crewRow).not.toContain(".font(.system(size:");
   });
+
+  // The two assertions above passed while the row was visibly broken at
+  // accessibility sizes: they check which font styles the text uses, not
+  // whether the box around the text grows with it. A fixed-width container
+  // around scaling text clips it, so the width itself is the contract.
+  it("lets the leading time gutter grow with Dynamic Type", () => {
+    const scheduleView = source("ios/Wisconsin/Views/ScheduleView.swift");
+    const eventRow = sliceBetween(
+      scheduleView,
+      "struct EventRow: View",
+      "private func calendarSame",
+    );
+
+    expect(eventRow).toContain("@ScaledMetric(relativeTo: .subheadline)");
+    // The gutter width must be derived from that scale, never a bare constant.
+    expect(eventRow).toContain(".frame(width: 62 * gutterScale, alignment: .trailing)");
+    expect(eventRow).not.toContain(".frame(width: 62, alignment: .trailing)");
+  });
+
+  it("keeps the coverage ratio on one line", () => {
+    const crewRow = source("ios/Wisconsin/Views/Components/CrewRow.swift");
+    const chip = sliceBetween(
+      crewRow,
+      "struct CoverageChip: View",
+      "func crewReadinessSummary",
+    );
+
+    // "4/6" must not break into "4/" above "6" when text scales up.
+    expect(chip).toContain(".lineLimit(1)");
+    expect(chip).toContain(".fixedSize(horizontal: true, vertical: false)");
+  });
 });

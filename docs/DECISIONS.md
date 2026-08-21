@@ -59,6 +59,7 @@
 - D-050: Signature capture uses external roster members and private deterministic artifacts
 - D-051: Email-first discovery for invite-gated onboarding
 - D-052: Shared software credentials use a dedicated encrypted vault boundary
+- D-053: Accessibility text sizes are supported, not designed for
 
 ---
 
@@ -1245,3 +1246,24 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Never add the password to list payloads, audit JSON, error text, or client source.
   - Keep reveal rate limits and audit events at the server boundary; client masking is defense in depth, not authorization.
 - Reference: `docs/AREA_SOFTWARE.md`, `src/lib/software-vault-crypto.ts`, `src/app/api/software/[id]/secret/route.ts`, and `prisma/migrations/0125_software_credentials/migration.sql`.
+
+## D-053: Accessibility Text Sizes Are Supported, Not Designed For
+
+- Date: 2026-08-20
+- Status: Accepted
+- Context:
+  - Gear Tracker serves a known, bounded population: roughly 30-60 Wisconsin Athletics creative staff and students, not an open App Store audience.
+  - The 2026-08-20 Schedule capture matrix found real layout breakage at `accessibility-extra-large` and fixing the worst of it cost the venue line, which invited a larger `EventRow` layout rewrite.
+  - Owner decision: no current user is expected to run accessibility text sizes, so that rewrite is not worth its cost or its regression risk.
+- Decision:
+  - Design and verify against the default and the standard larger text sizes. Treat the accessibility sizes (`AX1`-`AX5`) as supported-but-not-optimized: the app must remain usable and must not crash or lose function, but layout perfection at those sizes is explicitly out of scope.
+  - Do not run the accessibility-size pass as a standing part of visual review. Light and dark remain required.
+  - Keep the cheap safeguards already in place. Semantic `Font` styles, `@ScaledMetric` widths where they already exist, and VoiceOver labels stay; they cost nothing and carry the real accessibility value for this audience.
+  - Revisit if the audience changes: a public release, an accessibility complaint from an actual user, or an institutional accessibility requirement each reopen this.
+- Consequences:
+  - `EventRow` keeps its side-by-side layout. The known consequence is that the venue line yields to the time column at accessibility sizes; this is accepted, not a defect to track.
+  - Open Dynamic Type findings in `tasks/audit-schedule-ios.md` are retired under this decision rather than left as visible backlog.
+  - Future audits should not re-raise accessibility-size layout as a finding without citing a trigger from the revisit list above.
+- Guardrails:
+  - This narrows layout scope only. It does not weaken VoiceOver, contrast, tap-target size, or Reduce Motion support, which serve this audience and stay in the ship bar.
+- Reference: `tasks/audit-schedule-ios.md` (2026-08-20 Accessibility Capture Follow-up) and `docs/AREA_MOBILE.md`.
