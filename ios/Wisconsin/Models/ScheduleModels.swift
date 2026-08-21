@@ -597,9 +597,9 @@ struct MyShiftsResponse: Decodable {
 
 /// An unavailability window (usually a class) that warns staff during shift
 /// assignment. `startsAt`/`endsAt` are local wall-clock "HH:mm"; `dayOfWeek`
-/// is 0 = Sunday … 6 = Saturday and is nil for AD_HOC (single-date) blocks,
-/// which the web profile can create — a required Int here would fail the
-/// whole availability decode the moment one exists.
+/// is 0 = Sunday … 6 = Saturday and is nil for AD_HOC blocks, which may cover
+/// one date or an inclusive date range. New range/all-day fields stay optional
+/// so older server payloads and saved blocks remain safe during rollout.
 struct AvailabilityBlock: Codable, Identifiable {
     let id: String
     let kind: String?
@@ -607,6 +607,8 @@ struct AvailabilityBlock: Codable, Identifiable {
     let status: String?
     let dayOfWeek: Int?
     let date: String?
+    let dateEndsOn: String?
+    let allDay: Bool?
     let startsAt: String
     let endsAt: String
     let label: String?
@@ -808,9 +810,9 @@ func cleanScheduleEventSummary(_ raw: String) -> String {
 extension String {
     /// Title-cased label for a server-typed shift area code.
     /// `"VIDEO"` → `"Video"`, `"GRAPHICS"` → `"Graphics"`. Mirrors the labels
-    /// in `ShiftAreaOption` (the picker enum in `AddShiftSheet.swift`) so
-    /// every user-visible surface speaks the same name. Falls back to
-    /// `.capitalized` for any future server-side area codes.
+    /// in `ShiftAreaOption` (the picker enum in `AddShiftSheet.swift`) and the
+    /// web's `AREA_LABELS`, so every user-visible surface speaks the same name.
+    /// Falls back to word-broken title case for any future server area code.
     var shiftAreaLabel: String {
         switch self {
         case "VIDEO":    return "Video"
@@ -818,7 +820,11 @@ extension String {
         case "GRAPHICS": return "Graphics"
         case "SOCIAL":   return "Social"
         case "COMMS":    return "Comms"
-        default:         return capitalized
+        case "LIVE_PRODUCTION": return "Live Production"
+        // Underscores in a server area code are word breaks. Title-casing
+        // around them printed "Live_production" on every surface that named
+        // an area this way.
+        default:         return replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 }

@@ -56,12 +56,21 @@ struct AvailabilityView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    editorContext = .newWeekly(day: selectedWeekday)
+                Menu {
+                    Button {
+                        editorContext = .newWeekly(day: selectedWeekday)
+                    } label: {
+                        Label("Add class schedule", systemImage: "calendar.badge.clock")
+                    }
+                    Button {
+                        editorContext = .newException(date: .now)
+                    } label: {
+                        Label("Add day away", systemImage: "calendar.badge.exclamationmark")
+                    }
                 } label: {
-                    Label("Add block", systemImage: "plus")
+                    Label("Add availability", systemImage: "plus")
                 }
-                .accessibilityHint("Adds an availability signal for \(availabilityDayNames[selectedWeekday])")
+                .accessibilityLabel("Add availability")
             }
         }
         .task { await load() }
@@ -94,7 +103,7 @@ struct AvailabilityView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Your schedule signals")
                         .font(.headline)
-                    Text("Tap a weekday to review or change its windows.")
+                    Text("Add recurring class times, then flag days away as needed.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -136,10 +145,10 @@ struct AvailabilityView: View {
     private var weeklyCanvas: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Typical week")
+                Text("Weekly class schedule")
                     .font(.headline)
                 Spacer()
-                Text("Repeats weekly")
+                Text("Repeats every week")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -194,9 +203,9 @@ struct AvailabilityView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("One-time exceptions")
+                    Text("One-off days and ranges")
                         .font(.headline)
-                    Text("Trips, appointments, and date-specific changes")
+                    Text("Trips, visitors, appointments, and other days away")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -210,7 +219,7 @@ struct AvailabilityView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 .tint(Color.brandPrimary)
-                .accessibilityLabel("Add one-time exception")
+                .accessibilityLabel("Add day away")
             }
 
             if datedBlocks.isEmpty {
@@ -533,9 +542,16 @@ private struct AvailabilityEditorSheet: View {
     @State private var intent: AvailabilityEditorIntent
     @State private var dayOfWeek: Int
     @State private var date: Date
+    @State private var dateEnd: Date
+    @State private var isDateRange: Bool
+    @State private var allDay: Bool
     @State private var startMinutes: Int
     @State private var endMinutes: Int
     @State private var label: String
+    @State private var usesTermDates: Bool
+    @State private var termStartDate: Date
+    @State private var termEndDate: Date
+    @State private var semesterLabel: String
     @State private var isSaving = false
     @State private var error: String?
 
@@ -548,9 +564,19 @@ private struct AvailabilityEditorSheet: View {
         _intent = State(initialValue: block?.editorIntent ?? .cannotWork)
         _dayOfWeek = State(initialValue: block?.dayOfWeek ?? context.suggestedDay)
         _date = State(initialValue: block?.parsedDate ?? context.suggestedDate)
+        _dateEnd = State(initialValue: block?.parsedDateEndsOn ?? block?.parsedDate ?? context.suggestedDate)
+        _isDateRange = State(initialValue: {
+            guard let start = block?.parsedDate, let end = block?.parsedDateEndsOn else { return false }
+            return !Calendar.current.isDate(start, inSameDayAs: end)
+        }())
+        _allDay = State(initialValue: block?.allDay == true)
         _startMinutes = State(initialValue: Self.minutes(block?.startsAt) ?? 9 * 60)
         _endMinutes = State(initialValue: Self.minutes(block?.endsAt) ?? 10 * 60)
         _label = State(initialValue: block?.label ?? "")
+        _usesTermDates = State(initialValue: block?.semesterStartsOn != nil || block?.semesterEndsOn != nil)
+        _termStartDate = State(initialValue: block?.parsedSemesterStart ?? context.suggestedDate)
+        _termEndDate = State(initialValue: block?.parsedSemesterEnd ?? Calendar.current.date(byAdding: .month, value: 4, to: context.suggestedDate) ?? context.suggestedDate)
+        _semesterLabel = State(initialValue: block?.semesterLabel ?? "")
     }
 
     private var timeOptions: [Int] {
@@ -572,7 +598,7 @@ private struct AvailabilityEditorSheet: View {
                 }
 
                 Section("When") {
-                    Picker("Repeats", selection: $kind) {
+                    Picker("Repeats", selection: kindSelection) {
                         ForEach(AvailabilityEditorKind.allCases) { option in
                             Text(option.label).tag(option)
                         }
@@ -584,27 +610,60 @@ private struct AvailabilityEditorSheet: View {
                             ForEach(0..<7, id: \.self) { Text(availabilityDayNames[$0]).tag($0) }
                         }
                     } else {
-                        DatePicker("Date", selection: $date, displayedComponents: .date)
+                        DatePicker("From", selection: $date, displayedComponents: .date)
+                        Toggle("Multiple days", isOn: $isDateRange)
+                        if isDateRange {
+                            DatePicker("Through", selection: $dateEnd, displayedComponents: .date)
+                        }
+                        Toggle("All day", isOn: $allDay)
+                        if allDay {
+                            Text(intent.allDayDetail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
-                Section("Time") {
-                    Picker("Starts", selection: $startMinutes) {
-                        ForEach(timeOptions, id: \.self) { minutes in
-                            Text(Self.timeLabel(minutes)).tag(minutes)
+                if kind == .weekly || !allDay {
+                    Section("Time") {
+                        Picker("Starts", selection: $startMinutes) {
+                            ForEach(timeOptions, id: \.self) { minutes in
+                                Text(Self.timeLabel(minutes)).tag(minutes)
+                            }
+                        }
+                        Picker("Ends", selection: $endMinutes) {
+                            ForEach(timeOptions, id: \.self) { minutes in
+                                Text(Self.timeLabel(minutes)).tag(minutes)
+                            }
                         }
                     }
-                    Picker("Ends", selection: $endMinutes) {
-                        ForEach(timeOptions, id: \.self) { minutes in
-                            Text(Self.timeLabel(minutes)).tag(minutes)
+                }
+
+                if kind == .weekly {
+                    Section {
+                        Toggle("Limit to term dates", isOn: $usesTermDates)
+                        if usesTermDates {
+                            TextField("Term name (optional)", text: $semesterLabel)
+                            DatePicker("Starts", selection: $termStartDate, displayedComponents: .date)
+                            DatePicker("Ends", selection: $termEndDate, displayedComponents: .date)
                         }
+                    } header: {
+                        Text("Class term (optional)")
+                    } footer: {
+                        Text("Use this when the class only blocks work during a specific semester or session.")
                     }
                 }
 
                 Section {
                     TextField(intent.labelPlaceholder, text: $label)
                 } footer: {
-                    Text(kind == .weekly ? "Repeats every \(availabilityDayNames[dayOfWeek]) until you remove it." : "Applies only to the selected date.")
+                    if kind == .weekly {
+                        Text(usesTermDates ? "Repeats every \(availabilityDayNames[dayOfWeek]) during the selected term." : "Repeats every \(availabilityDayNames[dayOfWeek]) until you remove it.")
+                    } else if isDateRange {
+                        Text("Applies to every selected date in the range.")
+                    } else {
+                        Text("Applies only to the selected date.")
+                    }
                 }
 
                 if let error {
@@ -615,7 +674,7 @@ private struct AvailabilityEditorSheet: View {
                     }
                 }
             }
-            .navigationTitle(context.block == nil ? "Add Availability" : "Edit Availability")
+            .navigationTitle(context.block == nil ? (kind == .weekly ? "Add Class Schedule" : "Add Day Away") : "Edit Availability")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -638,22 +697,68 @@ private struct AvailabilityEditorSheet: View {
             }
             .interactiveDismissDisabled(isSaving)
             .onChange(of: startMinutes) { _, newValue in
-                if endMinutes <= newValue {
-                    endMinutes = min(newValue + 60, 23 * 60 + 45)
+                adjustEndTime(after: newValue)
+            }
+            .onChange(of: date) { _, newValue in
+                if dateEnd < newValue {
+                    dateEnd = newValue
+                }
+            }
+            .onChange(of: termStartDate) { _, newValue in
+                if termEndDate < newValue {
+                    termEndDate = newValue
                 }
             }
         }
     }
 
+    private var kindSelection: Binding<AvailabilityEditorKind> {
+        Binding(
+            get: { kind },
+            set: { newValue in
+                kind = newValue
+                if newValue == .weekly {
+                    isDateRange = false
+                    allDay = false
+                }
+            }
+        )
+    }
+
+    private func adjustEndTime(after newValue: Int) {
+        guard endMinutes <= newValue else { return }
+        let proposedEnd = newValue + 60
+        let latestEnd = 23 * 60 + 45
+        endMinutes = proposedEnd > latestEnd ? latestEnd : proposedEnd
+    }
+
     private func save() async {
-        guard startMinutes < endMinutes else {
+        guard allDay || startMinutes < endMinutes else {
             error = "Start time must be before end time"
+            Haptics.warning()
+            return
+        }
+        if kind == .adHoc && isDateRange && dateEnd < date {
+            error = "The through date must be on or after the from date"
+            Haptics.warning()
+            return
+        }
+        if kind == .weekly && usesTermDates && termEndDate < termStartDate {
+            error = "The term end date must be on or after the start date"
             Haptics.warning()
             return
         }
         isSaving = true
         error = nil
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSemesterLabel = semesterLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let startsAt = kind == .adHoc && allDay ? "00:00" : Self.hhmm(startMinutes)
+        let endsAt = kind == .adHoc && allDay ? "23:59" : Self.hhmm(endMinutes)
+        let startDate = kind == .adHoc ? Self.yyyyMMdd(date) : nil
+        let endDate = kind == .adHoc ? Self.yyyyMMdd(isDateRange ? dateEnd : date) : nil
+        let termLabel = kind == .weekly && usesTermDates && !trimmedSemesterLabel.isEmpty ? trimmedSemesterLabel : nil
+        let termStart = kind == .weekly && usesTermDates ? Self.yyyyMMdd(termStartDate) : nil
+        let termEnd = kind == .weekly && usesTermDates ? Self.yyyyMMdd(termEndDate) : nil
         do {
             let saved: AvailabilityBlock
             if let block = context.block {
@@ -663,10 +768,15 @@ private struct AvailabilityEditorSheet: View {
                     kind: kind.rawValue,
                     intent: intent.rawValue,
                     dayOfWeek: dayOfWeek,
-                    date: kind == .adHoc ? Self.yyyyMMdd(date) : nil,
-                    startsAt: Self.hhmm(startMinutes),
-                    endsAt: Self.hhmm(endMinutes),
-                    label: trimmed.isEmpty ? nil : trimmed
+                    date: startDate,
+                    dateEndsOn: endDate,
+                    allDay: kind == .adHoc && allDay,
+                    startsAt: startsAt,
+                    endsAt: endsAt,
+                    label: trimmed.isEmpty ? nil : trimmed,
+                    semesterLabel: termLabel,
+                    semesterStartsOn: termStart,
+                    semesterEndsOn: termEnd
                 )
             } else {
                 saved = try await APIClient.shared.createAvailabilityBlock(
@@ -674,10 +784,15 @@ private struct AvailabilityEditorSheet: View {
                     kind: kind.rawValue,
                     intent: intent.rawValue,
                     dayOfWeek: dayOfWeek,
-                    date: kind == .adHoc ? Self.yyyyMMdd(date) : nil,
-                    startsAt: Self.hhmm(startMinutes),
-                    endsAt: Self.hhmm(endMinutes),
-                    label: trimmed.isEmpty ? nil : trimmed
+                    date: startDate,
+                    dateEndsOn: endDate,
+                    allDay: kind == .adHoc && allDay,
+                    startsAt: startsAt,
+                    endsAt: endsAt,
+                    label: trimmed.isEmpty ? nil : trimmed,
+                    semesterLabel: termLabel,
+                    semesterStartsOn: termStart,
+                    semesterEndsOn: termEnd
                 )
             }
             onSaved(saved)
@@ -748,6 +863,15 @@ private enum AvailabilityEditorIntent: String, CaseIterable, Identifiable {
         }
     }
 
+    var allDayDetail: String {
+        switch self {
+        case .cannotWork: "Use this for travel, visitors, or any day you cannot work at all."
+        case .prefer: "Marks the entire day as preferred when staff are choosing coverage."
+        case .dislike: "Marks the entire day as less ideal without blocking assignment."
+        case .timeOff: "Requests the entire day off for staff review."
+        }
+    }
+
     var labelPlaceholder: String {
         switch self {
         case .cannotWork: "Label (optional), e.g. CHEM 101"
@@ -813,8 +937,12 @@ private extension AvailabilityBlock {
 
     var secondaryLine: String {
         var parts: [String] = []
-        if let displayDate { parts.append(displayDate) }
-        parts.append("\(displayTime(startsAt)) to \(displayTime(endsAt))")
+        if let displayDateRange { parts.append(displayDateRange) }
+        if normalizedAllDay {
+            parts.append("All day")
+        } else {
+            parts.append("\(displayTime(startsAt)) to \(displayTime(endsAt))")
+        }
         if let semesterLabel, !semesterLabel.isEmpty { parts.append(semesterLabel) }
         return parts.joined(separator: " · ")
     }
@@ -834,20 +962,55 @@ private extension AvailabilityBlock {
         return date.count >= 10 ? String(date.prefix(10)) : date
     }
 
-    var parsedDate: Date? {
-        guard let dateValue else { return nil }
+    var dateEndValue: String? {
+        guard let dateEndsOn, !dateEndsOn.isEmpty else { return dateValue }
+        return dateEndsOn.count >= 10 ? String(dateEndsOn.prefix(10)) : dateEndsOn
+    }
+
+    var normalizedAllDay: Bool { allDay == true }
+
+    private func parsedDateValue(_ value: String?) -> Date? {
+        guard let value, !value.isEmpty else { return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: dateValue)
+        return formatter.date(from: String(value.prefix(10)))
+    }
+
+    var parsedDate: Date? {
+        parsedDateValue(dateValue)
+    }
+
+    var parsedDateEndsOn: Date? {
+        parsedDateValue(dateEndValue)
+    }
+
+    var parsedSemesterStart: Date? {
+        parsedDateValue(semesterStartsOn)
+    }
+
+    var parsedSemesterEnd: Date? {
+        parsedDateValue(semesterEndsOn)
     }
 
     var displayDate: String? {
         guard let parsedDate else { return dateValue }
-        if Calendar.current.component(.year, from: parsedDate) == Calendar.current.component(.year, from: .now) {
-            return parsedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        return formatDisplayDate(parsedDate)
+    }
+
+    var displayDateRange: String? {
+        guard let parsedDate else { return dateValue }
+        guard let parsedDateEndsOn,
+              !Calendar.current.isDate(parsedDate, inSameDayAs: parsedDateEndsOn)
+        else { return formatDisplayDate(parsedDate) }
+        return "\(formatDisplayDate(parsedDate)) – \(formatDisplayDate(parsedDateEndsOn))"
+    }
+
+    private func formatDisplayDate(_ date: Date) -> String {
+        if Calendar.current.component(.year, from: date) == Calendar.current.component(.year, from: .now) {
+            return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         }
-        return parsedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
     }
 
     private func displayTime(_ value: String) -> String {

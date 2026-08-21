@@ -356,6 +356,7 @@ describe("student field mobile contracts", () => {
     const models = source("ios/Wisconsin/Models/Models.swift");
     const scheduleModels = source("ios/Wisconsin/Models/ScheduleModels.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const webAvailability = source("src/app/(app)/users/[id]/UserAvailabilityTab.tsx");
     const meRoute = source("src/app/api/me/route.ts");
     const auth = source("src/lib/auth.ts");
     const userPage = source("src/app/(app)/users/[id]/page.tsx");
@@ -378,6 +379,8 @@ describe("student field mobile contracts", () => {
     expect(scheduleModels).toContain("let intent: String?");
     expect(scheduleModels).toContain("let status: String?");
     expect(scheduleModels).toContain("let date: String?");
+    expect(scheduleModels).toContain("let dateEndsOn: String?");
+    expect(scheduleModels).toContain("let allDay: Bool?");
     expect(scheduleModels).toContain("let reviewNote: String?");
     expect(availability).toContain("AvailabilityEditorIntent");
     expect(availability).toContain("case prefer = \"PREFER\"");
@@ -387,10 +390,12 @@ describe("student field mobile contracts", () => {
     expect(availability).toContain("case adHoc = \"AD_HOC\"");
     expect(availability).toContain("AvailabilityWeekStrip");
     expect(availability).toContain("Your schedule signals");
-    expect(availability).toContain("Typical week");
-    expect(availability).toContain("One-time exceptions");
+    expect(availability).toContain("Weekly class schedule");
+    expect(availability).toContain("One-off days and ranges");
     expect(availability).toContain("Pending staff review");
-    expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(availability).toContain("Label(\"Add availability\", systemImage: \"plus\")");
+    expect(availability).toContain("Multiple days");
+    expect(availability).toContain("All day");
     expect(availability).toContain("Edit Availability");
     expect(availability).toContain("stride(from: 0, through: 23 * 60 + 45, by: 15)");
     expect(apiClient).toContain("kind: String = \"WEEKLY\"");
@@ -399,8 +404,13 @@ describe("student field mobile contracts", () => {
     expect(apiClient).toContain("kind: kind");
     expect(apiClient).toContain("intent: intent");
     expect(apiClient).toContain("date: kind == \"AD_HOC\" ? date : nil");
+    expect(apiClient).toContain("dateEndsOn: kind == \"AD_HOC\" ? dateEndsOn ?? date : nil");
+    expect(apiClient).toContain("allDay: kind == \"AD_HOC\" && allDay");
     expect(apiClient).toContain("func updateAvailabilityBlock(");
     expect(apiClient).toContain("method: \"PATCH\"");
+    expect(webAvailability).toContain("One-time day or range");
+    expect(webAvailability).toContain("dateEndsOn");
+    expect(webAvailability).toContain("allDay");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {

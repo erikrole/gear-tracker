@@ -811,18 +811,28 @@ final class APIClient {
         intent: String = "CANNOT_WORK",
         dayOfWeek: Int,
         date: String? = nil,
+        dateEndsOn: String? = nil,
+        allDay: Bool = false,
         startsAt: String,
         endsAt: String,
-        label: String?
+        label: String?,
+        semesterLabel: String? = nil,
+        semesterStartsOn: String? = nil,
+        semesterEndsOn: String? = nil
     ) async throws -> AvailabilityBlock {
         struct Body: Encodable {
             let kind: String
             let intent: String
             let dayOfWeek: Int?
             let date: String?
+            let dateEndsOn: String?
+            let allDay: Bool
             let startsAt: String
             let endsAt: String
             let label: String?
+            let semesterLabel: String?
+            let semesterStartsOn: String?
+            let semesterEndsOn: String?
         }
         var req = request(path: "/api/users/\(userId)/availability", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(
@@ -830,9 +840,14 @@ final class APIClient {
             intent: intent,
             dayOfWeek: kind == "WEEKLY" ? dayOfWeek : nil,
             date: kind == "AD_HOC" ? date : nil,
+            dateEndsOn: kind == "AD_HOC" ? dateEndsOn ?? date : nil,
+            allDay: kind == "AD_HOC" && allDay,
             startsAt: startsAt,
             endsAt: endsAt,
-            label: label
+            label: label,
+            semesterLabel: semesterLabel,
+            semesterStartsOn: semesterStartsOn,
+            semesterEndsOn: semesterEndsOn
         ))
         let resp: DataWrapper<AvailabilityBlock> = try await perform(req)
         return resp.data
@@ -845,18 +860,28 @@ final class APIClient {
         intent: String,
         dayOfWeek: Int,
         date: String?,
+        dateEndsOn: String? = nil,
+        allDay: Bool = false,
         startsAt: String,
         endsAt: String,
-        label: String?
+        label: String?,
+        semesterLabel: String? = nil,
+        semesterStartsOn: String? = nil,
+        semesterEndsOn: String? = nil
     ) async throws -> AvailabilityBlock {
         struct Body: Encodable {
             let kind: String
             let intent: String
             let dayOfWeek: Int?
             let date: String?
+            let dateEndsOn: String?
+            let allDay: Bool
             let startsAt: String
             let endsAt: String
             let label: String?
+            let semesterLabel: String?
+            let semesterStartsOn: String?
+            let semesterEndsOn: String?
         }
         var req = request(path: "/api/users/\(userId)/availability/\(blockId)", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(
@@ -864,9 +889,14 @@ final class APIClient {
             intent: intent,
             dayOfWeek: kind == "WEEKLY" ? dayOfWeek : nil,
             date: kind == "AD_HOC" ? date : nil,
+            dateEndsOn: kind == "AD_HOC" ? dateEndsOn ?? date : nil,
+            allDay: kind == "AD_HOC" && allDay,
             startsAt: startsAt,
             endsAt: endsAt,
-            label: label
+            label: label,
+            semesterLabel: semesterLabel,
+            semesterStartsOn: semesterStartsOn,
+            semesterEndsOn: semesterEndsOn
         ))
         let resp: DataWrapper<AvailabilityBlock> = try await perform(req)
         return resp.data
@@ -1096,6 +1126,34 @@ final class APIClient {
         return resp.data
     }
 
+    /// Read-only profile record. The route owns season scope, event counting,
+    /// result classification, and visibility; the app only supplies display
+    /// filters and pagination.
+    func scoreboard(
+        userId: String,
+        season: String = "2026-27",
+        sportCode: String? = nil,
+        result: String? = nil,
+        limit: Int = 25,
+        offset: Int = 0
+    ) async throws -> UserScoreboard {
+        var items: [URLQueryItem] = [
+            .init(name: "season", value: season),
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
+        if let sportCode, !sportCode.isEmpty {
+            items.append(.init(name: "sportCode", value: sportCode))
+        }
+        if let result, !result.isEmpty {
+            items.append(.init(name: "result", value: result))
+        }
+        let response: DataWrapper<UserScoreboard> = try await perform(
+            request(path: "/api/users/\(userId)/scoreboard", queryItems: items)
+        )
+        return response.data
+    }
+
     func recentBadgeAwards(after: String?) async throws -> RecentBadgeRewards {
         var queryItems: [URLQueryItem] = []
         if let after, !after.isEmpty {
@@ -1124,30 +1182,41 @@ final class APIClient {
             let platform: String
             let surface: String
             let appVersion: String?
+            let appBuild: String?
+            let osVersion: String?
+            let deviceModel: String?
+            let releaseChannel: String
+            let installationKey: String
             let sessionKey: String
         }
         struct Accepted: Decodable { let accepted: Bool }
 
-        let defaultsKey = "WisconsinUsageSessionKey"
-        let sessionKey: String
-        if let existing = UserDefaults.standard.string(forKey: defaultsKey) {
-            sessionKey = existing
-        } else {
-            let created = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-            UserDefaults.standard.set(created, forKey: defaultsKey)
-            sessionKey = created
-        }
-
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let sessionKey = Self.persistedUsageKey(named: "WisconsinUsageSessionKey")
+        let installationKey = Self.persistedUsageKey(named: "WisconsinUsageInstallationKey")
+        let identity = AppBuildIdentity.current
         var req = request(path: "/api/product-events", method: "POST")
         req.httpBody = try? JSONEncoder().encode(Body(
             eventName: eventName,
             platform: "ios",
             surface: surface,
-            appVersion: version,
+            appVersion: identity.appVersion,
+            appBuild: identity.appBuild,
+            osVersion: identity.osVersion,
+            deviceModel: identity.deviceModel,
+            releaseChannel: identity.releaseChannel,
+            installationKey: installationKey,
             sessionKey: sessionKey
         ))
         let _: DataWrapper<Accepted>? = try? await perform(req, broadcastsSessionExpiry: false)
+    }
+
+    private static func persistedUsageKey(named key: String) -> String {
+        if let existing = UserDefaults.standard.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        let created = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        UserDefaults.standard.set(created, forKey: key)
+        return created
     }
 
     /// `activeOnly` keeps this to reservations that still stand. The route
@@ -1948,6 +2017,45 @@ private struct ChangePasswordResponse: Decodable {
 
 private struct SuccessResponse: Decodable {
     let success: Bool
+}
+
+private struct AppBuildIdentity {
+    let appVersion: String?
+    let appBuild: String?
+    let osVersion: String?
+    let deviceModel: String?
+    let releaseChannel: String
+
+    static var current: AppBuildIdentity {
+        let info = Bundle.main.infoDictionary
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        return AppBuildIdentity(
+            appVersion: info?["CFBundleShortVersionString"] as? String,
+            appBuild: info?["CFBundleVersion"] as? String,
+            osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)",
+            deviceModel: hardwareModel,
+            releaseChannel: releaseChannel
+        )
+    }
+
+    private static var hardwareModel: String {
+        var size = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        guard size > 0 else { return "unknown" }
+        var machine = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let bytes = machine.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    private static var releaseChannel: String {
+        #if DEBUG
+        return "development"
+        #else
+        guard let receipt = Bundle.main.appStoreReceiptURL else { return "unknown" }
+        return receipt.lastPathComponent == "sandboxReceipt" ? "testflight" : "app_store"
+        #endif
+    }
 }
 
 private struct ServerErrorBody: Decodable {

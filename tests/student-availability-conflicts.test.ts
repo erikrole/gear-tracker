@@ -65,6 +65,49 @@ describe("student availability conflict helpers", () => {
     })).toBeNull();
   });
 
+  it("matches inclusive one-time date ranges and ignores dates outside them", () => {
+    const block = {
+      kind: "AD_HOC" as const,
+      date: "2026-10-08",
+      dateEndsOn: "2026-10-10",
+      startsAt: "10:00",
+      endsAt: "11:00",
+      label: "Friends visiting",
+    };
+
+    expect(availabilityConflictNote([block], {
+      startsAt: new Date("2026-10-09T15:15:00.000Z"),
+      endsAt: new Date("2026-10-09T15:45:00.000Z"),
+    })).toBe("Conflicts with Friends visiting (10:00-11:00, 2026-10-08 to 2026-10-10)");
+
+    expect(findAvailabilityConflict([block], {
+      startsAt: new Date("2026-10-11T15:15:00.000Z"),
+      endsAt: new Date("2026-10-11T15:45:00.000Z"),
+    })).toBeNull();
+  });
+
+  it("treats an all-day one-time range as unavailable at any time on covered dates", () => {
+    const block = {
+      kind: "AD_HOC" as const,
+      date: "2026-10-08",
+      dateEndsOn: "2026-10-10",
+      allDay: true,
+      startsAt: "00:00",
+      endsAt: "23:59",
+      label: "Family trip",
+    };
+
+    expect(availabilityConflictNote([block], {
+      startsAt: new Date("2026-10-10T04:00:00.000Z"),
+      endsAt: new Date("2026-10-10T05:00:00.000Z"),
+    })).toBe("Conflicts with Family trip (all day, 2026-10-08 to 2026-10-10)");
+
+    expect(findAvailabilityConflict([block], {
+      startsAt: new Date("2026-10-11T06:00:00.000Z"),
+      endsAt: new Date("2026-10-11T07:00:00.000Z"),
+    })).toBeNull();
+  });
+
   it("treats prefer and dislike as preference signals without blocking", () => {
     const evaluation = evaluateAvailabilityPreferences([
       {

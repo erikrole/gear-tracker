@@ -1987,7 +1987,9 @@ model StudentAvailabilityBlock {
   intent           StudentAvailabilityIntent @default(CANNOT_WORK)
   status           StudentAvailabilityStatus @default(APPROVED)
   dayOfWeek        Int?                      @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only
-  date             DateTime?                 @db.Date // ad hoc local date
+  date             DateTime?                 @db.Date // ad hoc local start date
+  dateEndsOn       DateTime?                 @map("date_ends_on") @db.Date // inclusive ad hoc local end date; null means date only for legacy rows
+  allDay           Boolean                   @default(false) @map("all_day") // ad hoc date/range applies all day
   startsAt         String                    @map("starts_at") // "09:00" HH:mm local time
   endsAt           String                    @map("ends_at") // "11:00" HH:mm local time
   label            String? // e.g. "CHEM 101"
@@ -2004,6 +2006,7 @@ model StudentAvailabilityBlock {
 
   @@index([userId])
   @@index([kind, date])
+  @@index([kind, date, dateEndsOn])
   @@index([userId, kind])
   @@index([intent, status])
   @@index([reviewedById])

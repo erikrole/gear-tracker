@@ -466,6 +466,16 @@ describe("iOS API contracts — nullable columns stay optional in Swift", () => 
     expect(schema).toMatch(/dayOfWeek\s+Int\?\s+@map\("day_of_week"\)/);
     expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let dayOfWeek: Int\?/);
   });
+
+  it("keeps one-off range and all-day fields rollout-safe", () => {
+    const schema = source("prisma/schema.prisma");
+    const models = source("ios/Wisconsin/Models/ScheduleModels.swift");
+
+    expect(schema).toMatch(/dateEndsOn\s+DateTime\?\s+@map\("date_ends_on"\)/);
+    expect(schema).toMatch(/allDay\s+Boolean\s+@default\(false\)\s+@map\("all_day"\)/);
+    expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let dateEndsOn: String\?/);
+    expect(models).toMatch(/struct AvailabilityBlock[\s\S]*?let allDay: Bool\?/);
+  });
 });
 
 describe("iOS API contracts — notification preferences", () => {
