@@ -81,10 +81,13 @@ describe("native app and web trust contracts", () => {
     expect(detail).toContain("ForEach(Array(eventSummaries.enumerated())");
   });
 
-  it("versions the app and Live Activity extension together as build 26", () => {
+  // Re-pinned on every bump on purpose: the pair has to move together, and a
+  // stale number must not survive. The separate kiosk target keeps its own
+  // build number and is deliberately not counted here.
+  it("versions the app and Live Activity extension together as build 27", () => {
     const project = source("ios/project.yml");
-    expect(project.match(/CURRENT_PROJECT_VERSION: "26"/g)).toHaveLength(2);
-    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "25"');
+    expect(project.match(/CURRENT_PROJECT_VERSION: "27"/g)).toHaveLength(2);
+    expect(project).not.toContain('CURRENT_PROJECT_VERSION: "26"');
   });
 
   it("keeps WeatherKit out of the App Store target", () => {
