@@ -1,3 +1,5 @@
+import { ON_TIME_GRACE_MS } from "./types";
+
 export const automaticCheckoutRuleKeys = [
   "checkout_family_batteries",
   "checkout_family_lenses",
@@ -12,16 +14,42 @@ export const automaticCheckoutRuleKeys = [
   "checkout_from_kit",
   "checkout_same_asset",
   "checkout_batteries_only",
+  "checkout_event_linked",
+  "checkout_multiple_events",
+  "checkout_from_reservation",
+  "checkout_for_shift",
+  "checkout_week_burst",
+  "checkout_months",
+  "checkout_categories_4",
+  "checkout_distinct_families",
+  "checkout_full_rig_heavy",
+  "checkout_item_volume",
+  "checkout_mixed_inventory",
+  "checkout_distinct_kits",
+  "checkout_consecutive_months",
+  "checkout_reserved_event",
+  "checkout_distinct_events",
+  "checkout_full_context",
+  "checkout_for_shift_heavy",
 ] as const;
 
 export const automaticTradeRuleKeys = [
   "trade_short_notice",
+  "trade_both_sides",
 ] as const;
 
 export const automaticReturnRuleKeys = [
   "return_long_haul",
   "return_same_day",
   "return_buzzer_beater",
+  "return_reported",
+  "return_damaged",
+  "return_missing",
+  "return_late",
+  "return_due_date_changed",
+  "return_on_time_clean",
+  "return_clean_streak",
+  "return_no_intervention",
 ] as const;
 
 export const automaticShiftRuleKeys = [
@@ -31,6 +59,28 @@ export const automaticShiftRuleKeys = [
   "shift_areas",
   "shift_doubleheader_days",
   "shift_after_22",
+  "shift_wins",
+  "shift_losses",
+  "shift_home",
+  "shift_neutral",
+  "shift_venues",
+  "shift_same_venue",
+  "shift_opponents",
+  "shift_same_opponent",
+  "shift_conflicts",
+  "shift_sport_area_pairs",
+  "shift_months",
+  "shift_home_and_away",
+  "shift_spectrum",
+  "shift_away_wins",
+  "shift_result_sites",
+  "shift_early_late_mix",
+  "shift_scored_sports",
+  "shift_winning_record",
+  "shift_win_streak",
+  "shift_bounce_back",
+  "shift_battle_tested",
+  "shift_sites",
 ] as const;
 
 export const automaticMeasuredRuleKeys = new Set<string>([
@@ -59,6 +109,10 @@ type CategoryEvidence = {
 export type CheckoutBadgeEvidence = {
   startsAt: Date;
   kitId: string | null;
+  eventId?: string | null;
+  sourceReservationId?: string | null;
+  shiftAssignmentId?: string | null;
+  events?: Array<{ eventId: string }>;
   serializedItems: Array<{
     assetId: string;
     asset: { category: CategoryEvidence };
@@ -75,10 +129,12 @@ export type ReturnBadgeEvidence = {
   updatedAt: Date;
   completedAt: Date | null;
   /** At most one row is needed; presence is what decides a clean return. */
-  checkinReports: Array<{ id: string }>;
+  checkinReports: Array<{ id: string; type?: string }>;
+  dueDateChanges?: Array<{ id: string }>;
 };
 
 export type TradeBadgeEvidence = {
+  postedByUserId?: string | null;
   claimedByUserId: string | null;
   claimedAt: Date | null;
   shiftAssignment: { shift: { startsAt: Date } };
@@ -87,6 +143,7 @@ export type TradeBadgeEvidence = {
 export type ShiftBadgeEvidence = {
   callStartsAt: Date | null;
   callEndsAt: Date | null;
+  hasConflict?: boolean;
   shift: {
     startsAt: Date;
     endsAt: Date;
@@ -94,7 +151,14 @@ export type ShiftBadgeEvidence = {
     callEndsAt: Date | null;
     area: string;
     shiftGroup: {
-      event: { isHome: boolean | null; sportCode: string | null };
+      event: {
+        isHome: boolean | null;
+        sportCode: string | null;
+        result?: string | null;
+        site?: string | null;
+        locationId?: string | null;
+        opponent?: string | null;
+      };
     };
   };
 };
@@ -114,11 +178,16 @@ function normalizedFamily(category: CategoryEvidence) {
 export function checkoutAutomaticRuleCounts(bookings: CheckoutBadgeEvidence[], timeZone: string) {
   const counts = new Map<string, number>();
   const distinctCategoryIds = new Set<string>();
+  const distinctFamilyNames = new Set<string>();
   const distinctAssetIds = new Set<string>();
+  const distinctKitIds = new Set<string>();
+  const distinctEventIds = new Set<string>();
   const checkoutsByAssetId = new Map<string, number>();
+  const checkoutsPerWeek = new Map<string, number>();
   const weekKeys = new Set<string>();
-  counts.set("checkout_from_kit", 0);
-  counts.set("checkout_batteries_only", 0);
+  const monthCounts = new Map<string, number>();
+  let totalItemVolume = 0;
+  for (const ruleKey of automaticCheckoutRuleKeys) counts.set(ruleKey, 0);
 
   for (const booking of bookings) {
     const serializedCategories = booking.serializedItems.map((item) => item.asset.category);
@@ -126,10 +195,27 @@ export function checkoutAutomaticRuleCounts(bookings: CheckoutBadgeEvidence[], t
     const bulkCategories = checkedOutBulkItems.map((item) => item.bulkSku.categoryRel);
     const categories = [...serializedCategories, ...bulkCategories];
     const families = new Set(categories.map(normalizedFamily).filter(Boolean));
+    const linkedEventIds = new Set([
+      ...(booking.eventId ? [booking.eventId] : []),
+      ...(booking.events ?? []).map((event) => event.eventId),
+    ]);
+
+    if (linkedEventIds.size > 0) increment(counts, "checkout_event_linked");
+    if (linkedEventIds.size >= 2) increment(counts, "checkout_multiple_events");
+    if (booking.sourceReservationId) increment(counts, "checkout_from_reservation");
+    if (booking.shiftAssignmentId) increment(counts, "checkout_for_shift");
+    if (booking.sourceReservationId && linkedEventIds.size > 0) {
+      increment(counts, "checkout_reserved_event");
+    }
+    if (booking.sourceReservationId && booking.shiftAssignmentId && linkedEventIds.size > 0) {
+      increment(counts, "checkout_full_context");
+    }
+    for (const eventId of linkedEventIds) distinctEventIds.add(eventId);
 
     for (const category of categories) {
       if (category?.id) distinctCategoryIds.add(category.id);
     }
+    for (const family of families) distinctFamilyNames.add(family);
 
     if (families.has("batteries")) increment(counts, "checkout_family_batteries");
     if (families.has("lenses")) increment(counts, "checkout_family_lenses");
@@ -137,20 +223,40 @@ export function checkoutAutomaticRuleCounts(bookings: CheckoutBadgeEvidence[], t
     if (families.has("tripods") || families.has("gimbal")) increment(counts, "checkout_support");
     if (families.has("lighting")) increment(counts, "checkout_family_lighting");
     if (families.size >= 5) increment(counts, "checkout_families_5");
+    if (new Set(categories.map((category) => category?.id).filter(Boolean)).size >= 4) {
+      increment(counts, "checkout_categories_4");
+    }
     if (families.has("cameras") && families.has("lenses") && families.has("audio")) {
       increment(counts, "checkout_full_rig");
     }
 
     const itemCount = booking.serializedItems.length
       + checkedOutBulkItems.reduce((total, item) => total + item.checkedOutQuantity, 0);
+    totalItemVolume += itemCount;
     if (itemCount >= 15) increment(counts, "checkout_items_15");
+    if (families.has("cameras") && families.has("lenses") && families.has("audio") && itemCount >= 10) {
+      increment(counts, "checkout_full_rig_heavy");
+    }
+    if (booking.serializedItems.length > 0 && checkedOutBulkItems.length > 0) {
+      increment(counts, "checkout_mixed_inventory");
+    }
+    if (booking.shiftAssignmentId && itemCount >= 10) {
+      increment(counts, "checkout_for_shift_heavy");
+    }
 
-    if (booking.kitId) increment(counts, "checkout_from_kit");
+    if (booking.kitId) {
+      increment(counts, "checkout_from_kit");
+      distinctKitIds.add(booking.kitId);
+    }
     // An empty family set means nothing identifiable was handed out, which is
     // not the same thing as a battery run.
     if (families.size === 1 && families.has("batteries")) increment(counts, "checkout_batteries_only");
 
-    weekKeys.add(localWeekKey(booking.startsAt, timeZone));
+    const weekKey = localWeekKey(booking.startsAt, timeZone);
+    weekKeys.add(weekKey);
+    checkoutsPerWeek.set(weekKey, (checkoutsPerWeek.get(weekKey) ?? 0) + 1);
+    const monthKey = localParts(booking.startsAt, timeZone).date.slice(0, 7);
+    monthCounts.set(monthKey, (monthCounts.get(monthKey) ?? 0) + 1);
 
     for (const assetId of new Set(booking.serializedItems.map((item) => item.assetId))) {
       distinctAssetIds.add(assetId);
@@ -162,6 +268,13 @@ export function checkoutAutomaticRuleCounts(bookings: CheckoutBadgeEvidence[], t
   counts.set("checkout_distinct_assets", distinctAssetIds.size);
   counts.set("checkout_weeks", weekKeys.size);
   counts.set("checkout_same_asset", Math.max(0, ...checkoutsByAssetId.values()));
+  counts.set("checkout_week_burst", Math.max(0, ...checkoutsPerWeek.values()));
+  counts.set("checkout_months", monthCounts.size);
+  counts.set("checkout_distinct_families", distinctFamilyNames.size);
+  counts.set("checkout_item_volume", totalItemVolume);
+  counts.set("checkout_distinct_kits", distinctKitIds.size);
+  counts.set("checkout_consecutive_months", longestConsecutiveMonthRun(monthCounts.keys()));
+  counts.set("checkout_distinct_events", distinctEventIds.size);
   return counts;
 }
 
@@ -173,15 +286,33 @@ export function checkoutAutomaticRuleCounts(bookings: CheckoutBadgeEvidence[], t
  */
 export function returnAutomaticRuleCounts(bookings: ReturnBadgeEvidence[], timeZone: string) {
   const counts = new Map<string, number>();
-  counts.set("return_long_haul", 0);
-  counts.set("return_same_day", 0);
-  counts.set("return_buzzer_beater", 0);
+  for (const ruleKey of automaticReturnRuleKeys) counts.set(ruleKey, 0);
 
   for (const booking of bookings) {
     const completedAt = booking.completedAt ?? booking.updatedAt;
     const heldMs = completedAt.getTime() - booking.startsAt.getTime();
+    const hasReports = booking.checkinReports.length > 0;
 
-    if (heldMs >= LONG_HAUL_MS && booking.checkinReports.length === 0) {
+    if (hasReports) increment(counts, "return_reported");
+    if (booking.checkinReports.some((report) => report.type === "DAMAGED")) {
+      increment(counts, "return_damaged");
+    }
+    if (booking.checkinReports.some((report) => report.type === "LOST")) {
+      increment(counts, "return_missing");
+    }
+    if (completedAt.getTime() > booking.endsAt.getTime() + ON_TIME_GRACE_MS) {
+      increment(counts, "return_late");
+    }
+    if ((booking.dueDateChanges?.length ?? 0) > 0) {
+      increment(counts, "return_due_date_changed");
+    }
+    const onTime = completedAt.getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS;
+    if (onTime && !hasReports) increment(counts, "return_on_time_clean");
+    if (!hasReports && (booking.dueDateChanges?.length ?? 0) === 0) {
+      increment(counts, "return_no_intervention");
+    }
+
+    if (heldMs >= LONG_HAUL_MS && !hasReports) {
       increment(counts, "return_long_haul");
     }
 
@@ -197,6 +328,25 @@ export function returnAutomaticRuleCounts(bookings: ReturnBadgeEvidence[], timeZ
     }
   }
 
+  const ordered = [...bookings].sort((a, b) => {
+    const aTime = (a.completedAt ?? a.updatedAt).getTime();
+    const bTime = (b.completedAt ?? b.updatedAt).getTime();
+    return aTime - bTime;
+  });
+  let cleanStreak = 0;
+  let longestCleanStreak = 0;
+  for (const booking of ordered) {
+    const completedAt = booking.completedAt ?? booking.updatedAt;
+    const onTime = completedAt.getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS;
+    if (onTime && booking.checkinReports.length === 0) {
+      cleanStreak += 1;
+      longestCleanStreak = Math.max(longestCleanStreak, cleanStreak);
+    } else {
+      cleanStreak = 0;
+    }
+  }
+  counts.set("return_clean_streak", longestCleanStreak);
+
   return counts;
 }
 
@@ -211,13 +361,20 @@ export function returnAutomaticRuleCounts(bookings: ReturnBadgeEvidence[], timeZ
 export function tradeAutomaticRuleCounts(trades: TradeBadgeEvidence[], userId: string) {
   const counts = new Map<string, number>();
   counts.set("trade_short_notice", 0);
+  counts.set("trade_both_sides", 0);
+  let posted = false;
+  let claimed = false;
 
   for (const trade of trades) {
+    if (trade.postedByUserId === userId) posted = true;
+    if (trade.claimedByUserId === userId) claimed = true;
     if (trade.claimedByUserId !== userId || !trade.claimedAt) continue;
 
     const noticeMs = trade.shiftAssignment.shift.startsAt.getTime() - trade.claimedAt.getTime();
     if (noticeMs >= 0 && noticeMs <= SHORT_NOTICE_MS) increment(counts, "trade_short_notice");
   }
+
+  if (posted && claimed) counts.set("trade_both_sides", 1);
 
   return counts;
 }
@@ -253,20 +410,69 @@ function localParts(date: Date, timeZone: string) {
   };
 }
 
+function longestConsecutiveMonthRun(monthKeys: Iterable<string>) {
+  const indexes = [...new Set(monthKeys)]
+    .map((key) => {
+      const parts = key.split("-").map(Number);
+      const year = parts[0] ?? 1970;
+      const month = parts[1] ?? 1;
+      return year * 12 + month - 1;
+    })
+    .sort((a, b) => a - b);
+  let longest = 0;
+  let current = 0;
+  let previous: number | null = null;
+  for (const index of indexes) {
+    current = previous !== null && index === previous + 1 ? current + 1 : 1;
+    longest = Math.max(longest, current);
+    previous = index;
+  }
+  return longest;
+}
+
 export function shiftAutomaticRuleCounts(assignments: ShiftBadgeEvidence[], timeZone: string) {
   const counts = new Map<string, number>();
   const sportCodes = new Set<string>();
   const areas = new Set<string>();
   const assignmentsByLocalDate = new Map<string, number>();
-  // Seeded so the four breadth rules always report a number. The profile reads
-  // progress from this map, and an absent key would render an unknowable goal
-  // rather than 0 of 5.
-  counts.set("shift_after_22", 0);
+  const venueCounts = new Map<string, number>();
+  const opponentCounts = new Map<string, number>();
+  const sportAreaPairs = new Set<string>();
+  const monthKeys = new Set<string>();
+  const scoredSports = new Set<string>();
+  const sites = new Set<string>();
+  const winningSites = new Set<string>();
+  let hasHome = false;
+  let hasAway = false;
+  let earlyStarts = 0;
+  let lateFinishes = 0;
+  for (const ruleKey of automaticShiftRuleKeys) counts.set(ruleKey, 0);
 
   for (const assignment of assignments) {
-    if (assignment.shift.shiftGroup.event.isHome === false) {
+    const event = assignment.shift.shiftGroup.event;
+    const isAway = event.site === "AWAY" || (event.site == null && event.isHome === false);
+    const isHome = event.site === "HOME" || (event.site == null && event.isHome === true);
+    if (isAway) {
       increment(counts, "shift_away_completed");
+      hasAway = true;
     }
+    if (isHome) hasHome = true;
+
+    if (assignment.hasConflict) increment(counts, "shift_conflicts");
+    if (event.result === "WIN") increment(counts, "shift_wins");
+    if (event.result === "LOSS") increment(counts, "shift_losses");
+    if (event.result === "WIN" && event.site) winningSites.add(event.site);
+    if (isHome) {
+      increment(counts, "shift_home");
+    }
+    if (event.site === "NEUTRAL") increment(counts, "shift_neutral");
+    if (event.site) sites.add(event.site);
+
+    const venueId = event.locationId?.trim();
+    if (venueId) venueCounts.set(venueId, (venueCounts.get(venueId) ?? 0) + 1);
+
+    const opponent = event.opponent?.trim().toLowerCase();
+    if (opponent) opponentCounts.set(opponent, (opponentCounts.get(opponent) ?? 0) + 1);
 
     const effectiveStart = assignment.callStartsAt
       ?? assignment.shift.callStartsAt
@@ -275,8 +481,15 @@ export function shiftAutomaticRuleCounts(assignments: ShiftBadgeEvidence[], time
     if (start.hour >= 0 && start.hour < 7) increment(counts, "shift_before_7");
 
     const sportCode = assignment.shift.shiftGroup.event.sportCode?.trim();
-    if (sportCode) sportCodes.add(sportCode.toLowerCase());
-    if (assignment.shift.area) areas.add(assignment.shift.area);
+    const normalizedSport = sportCode?.toLowerCase() ?? "";
+    if (normalizedSport) sportCodes.add(normalizedSport);
+    const area = (assignment.shift.area ?? "").trim().toLowerCase();
+    if (area) areas.add(area);
+    if (normalizedSport && area) sportAreaPairs.add(`${normalizedSport}:${area}`);
+    monthKeys.add(start.date.slice(0, 7));
+    if (event.result === "WIN" || event.result === "LOSS") {
+      if (normalizedSport) scoredSports.add(normalizedSport);
+    }
 
     assignmentsByLocalDate.set(start.date, (assignmentsByLocalDate.get(start.date) ?? 0) + 1);
 
@@ -288,15 +501,62 @@ export function shiftAutomaticRuleCounts(assignments: ShiftBadgeEvidence[], time
     if (effectiveEnd) {
       const end = localParts(effectiveEnd, timeZone);
       if (end.hour >= 22 || end.date > start.date) increment(counts, "shift_after_22");
+      if (end.hour >= 22 || end.date > start.date) lateFinishes += 1;
     }
+    if (start.hour >= 0 && start.hour < 7) earlyStarts += 1;
   }
 
   counts.set("shift_sports", sportCodes.size);
   counts.set("shift_areas", areas.size);
+  counts.set("shift_venues", venueCounts.size);
+  counts.set("shift_same_venue", Math.max(0, ...venueCounts.values()));
+  counts.set("shift_opponents", opponentCounts.size);
+  counts.set("shift_same_opponent", Math.max(0, ...opponentCounts.values()));
   counts.set(
     "shift_doubleheader_days",
     [...assignmentsByLocalDate.values()].filter((total) => total >= 2).length,
   );
+  counts.set("shift_sport_area_pairs", sportAreaPairs.size);
+  counts.set("shift_months", monthKeys.size);
+  counts.set("shift_home_and_away", hasHome && hasAway ? 1 : 0);
+  counts.set("shift_spectrum", sportCodes.size >= 5 && areas.size >= 3 ? 1 : 0);
+  counts.set(
+    "shift_away_wins",
+    assignments.filter((assignment) => {
+      const event = assignment.shift.shiftGroup.event;
+      return event.result === "WIN" && (event.site === "AWAY" || (event.site == null && event.isHome === false));
+    }).length,
+  );
+  counts.set(
+    "shift_result_sites",
+    winningSites.has("HOME") && winningSites.has("AWAY") && winningSites.has("NEUTRAL") ? 1 : 0,
+  );
+  counts.set("shift_early_late_mix", earlyStarts >= 3 && lateFinishes >= 5 ? 1 : 0);
+  counts.set("shift_scored_sports", scoredSports.size);
+
+  const ordered = [...assignments].sort((a, b) => a.shift.startsAt.getTime() - b.shift.startsAt.getTime());
+  const wins = ordered.filter((assignment) => assignment.shift.shiftGroup.event.result === "WIN").length;
+  const losses = ordered.filter((assignment) => assignment.shift.shiftGroup.event.result === "LOSS").length;
+  counts.set("shift_winning_record", wins >= 8 && wins > losses ? 1 : 0);
+  let winStreak = 0;
+  let longestWinStreak = 0;
+  let bouncedBack = false;
+  let sawLoss = false;
+  for (const assignment of ordered) {
+    const result = assignment.shift.shiftGroup.event.result;
+    if (result === "WIN") {
+      winStreak += 1;
+      longestWinStreak = Math.max(longestWinStreak, winStreak);
+      if (sawLoss) bouncedBack = true;
+    } else {
+      winStreak = 0;
+      if (result === "LOSS") sawLoss = true;
+    }
+  }
+  counts.set("shift_win_streak", longestWinStreak);
+  counts.set("shift_bounce_back", bouncedBack ? 1 : 0);
+  counts.set("shift_battle_tested", wins >= 3 && losses >= 3 ? 1 : 0);
+  counts.set("shift_sites", sites.size);
 
   return counts;
 }

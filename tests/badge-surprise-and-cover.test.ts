@@ -14,11 +14,13 @@ function source(relativeFile: string) {
 }
 
 function trade(overrides: {
+  postedBy?: string | null;
   claimedBy: string | null;
   claimedAt: string | null;
   shiftStartsAt: string;
 }): TradeBadgeEvidence {
   return {
+    postedByUserId: overrides.postedBy ?? null,
     claimedByUserId: overrides.claimedBy,
     claimedAt: overrides.claimedAt ? new Date(overrides.claimedAt) : null,
     shiftAssignment: { shift: { startsAt: new Date(overrides.shiftStartsAt) } },
@@ -62,6 +64,15 @@ describe("short notice trade cover", () => {
 
   it("registers the rule as measured", () => {
     expect(automaticMeasuredRuleKeys.has("trade_short_notice")).toBe(true);
+  });
+
+  it("recognizes someone who works both sides of a trade", () => {
+    const counts = tradeAutomaticRuleCounts([
+      trade({ postedBy: "user-1", claimedBy: "user-2", claimedAt: null, shiftStartsAt: "2026-08-10T18:00:00.000Z" }),
+      trade({ postedBy: "user-2", claimedBy: "user-1", claimedAt: "2026-08-11T12:00:00.000Z", shiftStartsAt: "2026-08-11T18:00:00.000Z" }),
+    ], "user-1");
+
+    expect(counts.get("trade_both_sides")).toBe(1);
   });
 });
 

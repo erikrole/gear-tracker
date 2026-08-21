@@ -1334,6 +1334,14 @@ private let hiddenBadgeKeys: Set<String> = [
     "buzzer_beater",
     "take_thirteen",
     "holiday_hours",
+    "oops_damaged",
+    "oops_missing",
+    "running_late",
+    "due_date_dancer",
+    "calendar_tetris",
+    "midnight_oil",
+    "weekend_warrior",
+    "leap_day",
 ]
 
 private let legendaryBadgeKeys: Set<String> = [
