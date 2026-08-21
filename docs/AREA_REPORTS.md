@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-08-12
+- Last Updated: 2026-08-21
 - Status: Active
 - Version: V1
 
@@ -22,6 +22,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 9. Report surfaces print without app chrome: sidebar, section nav, refresh/export controls, pagination, and expand toggles are omitted, while active filter chips are retained so a printout states its own scope.
 10. `/reports/usage` is not role-granted. It is visible only when the signed-in email appears in the default-deny `USAGE_ANALYTICS_OWNER_EMAILS` environment allowlist. ADMIN alone is insufficient.
 11. Product usage events contain only allowlisted event, platform, surface, outcome, version, duration-bucket, session, and enum-property fields. Users and sessions are stored as rotating HMAC values; URLs, record IDs, search text, scan values, and free-form content are rejected.
+12. The named **App activity** view is not a general report. It lives in Settings, is absent from Reports navigation, and is visible only to the configured `USAGE_ANALYTICS_OWNER_EMAILS` identity. ADMIN role alone cannot discover or open it.
+13. App activity reports client presence, not a guaranteed install census: a client must successfully send an authenticated app-open or surface event. Distribution-channel classification can be `Unknown channel`, and build freshness is `Compare unavailable` until `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD` is configured.
 
 ## Routes
 
@@ -123,6 +125,14 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Collection:** Web records app open plus normalized route-family views. Native iOS records app open plus primary tab destinations. Collection failure never blocks an operational workflow.
 - **Retention:** `morning-refresh` deletes raw events older than 90 days. The private report is bounded to the same maximum window.
 
+### `/settings/app-activity`
+- **Access:** Explicit product-owner email allowlist only. The Settings layout, direct route, breadcrumb siblings, global search, and `GET /api/settings/app-activity` all fail closed for every other identity, including ADMIN users.
+- **Type:** Named adoption/support dashboard over visible roster users, with current pseudonymous client installations nested beneath each person.
+- **User signals:** Used/never opened, last launch, active/inactive roster state, and latest seen client.
+- **Client signals:** Web or iOS platform, coarse device model, OS version, marketing version, build number, first/last seen, last launch, and best-effort TestFlight/App Store/development channel.
+- **Build state:** iOS rows compare their reported build to the optional `IOS_LATEST_APP_VERSION` / `IOS_LATEST_APP_BUILD` server configuration and expose Latest, Stale, Newer, or Compare unavailable.
+- **Data model:** `UserAppInstallation` stores one current row per user/HMAC installation/platform tuple. The raw installation key is never stored; no UDID, serial number, IDFA, receipt contents, URL, search text, record ID, or content is accepted.
+
 ### `/accountability`
 - **Access:** ADMIN only through `accountability.view`; its sidebar and global-search entries are hidden from every other role.
 - **Type:** Intervention-oriented late-return ranking with expandable checkout evidence and reversible data-quality exclusions.
@@ -171,6 +181,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ## Data Model
 - Reports aggregate from existing models: `Booking`, `ScanEvent`, `BulkStockMovement`, `AuditLog`
+- `UserAppInstallation` stores current HMAC-keyed client presence for the owner-only App activity view; it is not a raw event history or a hardware identity registry.
 - `BookingAccountabilityExclusion` is the sole report-governance exception. It is a one-to-one annotation on a checkout with reason, note, exclusion/restoration actors, and timestamps; it never replaces the booking.
 - `BookingDueDateChange` is durable operational evidence for each extension. It records the prior due time, new due time, change timestamp, and actor independently of the 90-day audit retention window.
 
@@ -180,6 +191,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - CSV export branches are rate limited per user (`report:export`, 10/min shared across all report exports)
 - Audit log endpoint logs report access (low priority)
 - Accountability reads and exclusion mutations require ADMIN-only `accountability.view` or `accountability.manage_exclusions`; mutations retain CSRF, rate-limit, SERIALIZABLE, and audit protections.
+- App activity reads require the separate `USAGE_ANALYTICS_OWNER_EMAILS` allowlist; named roster data never becomes available through the aggregate `/reports/usage` endpoint.
 
 ## Acceptance Criteria
 - [x] AC-1: Utilization report with inventory metrics + trend charts
@@ -199,8 +211,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-15: Overdue filters by location and Missing Units filters by location and category; the previously documented date-range filters are removed from the contract because the underlying data cannot support them honestly.
 - [x] AC-16: Report surfaces print without app chrome and carry a title, run timestamp, and their active filter chips.
 - [x] AC-17: Utilization and checkout reports preserve successful query groups, identify unavailable groups through additive response metadata, and warn web and native users before fallback zeros or empty sections are treated as final.
+- [ ] AC-18: Owner App activity passes migrated, configured, authenticated owner/non-owner acceptance and signed-client TestFlight/App Store channel/build comparison.
 
 ## Change Log
+- 2026-08-21: Added the owner-only `/settings/app-activity` client-presence dashboard alongside the aggregate `/reports/usage` report. It shows named roster adoption, last launch/seen, device and OS identity, build/channel, and configurable stale/latest iOS state while keeping raw product-event analytics pseudonymous and bounded. Local source/schema/tests pass; migration, owner environment configuration, authenticated browser proof, and signed-client acceptance remain rollout gates.
 - 2026-08-12: Added private first-party Usage counting. Strict authenticated ingestion stores rotating pseudonymous identifiers and allowlisted enum fields only; web records normalized surface use and iOS records app opens plus tab destinations. The private report is default-deny through `USAGE_ANALYTICS_OWNER_EMAILS`, so ADMIN status alone grants nothing. No third-party analytics, replay, URLs, search text, record IDs, or scanned values are collected.
 - 2026-08-10: Utilization and checkout aggregation now preserves successful query groups without silently presenting failed groups as authoritative zeros. Additive `partialFailures` is logged and rendered on web and native; native sources load independently, period changes use newest-request ownership, and partial results never become fresh cache truth. Focused service, route, source-contract, TypeScript, lint, and inventory gates pass. Native simulator compilation and authenticated visual proof remain separate gates.
 - 2026-08-03: Disabled automatic RSC prefetching for the authenticated sidebar, notification chrome, and report section links after Safari desktop proof showed the viewport prefetch storm failing and falling back to full browser navigations. Click navigation remains client-routed.

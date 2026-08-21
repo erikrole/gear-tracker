@@ -21,6 +21,8 @@ export type SettingsSection = {
   description: string;
   /** Extra search keywords for the palette so users find pages by intent, not memorised name. */
   keywords?: string[];
+  /** Additional default-deny owner allowlist gate beyond the role requirement. */
+  ownerOnly?: boolean;
 };
 
 export const SETTINGS_GROUP_ORDER: SettingsGroup[] = [
@@ -185,6 +187,15 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     keywords: ["schema", "migration", "diagnostics", "drift", "prisma"],
   },
   {
+    href: "/settings/app-activity",
+    label: "App activity",
+    requiredRole: "ADMIN",
+    ownerOnly: true,
+    group: "System",
+    description: "Owner-only adoption, device, iOS, build, and release-channel report.",
+    keywords: ["usage", "analytics", "adoption", "devices", "ios", "testflight", "app store", "build"],
+  },
+  {
     href: "/settings/data-export",
     label: "Data exports",
     requiredRole: "ADMIN",
@@ -211,8 +222,8 @@ export function meetsRoleRequirement(required: SettingsRole, role: string): bool
   return userRank >= requiredRank;
 }
 
-export function isSectionVisible(section: SettingsSection, role: string): boolean {
-  return meetsRoleRequirement(section.requiredRole, role);
+export function isSectionVisible(section: SettingsSection, role: string, ownerAccess = false): boolean {
+  return meetsRoleRequirement(section.requiredRole, role) && (!section.ownerOnly || ownerAccess);
 }
 
 export type SettingsRouteAccess =
@@ -230,7 +241,7 @@ export function findSettingsSection(pathname: string): SettingsSection | null {
 }
 
 /** Central render decision for Settings routes. Unknown routes intentionally fail closed. */
-export function getSettingsRouteAccess(pathname: string, role: string): SettingsRouteAccess {
+export function getSettingsRouteAccess(pathname: string, role: string, ownerAccess = false): SettingsRouteAccess {
   if (pathname === "/settings" || pathname === "/settings/") {
     return { kind: "overview", section: null, allowed: true };
   }
@@ -241,7 +252,7 @@ export function getSettingsRouteAccess(pathname: string, role: string): Settings
   return {
     kind: "section",
     section,
-    allowed: isSectionVisible(section, role),
+    allowed: isSectionVisible(section, role, ownerAccess),
   };
 }
 

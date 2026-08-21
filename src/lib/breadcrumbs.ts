@@ -18,6 +18,7 @@ export type SiblingItem = {
   requiredRole?: SettingsRole;
   description?: string;
   group?: string;
+  ownerOnly?: boolean;
 };
 
 export const SIBLING_MAP: Record<string, ReadonlyArray<SiblingItem>> = {
@@ -92,17 +93,18 @@ export function isQuietBreadcrumbRoute(pathname: string): boolean {
 }
 
 function hasRoleGatedSiblings(siblings: ReadonlyArray<SiblingItem>): boolean {
-  return siblings.some((s) => s.requiredRole != null);
+  return siblings.some((s) => s.requiredRole != null || s.ownerOnly);
 }
 
 export function visibleSiblingsForRole(
   siblings: ReadonlyArray<SiblingItem>,
   role: string | undefined,
+  ownerAccess = false,
 ): ReadonlyArray<SiblingItem> {
   if (!hasRoleGatedSiblings(siblings)) return siblings;
   if (!role) return [];
   return siblings.filter(
-    (s) => !s.requiredRole || meetsRoleRequirement(s.requiredRole, role),
+    (s) => (!s.requiredRole || meetsRoleRequirement(s.requiredRole, role)) && (!s.ownerOnly || ownerAccess),
   );
 }
 

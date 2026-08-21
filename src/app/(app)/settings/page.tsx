@@ -62,6 +62,7 @@ const GROUP_META: Record<SettingsGroup, {
 export default function SettingsPage() {
   const { data: currentUser, isLoading: loading } = useCurrentUser();
   const role = currentUser?.role;
+  const canViewOwnerReport = currentUser?.canViewUsageAnalytics === true;
   const [lastHref, setLastHref] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,8 +75,8 @@ export default function SettingsPage() {
   }, []);
 
   const visibleSections = useMemo(() => (
-    role ? SETTINGS_SECTIONS.filter((section) => isSectionVisible(section, role)) : []
-  ), [role]);
+    role ? SETTINGS_SECTIONS.filter((section) => isSectionVisible(section, role, canViewOwnerReport)) : []
+  ), [canViewOwnerReport, role]);
 
   const groupedSections = useMemo(() => (
     SETTINGS_GROUP_ORDER.map((group) => ({

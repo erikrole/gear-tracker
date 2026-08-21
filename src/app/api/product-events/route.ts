@@ -9,7 +9,9 @@ import {
   PRODUCT_EVENT_OUTCOMES,
   PRODUCT_EVENT_PLATFORMS,
   PRODUCT_EVENT_SURFACES,
+  PRODUCT_RELEASE_CHANNELS,
   pseudonymousAnalyticsKey,
+  pseudonymousInstallationKey,
 } from "@/lib/usage-analytics";
 
 const productEventSchema = z.object({
@@ -18,6 +20,11 @@ const productEventSchema = z.object({
   surface: z.enum(PRODUCT_EVENT_SURFACES),
   outcome: z.enum(PRODUCT_EVENT_OUTCOMES).optional(),
   appVersion: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9._+-]+$/).optional(),
+  appBuild: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9._+-]+$/).optional(),
+  osVersion: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9._+-]+$/).optional(),
+  deviceModel: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9._,+-]+$/).optional(),
+  releaseChannel: z.enum(PRODUCT_RELEASE_CHANNELS).optional(),
+  installationKey: z.string().min(16).max(128).regex(/^[A-Za-z0-9_-]+$/).optional(),
   durationBucket: z.enum(PRODUCT_EVENT_DURATION_BUCKETS).optional(),
   sessionKey: z.string().min(16).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
   properties: z.record(z.enum(["source", "mode", "reason"]), z.string().max(32).regex(/^[a-z0-9_-]+$/)).optional(),
@@ -49,6 +56,48 @@ export const POST = withAuth(async (req, { user }) => {
       occurredAt,
     },
   });
+
+  if (body.installationKey) {
+    const installationHash = pseudonymousInstallationKey(body.installationKey);
+    if (installationHash) {
+      try {
+        await db.userAppInstallation.upsert({
+          where: {
+            userId_installationHash_platform: {
+              userId: user.id,
+              installationHash,
+              platform: body.platform,
+            },
+          },
+          create: {
+            userId: user.id,
+            installationHash,
+            platform: body.platform,
+            appVersion: body.appVersion,
+            appBuild: body.appBuild,
+            osVersion: body.osVersion,
+            deviceModel: body.deviceModel,
+            releaseChannel: body.releaseChannel,
+            firstSeenAt: occurredAt,
+            lastSeenAt: occurredAt,
+            lastOpenedAt: body.eventName === "app_opened" ? occurredAt : null,
+          },
+          update: {
+            appVersion: body.appVersion,
+            appBuild: body.appBuild,
+            osVersion: body.osVersion,
+            deviceModel: body.deviceModel,
+            releaseChannel: body.releaseChannel,
+            lastSeenAt: occurredAt,
+            ...(body.eventName === "app_opened" ? { lastOpenedAt: occurredAt } : {}),
+          },
+        });
+      } catch (error) {
+        // Presence is diagnostic context; never let it block the product event.
+        console.error("Failed to update app activity presence", error);
+      }
+    }
+  }
 
   return ok({ accepted: true }, 202);
 });

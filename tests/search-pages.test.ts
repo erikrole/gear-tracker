@@ -18,6 +18,15 @@ describe("global page search results", () => {
     expect(results.map((result) => result.href)).toContain("/settings/allowed-emails");
   });
 
+  it("keeps the owner app activity page out of search unless owner access is explicit", () => {
+    expect(getVisiblePageSearchResults("ADMIN", "app activity", 10)).not.toContainEqual(
+      expect.objectContaining({ href: "/settings/app-activity" }),
+    );
+    expect(getVisiblePageSearchResults("ADMIN", "app activity", 10, true)).toContainEqual(
+      expect.objectContaining({ href: "/settings/app-activity" }),
+    );
+  });
+
   it("finds reports for staff users", () => {
     const results = getVisiblePageSearchResults("STAFF", "missing units", 10);
 
