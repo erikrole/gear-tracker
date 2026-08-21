@@ -78,6 +78,10 @@ final class GearOpsModel {
     private var pushTask: Task<Void, Never>?
     private var startupTask: Task<Void, Never>?
     private var supplementaryTask: Task<Void, Never>?
+    private var restoreInFlight = false
+    private var restoreQueued = false
+    private var queuedRestoreConfirmsMissing = false
+    private var awaitingCredentialUnlock = false
     private var knownBookingActivity: [String: BookingActivitySnapshot] = [:]
 
     var user: GearOpsUser?
@@ -240,22 +244,57 @@ final class GearOpsModel {
     /// Restore reads the external companion projection after loading the local
     /// enrollment. The projection endpoint is Upstash-only and cannot wake a
     /// suspended Neon compute.
-    func restoreSession() async {
+    ///
+    /// A login item can start while macOS is still bringing the user session
+    /// back after a restart. An `AfterFirstUnlockThisDeviceOnly` Keychain item
+    /// is not a confirmed logout in that window, so the first pass preserves
+    /// the last trusted cache and waits for a session-activation retry. The
+    /// explicit confirmation path is used after activation or menu
+    /// presentation, when a second missing read is safe to treat as logout.
+    func restoreSession(confirmMissingCredential: Bool = false) async {
+        if restoreInFlight {
+            restoreQueued = true
+            queuedRestoreConfirmsMissing = queuedRestoreConfirmsMissing || confirmMissingCredential
+            return
+        }
+
+        restoreInFlight = true
         isRestoring = true
-        defer { isRestoring = false }
+        defer {
+            isRestoring = false
+            restoreInFlight = false
+            if restoreQueued {
+                let confirm = queuedRestoreConfirmsMissing
+                restoreQueued = false
+                queuedRestoreConfirmsMissing = false
+                Task { [weak self] in
+                    await self?.restoreSession(confirmMissingCredential: confirm)
+                }
+            }
+        }
 
         guard user != nil else { return }
         let generation = sessionGeneration
         do {
             guard let token = try await credentialStore.loadToken() else {
                 guard generation == sessionGeneration, user != nil else { return }
-                sessionGeneration &+= 1
-                clearAuthenticatedState()
-                await clearPrivateArtifacts()
-                statusMessage = "Sign in to enable automatic updates."
+                if confirmMissingCredential {
+                    sessionGeneration &+= 1
+                    clearAuthenticatedState()
+                    await clearPrivateArtifacts()
+                    statusMessage = "Sign in to enable automatic updates."
+                } else {
+                    // Keep the cached identity and projection visible while
+                    // macOS finishes unlocking the data-protection Keychain.
+                    // The activation event or the next menu presentation will
+                    // retry with an explicit missing-credential confirmation.
+                    awaitingCredentialUnlock = true
+                    statusMessage = "Waiting for macOS to unlock the saved session…"
+                }
                 return
             }
             guard generation == sessionGeneration, user != nil else { return }
+            awaitingCredentialUnlock = false
             companionToken = token
             registeredDeviceCredential = nil
             await refresh()
@@ -465,6 +504,10 @@ final class GearOpsModel {
         statusMessage = nil
     }
 
+    var shouldRetryCredentialRestore: Bool {
+        user != nil && companionToken == nil && awaitingCredentialUnlock
+    }
+
     func openSystemNotificationSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") else { return }
         open(url: url)
@@ -498,14 +541,23 @@ final class GearOpsModel {
                     } else {
                         await self.refresh()
                     }
+                case .sessionBecameActive:
+                    guard let self else { continue }
+                    await self.retryPendingRevocations()
+                    // Do not let the application's first activation event race
+                    // the initial startup read. A confirmation is meaningful
+                    // only after startup has observed the pending-unlock case.
+                    await self.restoreSession(
+                        confirmMissingCredential: self.shouldRetryCredentialRestore
+                    )
                 }
             }
         }
     }
 
-    /// Launch and wake restore the last trusted enrollment once. APNs and an
-    /// explicit refresh remain the normal invalidation paths; this deliberately
-    /// contains no timer or polling loop.
+    /// Launch and session activation restore the last trusted enrollment. APNs
+    /// and an explicit refresh remain the normal invalidation paths; this
+    /// deliberately contains no timer or polling loop.
     private func startAutomaticRefresh() {
         startupTask = Task { [weak self] in
             await self?.retryPendingRevocations()
@@ -687,6 +739,7 @@ final class GearOpsModel {
     private func clearAuthenticatedState() {
         supplementaryTask?.cancel()
         companionToken = nil
+        awaitingCredentialUnlock = false
         user = nil
         snapshot = nil
         openBookings = []

@@ -4,6 +4,7 @@ import Foundation
 enum CompanionPushEvent: Sendable {
     case deviceToken(String)
     case projectionChanged
+    case sessionBecameActive
 }
 
 final class CompanionPushBridge: Sendable {
@@ -33,6 +34,12 @@ final class GearOpsAppDelegate: NSObject, NSApplicationDelegate {
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceSessionDidBecomeActive),
+            name: NSWorkspace.sessionDidBecomeActiveNotification,
+            object: NSWorkspace.shared
+        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -55,6 +62,10 @@ final class GearOpsAppDelegate: NSObject, NSApplicationDelegate {
         // registration is temporarily unavailable.
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        CompanionPushBridge.shared.send(.sessionBecameActive)
+    }
+
     func application(
         _ application: NSApplication,
         didReceiveRemoteNotification userInfo: [String: Any]
@@ -68,5 +79,9 @@ final class GearOpsAppDelegate: NSObject, NSApplicationDelegate {
     /// still reads only the accepted external projection route.
     @objc private func workspaceDidWake(_ notification: Notification) {
         CompanionPushBridge.shared.send(.projectionChanged)
+    }
+
+    @objc private func workspaceSessionDidBecomeActive(_ notification: Notification) {
+        CompanionPushBridge.shared.send(.sessionBecameActive)
     }
 }

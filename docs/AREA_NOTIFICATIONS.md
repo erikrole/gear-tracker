@@ -325,6 +325,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Wisconsin Creative <noreply@wisconsincreative.com>` |
 
 ## Change Log
+- 2026-08-21: **macOS companion restart recovery.** A login-item launch that occurs before the data-protection Keychain is available no longer converts a missing read into an immediate logout. Wisconsin Creative keeps the last trusted local identity/projection, retries on macOS session activation and menu presentation, and only clears the cached account after a confirmed post-activation miss.
 - 2026-08-20: **macOS companion session persistence.** Active credentials now renew through an authenticated Upstash-only route before projection refresh, with the replacement saved to device-only Keychain before the old session is revoked. Network, Keychain, or server interruptions keep the current credential and last trusted projection instead of forcing a logout; inactive credentials still expire after 90 days.
 - 2026-08-20: **macOS companion notification cleanup.** Companion alerts now request the sound capability needed by the opt-in sound setting, while delivery remains silent by default. Sign-out and identity replacement remove pending and delivered local booking requests; APNs invalidation remains detail-free and the external projection remains the data source.
 

@@ -238,6 +238,12 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(client).not.toContain('/api/db-diagnostics');
     expect(model).toContain("try await credentialStore.loadToken()");
     expect(model).toContain("client.companionProjection(");
+    expect(model).toContain("Waiting for macOS to unlock the saved session");
+    expect(model).toContain("confirmMissingCredential");
+    expect(model).toContain("shouldRetryCredentialRestore");
+    expect(source("macos/GearOps/MenuBarContentView.swift")).toContain(
+      "await model.restoreSession(confirmMissingCredential: true)"
+    );
     expect(model).not.toContain("fromSource");
     expect(model).not.toContain("Task.sleep(for: .seconds(60))");
     expect(model).toContain("no timer or polling loop");
@@ -275,6 +281,7 @@ describe("GearOps macOS menu bar contracts", () => {
     const contract = source("src/lib/companion-projection-contract.ts");
     const api = source("src/lib/api.ts");
     const app = source("macos/GearOps/GearOpsApp.swift");
+    const pushBridge = source("macos/GearOps/CompanionPushBridge.swift");
     const entitlements = source("macos/GearOps/Supporting/GearOps.entitlements");
 
     expect(projectionRoute).toContain("withHandler");
@@ -296,6 +303,9 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(publisher).toContain("sendCompanionInvalidation(");
     expect(api).toContain("deferCompanionProjectionRefresh(req, response)");
     expect(app).toContain("@NSApplicationDelegateAdaptor(GearOpsAppDelegate.self)");
+    expect(pushBridge).toContain("case sessionBecameActive");
+    expect(pushBridge).toContain("NSWorkspace.sessionDidBecomeActiveNotification");
+    expect(pushBridge).toContain("applicationDidBecomeActive");
     expect(entitlements).toContain("com.apple.developer.aps-environment");
   });
 
@@ -420,6 +430,7 @@ describe("GearOps macOS menu bar contracts", () => {
     expect(notifications).toContain("BookingDeepLink.notificationURL");
     expect(model).toContain("CompanionPushBridge.shared.events");
     expect(model).toContain("case .projectionChanged:");
+    expect(model).toContain("case .sessionBecameActive:");
     expect(model).toContain("startAutomaticRefresh()");
     expect(model).toContain("await self.retryPendingRevocations()");
     expect(model).toContain("clearPrivateNotifications()");

@@ -302,6 +302,41 @@ final class GearOpsModelTests: XCTestCase {
         )
     }
 
+    func testMissingCredentialDuringStartupPreservesCacheUntilActivationConfirmsLogout() async {
+        let client = MockGearOpsClient()
+        let defaults = isolatedDefaults()
+        let original = GearOpsModel(
+            client: client,
+            defaults: defaults,
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+        await original.signIn(email: "admin@wisc.edu", password: "password")
+
+        let restored = GearOpsModel(
+            client: client,
+            defaults: defaults,
+            bookingNotifications: NoopBookingNotifier(),
+            credentialStore: InMemoryCredentialStore(),
+            autoStart: false
+        )
+        await restored.restoreSession()
+
+        XCTAssertEqual(restored.user?.email, "admin@wisc.edu")
+        XCTAssertEqual(restored.snapshot?.stats.checkedOut, 12)
+        XCTAssertEqual(
+            restored.statusMessage,
+            "Waiting for macOS to unlock the saved session…"
+        )
+
+        await restored.restoreSession(confirmMissingCredential: true)
+
+        XCTAssertNil(restored.user)
+        XCTAssertNil(restored.snapshot)
+        XCTAssertEqual(restored.statusMessage, "Sign in to enable automatic updates.")
+    }
+
     func testSignOutClearsLocalStateBeforeRemoteRevocationCompletes() async {
         let client = SuspendedGearOpsClient()
         let credentials = InMemoryCredentialStore()

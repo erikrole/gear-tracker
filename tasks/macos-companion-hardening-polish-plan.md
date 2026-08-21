@@ -69,3 +69,9 @@ Status: ACTIVE — macOS 1.0.0 shipped; native XCTest and full interaction proof
 - **Bounded fix:** add an authenticated Upstash-only renewal endpoint that issues a replacement credential without touching Neon; the client saves the replacement first, then revokes the old credential through the existing durable pending-revocation path. Projection failures still preserve the last trusted local data, and a failed renewal falls back to the current credential rather than signing out.
 - **Verification target:** server route/store tests, macOS source contracts, native renewal/revocation regression coverage, Swift parse/build-for-testing, and focused Vitest suites. A fresh signed/notarized release is a separate shipping action after source verification.
 - **Current evidence:** focused Vitest (36 tests), TypeScript, lint, web build, Swift parse, and macOS build-for-testing pass. The native test runner remains blocked by the restricted `testmanagerd` service; the installed notarized 1.0.0 app has not been replaced by this source-only fix.
+
+## Restart recovery follow-up (2026-08-21)
+
+- **Observed contract:** the installed 1.0.1 process made only Keychain reads after restart, then showed the sign-in screen; the prior process had continued receiving successful projection responses. A first-unlock/unavailable read was being treated as a confirmed logout and the cached identity was removed.
+- **Bounded fix:** startup now preserves the trusted cached identity/projection on a missing credential, observes macOS application/workspace session activation, and retries with explicit missing-credential confirmation after activation or menu presentation. Manual sign-out and a confirmed post-activation miss still clear local state.
+- **Verification target:** focused source contracts, Swift parsing, native model regression coverage, and a fresh signed/notarized release followed by a cold-restart acceptance pass.

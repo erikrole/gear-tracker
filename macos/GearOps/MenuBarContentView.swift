@@ -33,6 +33,14 @@ struct MenuBarContentView: View {
                 operationsView
             }
         }
+        .onAppear {
+            guard model.shouldRetryCredentialRestore else { return }
+            Task { await model.restoreSession(confirmMissingCredential: true) }
+        }
+        .onChange(of: model.shouldRetryCredentialRestore) { _, shouldRetry in
+            guard shouldRetry else { return }
+            Task { await model.restoreSession(confirmMissingCredential: true) }
+        }
     }
 
     private var restoringView: some View {
