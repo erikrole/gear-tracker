@@ -6,7 +6,7 @@ struct ItemDetailView: View {
     @State private var asset: AssetDetail?
     @State private var isLoading = true
     @State private var error: String?
-    @State private var showEdit = false
+    @State private var showEdit = AppRuntimeMode.CaptureSeed.itemEdit
     @State private var isFavorited = false
     @State private var favoriteToggleCount = 0  // user-action ticks; isolates haptic from initial load
     @State private var toast: Toast?

@@ -9,8 +9,8 @@ struct BookingDetailView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var showCancelConfirm = false
-    @State private var showExtend = false
-    @State private var showEdit = false
+    @State private var showExtend = AppRuntimeMode.CaptureSeed.bookingExtend
+    @State private var showEdit = AppRuntimeMode.CaptureSeed.bookingEdit
     @State private var isActioning = false
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
@@ -146,7 +146,13 @@ struct BookingDetailView: View {
                 )
             }
         }
-        .task { await loadBooking() }
+        .task {
+            await loadBooking()
+            // A confirmation dialog needs a state transition, not a true
+            // initial value, so the cancel capture flips it after the booking
+            // it describes has actually loaded.
+            if AppRuntimeMode.CaptureSeed.bookingCancel { showCancelConfirm = true }
+        }
         .refreshable { await loadBooking() }
         .sheet(isPresented: $showExtend) {
             if let booking {

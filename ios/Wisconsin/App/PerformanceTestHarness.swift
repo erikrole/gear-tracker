@@ -57,7 +57,78 @@ struct PerformanceTestRootView: View {
             ScheduleHarnessView()
         case .home, .homeAllClear:
             HomeHarnessView()
+        case .login:
+            LoginView()
+        case .passwordSetup:
+            PasswordSetupView(email: "avery.nakamura@wisc.edu")
+        case .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel:
+            BookingDetailHarnessView()
+        case .itemEdit:
+            ItemDetailHarnessView()
+        case .createBookingScanner:
+            CreateBookingScannerHarnessView()
+        case .search, .searchPartial:
+            GlobalSearchHarnessView()
         }
+    }
+}
+
+/// Global search with a query already committed. The point of the capture is
+/// the result list -- items, reservations, checkouts, and people ranked into
+/// one set of destinations -- so the fixture answers all four searches the
+/// service fans out to.
+struct GlobalSearchHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        GlobalSearchSheet()
+            .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// Renders the real `ItemDetailView` against a canned asset so its edit sheet
+/// can be captured. Pushed in a stack for the same reason booking detail is.
+struct ItemDetailHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        NavigationStack {
+            ItemDetailView(assetId: AssetFixtureAPI.assetId)
+        }
+        .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// The reservation composer with its QR cover seeded open. The simulator has no
+/// camera, so what this captures is the permission priming a first-time user
+/// meets -- which is the state worth reviewing anyway, since the viewfinder
+/// itself is the system's.
+struct CreateBookingScannerHarnessView: View {
+    @Environment(SessionStore.self) private var session
+    @State private var isPresented = true
+    @State private var viewModel = CreateBookingViewModel()
+
+    var body: some View {
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
+            .sheet(isPresented: $isPresented) {
+                CreateBookingSheet(vm: viewModel)
+            }
+            .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
+/// Renders the real `BookingDetailView` against a canned booking. Wrapped in a
+/// `NavigationStack` because the screen is normally pushed, and its toolbar and
+/// title are half of what a review is looking at.
+struct BookingDetailHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        NavigationStack {
+            BookingDetailView(bookingId: BookingFixtureAPI.bookingId)
+        }
+        .onAppear { session.currentUser = ScheduleFixtures.staffUser }
     }
 }
 
@@ -205,7 +276,8 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
         guard let path = request.url?.path else { return nil }
         switch path {
         case "/api/resources": return FixtureAPI.guides
-        case "/api/users": return FixtureAPI.users
+        case "/api/users":
+            return AppRuntimeMode.performanceScenario == .searchPartial ? nil : FixtureAPI.users
         case "/api/licenses":
             return AppRuntimeMode.performanceScenario == .resourcesLicensesOpen
                 ? FixtureAPI.openLicenses
@@ -222,8 +294,154 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
         case "/api/shift-groups": return ScheduleFixtureAPI.shiftGroups(for: request)
         case "/api/calendar-events": return ScheduleFixtureAPI.calendarEvents
         case "/api/my-shifts": return ScheduleFixtureAPI.myShifts
+        case "/api/bookings/\(BookingFixtureAPI.bookingId)": return BookingFixtureAPI.booking
+        case "/api/assets/\(AssetFixtureAPI.assetId)": return AssetFixtureAPI.asset
+        case "/api/assets": return SearchFixtureAPI.assets
+        case "/api/reservations": return SearchFixtureAPI.reservations
+        // Left unmapped in the partial scenario so the protocol answers 404 and
+        // those two sources throw, exactly as a real outage would.
+        case "/api/checkouts":
+            return AppRuntimeMode.performanceScenario == .searchPartial ? nil : SearchFixtureAPI.checkouts
         default: return nil
         }
+    }
+}
+
+/// Search fans out to four endpoints at once, so a result list only looks real
+/// if every one of them answers. Items, an upcoming reservation, an open
+/// checkout, and people all match the same query on purpose -- a search that
+/// returns one kind of thing does not exercise the ranking this screen exists
+/// to show. `/api/users` is already served above and is reused as-is.
+enum SearchFixtureAPI {
+    /// Mirrors `AppRuntimeMode.CaptureSeed.searchQuery`, which is what the
+    /// view actually reads; kept here so the fixture data and the typed query
+    /// stay described in one place.
+    static let query = "fx3"
+
+    private static func iso(_ minutes: Int) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: Date.now.addingTimeInterval(TimeInterval(minutes * 60)))
+    }
+
+    static var assets: Data {
+        Data("""
+        {"data":[
+          {"id":"a-1","assetTag":"CAM-014","name":"A-cam body","brand":"Sony","model":"FX3",
+           "serialNumber":"FX3-88120","imageUrl":null,"computedStatus":"CHECKED_OUT",
+           "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+           "category":{"id":"cat-1","name":"Cameras"},"department":{"id":"dep-1","name":"Video"},
+           "activeBooking":null,"purchaseDate":"2025-03-14","purchasePrice":"3899.00",
+           "residualValue":"2100.00","isFavorited":false},
+          {"id":"a-2","assetTag":"CAM-021","name":null,"brand":"Sony","model":"FX30",
+           "serialNumber":"FX30-2251","imageUrl":null,"computedStatus":"AVAILABLE",
+           "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+           "category":{"id":"cat-1","name":"Cameras"},"department":{"id":"dep-1","name":"Video"},
+           "activeBooking":null,"purchaseDate":"2025-08-02","purchasePrice":"2199.00",
+           "residualValue":"1500.00","isFavorited":true}
+        ],
+        "bulkItems":[],"itemOrder":["a-1","a-2"],"total":2,"limit":10,"offset":0}
+        """.utf8)
+    }
+
+    static var reservations: Data {
+        Data("""
+        {"data":[
+          {"id":"rs-1","kind":"RESERVATION","title":"FX3 for Senior Day","status":"BOOKED",
+           "startsAt":"\(iso(2880))","endsAt":"\(iso(3240))","notes":null,"refNumber":"RS-1180",
+           "requester":{"id":"u-priya","name":"Priya Ramachandran","email":null,"avatarUrl":null},
+           "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+           "serializedItems":[],"bulkItems":[],"event":null,"events":[],
+           "allowedActions":[],"updatedAt":"\(iso(-600))","pickupKioskDevice":null}
+        ],"total":1,"limit":10,"offset":0}
+        """.utf8)
+    }
+
+    static var checkouts: Data {
+        Data("""
+        {"data":[
+          {"id":"\(BookingFixtureAPI.bookingId)","kind":"CHECKOUT","title":"Volleyball vs Nebraska",
+           "status":"OPEN","startsAt":"\(iso(-120))","endsAt":"\(iso(180))","notes":null,
+           "refNumber":"CO-2418",
+           "requester":{"id":"u-avery","name":"Avery Nakamura","email":null,"avatarUrl":null},
+           "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+           "serializedItems":[],"bulkItems":[],"event":null,"events":[],
+           "allowedActions":[],"updatedAt":"\(iso(-30))","pickupKioskDevice":null}
+        ],"total":1,"limit":10,"offset":0}
+        """.utf8)
+    }
+}
+
+/// One camera body, carrying the fields the edit sheet actually writes to --
+/// name, serial, and notes -- plus enough identity for the detail screen behind
+/// the sheet to look like a real item rather than a blank form.
+enum AssetFixtureAPI {
+    static let assetId = "asset-fixture-1"
+
+    static var asset: Data {
+        Data("""
+        {"data":{
+          "id":"\(assetId)","assetTag":"CAM-014","name":"A-cam body",
+          "brand":"Sony","model":"FX3","serialNumber":"FX3-88120",
+          "imageUrl":null,"qrCodeValue":"CAM-014","linkUrl":null,
+          "computedStatus":"AVAILABLE",
+          "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+          "category":{"id":"cat-1","name":"Cameras"},
+          "department":{"id":"dep-1","name":"Video"},
+          "activeBooking":null,"upcomingReservations":[],"history":[],
+          "parentAsset":null,"accessories":null,"metadata":null,
+          "purchaseDate":"2025-03-14","purchasePrice":"3899.00","residualValue":"2100.00",
+          "notes":"Shutter count checked at the start of the season. Ships with the cage attached.",
+          "isFavorited":false
+        }}
+        """.utf8)
+    }
+}
+
+/// One open checkout, sized so the detail screen has something to say in every
+/// block it renders: a requester, a location, both serialized and bulk gear, a
+/// linked event, and the actions an open checkout actually allows.
+enum BookingFixtureAPI {
+    static let bookingId = "bk-fixture-1"
+
+    private static func iso(_ minutes: Int) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: Date.now.addingTimeInterval(TimeInterval(minutes * 60)))
+    }
+
+    static var booking: Data {
+        Data("""
+        {"data":{
+          "id":"\(bookingId)","kind":"CHECKOUT","title":"Volleyball vs Nebraska","status":"OPEN",
+          "startsAt":"\(iso(-120))","endsAt":"\(iso(180))",
+          "notes":"Two bodies on the baseline, one roaming. Return through the gear room, not the loading dock.",
+          "refNumber":"CO-2418",
+          "requester":{"id":"u-avery","name":"Avery Nakamura","email":"avery.nakamura@wisc.edu","avatarUrl":null},
+          "location":{"id":"loc-1","name":"Camp Randall Creative Desk"},
+          "serializedItems":[
+            {"id":"si-1","assetId":"a-1","allocationStatus":"CHECKED_OUT",
+             "asset":{"id":"a-1","assetTag":"CAM-014","name":"Sony FX3","brand":"Sony","model":"FX3",
+                      "serialNumber":"FX3-88120","imageUrl":null}},
+            {"id":"si-2","assetId":"a-2","allocationStatus":"CHECKED_OUT",
+             "asset":{"id":"a-2","assetTag":"AUD-007","name":"Sennheiser MKE 600","brand":"Sennheiser",
+                      "model":"MKE 600","serialNumber":"MKE-4471","imageUrl":null}}
+          ],
+          "bulkItems":[
+            {"id":"bi-1","plannedQuantity":4,"checkedOutQuantity":4,"checkedInQuantity":0,
+             "bulkSku":{"id":"sku-1","name":"V-Mount Battery","unit":"battery","imageUrl":null,
+                        "trackByNumber":true},
+             "unitAllocations":null}
+          ],
+          "event":{"id":"ev-1","summary":"Volleyball vs Nebraska","sportCode":"VB",
+                   "opponent":"Nebraska","isHome":true},
+          "events":[{"id":"ev-1","summary":"Volleyball vs Nebraska","sportCode":"VB",
+                     "opponent":"Nebraska","isHome":true}],
+          "allowedActions":["EXTEND","EDIT","CANCEL"],
+          "updatedAt":"\(iso(-30))",
+          "pickupKioskDevice":null
+        }}
+        """.utf8)
     }
 }
 

@@ -32,6 +32,39 @@ enum AppRuntimeMode {
         /// the shape where "You're all set" used to render directly above a
         /// populated Drafts card.
         case homeAllClear
+        /// The signed-out entry screens. Neither needs a session or a fixture
+        /// payload -- they are here so the two screens every user meets first
+        /// can be captured without typing a credential into the app.
+        case login
+        case passwordSetup = "password-setup"
+        /// Booking detail against a canned booking, plus its three sheets.
+        /// Extend, Edit, and Cancel are local state opened by a tap, so each
+        /// gets its own scenario rather than a tap script.
+        case bookingDetail = "booking-detail"
+        case bookingExtend = "booking-extend"
+        case bookingEdit = "booking-edit"
+        case bookingCancel = "booking-cancel"
+        /// Item detail with its edit sheet open, against a canned asset.
+        case itemEdit = "item-edit"
+        /// The reservation composer with its QR cover open. A simulator has no
+        /// camera, so this captures the permission priming a first-time user
+        /// actually meets, not a live viewfinder.
+        case createBookingScanner = "create-booking-scanner"
+        /// Global search with a query already run, so the result destinations
+        /// -- items, bookings, and people in one list -- are on screen.
+        case search
+        /// Search with two of its four sources deliberately failing, so the
+        /// partial-result notice can be seen rather than reasoned about.
+        case searchPartial = "search-partial"
+
+        /// The booking scenarios share one fixture and differ only in which
+        /// sheet is seeded open.
+        var isBookingDetail: Bool {
+            switch self {
+            case .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel: return true
+            default: return false
+            }
+        }
     }
 
     static var performanceScenario: PerformanceScenario? {
@@ -49,13 +82,47 @@ enum AppRuntimeMode {
         performanceScenario != nil
     }
 
+    /// Whether a capture scenario wants one of Booking detail's sheets already
+    /// open. Each is local state opened by a tap, and a tap script is exactly
+    /// what makes a capture flaky, so the scenario seeds the state instead.
+    /// Every value is `false` outside DEBUG, so release builds carry none of it.
+    enum CaptureSeed {
+        static var bookingExtend: Bool { matches(.bookingExtend) }
+        static var bookingEdit: Bool { matches(.bookingEdit) }
+        static var bookingCancel: Bool { matches(.bookingCancel) }
+        static var itemEdit: Bool { matches(.itemEdit) }
+        static var createBookingScanner: Bool { matches(.createBookingScanner) }
+        static var search: Bool { matches(.search) || matches(.searchPartial) }
+
+        /// The query a search capture types on appear. Lives here rather than
+        /// on the DEBUG-only fixture type because the call site is ordinary
+        /// view code that has to compile in Release too.
+        static var searchQuery: String? {
+            #if DEBUG
+            return search ? "fx3" : nil
+            #else
+            return nil
+            #endif
+        }
+
+        private static func matches(_ scenario: PerformanceScenario) -> Bool {
+            #if DEBUG
+            return performanceScenario == scenario
+            #else
+            return false
+            #endif
+        }
+    }
+
     /// Scenarios whose surfaces read from the API. Their requests are served by
     /// `FixtureAPIProtocol` rather than the network.
     static var usesFixtureAPI: Bool {
 #if DEBUG
         switch performanceScenario {
         case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .resourcesLicensesOpen,
-             .schedule, .home, .homeAllClear:
+             .schedule, .home, .homeAllClear,
+             .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel,
+             .itemEdit, .createBookingScanner, .search, .searchPartial:
             return true
         default:
             return false
