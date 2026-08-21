@@ -256,7 +256,13 @@ struct HomeView: View {
                         appState.pendingBookingsScope = BookingScope.all.rawValue
                         appState.selectedTab = 1
                     },
-                    openSchedule: { appState.selectedTab = 4 }
+                    openSchedule: {
+                        // The Shifts count is personal, so the screen it opens
+                        // is scoped to match rather than dropping the reader
+                        // into every event on the calendar.
+                        appState.pendingScheduleMyShifts = true
+                        appState.selectedTab = 4
+                    }
                 )
                 if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
                     HomeActionQueue(
@@ -265,7 +271,13 @@ struct HomeView: View {
                         openEventWork: { selectedEventWork = $0 },
                         currentUserId: session.currentUser?.id,
                         openBookings: { appState.selectedTab = 1 },
-                        openSchedule: { appState.selectedTab = 4 }
+                        openSchedule: {
+                        // The Shifts count is personal, so the screen it opens
+                        // is scoped to match rather than dropping the reader
+                        // into every event on the calendar.
+                        appState.pendingScheduleMyShifts = true
+                        appState.selectedTab = 4
+                    }
                     )
                 // Both halves, not either: "You're all set" sat directly above
                 // a populated Drafts card whenever the personal queue happened

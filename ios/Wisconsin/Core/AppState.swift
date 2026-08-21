@@ -47,6 +47,10 @@ final class AppState {
     /// Booking to open in the Bookings tab. Set after a reservation is created
     /// from the app-level composer, which may outlive the screen it started on.
     var pendingBookingDetailId: String?
+    /// Dashboard hint for landing Schedule on the viewer's own shifts. Set by
+    /// the Home Shifts tile, whose count is personal, so the screen it opens
+    /// should be scoped the same way. Consumed and cleared by ScheduleView.
+    var pendingScheduleMyShifts = false
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
     private var refreshRequests = LatestRequestGeneration()
@@ -75,6 +79,7 @@ final class AppState {
         pendingPushBlastId = nil
         pendingAppIntentDestination = nil
         pendingBookingsScope = nil
+        pendingScheduleMyShifts = false
         pendingBookingDetailId = nil
 
         selectedTab = 0

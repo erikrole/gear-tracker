@@ -898,6 +898,17 @@ private struct InternalScheduleView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Applies the Home Shifts hint. Consumed rather than observed so a later
+    /// manual clear of the filter is not undone by a stale flag, and read on
+    /// appear as well as on change because the tab switch and the flag can
+    /// arrive in either order.
+    private func consumePendingMyShifts() {
+        guard appState.pendingScheduleMyShifts else { return }
+        appState.pendingScheduleMyShifts = false
+        myShiftsOnly = true
+        viewMode = .list
+    }
+
     private var canSeePastEvents: Bool {
         let role = session.currentUser?.role ?? ""
         return role == "STAFF" || role == "ADMIN"
@@ -1111,6 +1122,7 @@ private struct InternalScheduleView: View {
                 if !canSeePastEvents {
                     vm.includePast = false
                 }
+                consumePendingMyShifts()
                 await vm.load()
             }
             .onDisappear { vm.cancelLoad() }
@@ -1125,6 +1137,9 @@ private struct InternalScheduleView: View {
                     vm.includePast = false
                     Task { await vm.load(forceRefresh: true) }
                 }
+            }
+            .onChange(of: appState.pendingScheduleMyShifts) { _, _ in
+                consumePendingMyShifts()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 4 else { return }
