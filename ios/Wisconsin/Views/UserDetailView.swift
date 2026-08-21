@@ -46,6 +46,7 @@ struct UserDetailView: View {
                                 openBooking: { pushedBookingId = $0 },
                                 openShift: { selectedShift = $0 }
                             )
+                            ScoreboardLinkCard(userId: detail.id)
                             badgesSection
                         }
                     }
