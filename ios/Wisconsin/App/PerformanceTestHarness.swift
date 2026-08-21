@@ -57,6 +57,10 @@ struct PerformanceTestRootView: View {
             ScheduleHarnessView()
         case .home, .homeAllClear:
             HomeHarnessView()
+        case .scoreboard:
+            ScoreboardHarnessView()
+        case .profile:
+            ProfileHarnessView()
         case .login:
             LoginView()
         case .passwordSetup:
@@ -322,6 +326,12 @@ final class FixtureAPIProtocol: URLProtocol, @unchecked Sendable {
             return AppRuntimeMode.performanceScenario == .homeAllClear
                 ? HomeFixtureAPI.allClearDashboard
                 : HomeFixtureAPI.dashboard
+        case "/api/users/\(ScoreboardFixtureAPI.userId)/scoreboard":
+            return ScoreboardFixtureAPI.scoreboard(for: request)
+        case "/api/users/\(ScoreboardFixtureAPI.userId)":
+            return ProfileFixtureAPI.userDetail
+        case "/api/badges/user/\(ScoreboardFixtureAPI.userId)":
+            return ProfileFixtureAPI.badgeProfile
         case "/api/shift-groups": return ScheduleFixtureAPI.shiftGroups(for: request)
         case "/api/calendar-events": return ScheduleFixtureAPI.calendarEvents
         case "/api/my-shifts": return ScheduleFixtureAPI.myShifts
@@ -769,6 +779,20 @@ struct HomeHarnessView: View {
     }
 }
 
+/// Renders the native profile Scoreboard against a canned season payload. The
+/// profile entry point is intentionally bypassed here: the capture should
+/// inspect the Scoreboard surface itself without depending on profile data.
+struct ScoreboardHarnessView: View {
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        NavigationStack {
+            ScoreboardView(userId: ScoreboardFixtureAPI.userId)
+        }
+        .onAppear { session.currentUser = ScheduleFixtures.staffUser }
+    }
+}
+
 /// The Home dashboard payload. Sized on purpose: more gear and shifts than the
 /// queue's per-lane caps show, so truncation is visible, and a staff draft with
 /// an otherwise-empty personal queue, so the all-clear contradiction reproduces.
@@ -850,6 +874,310 @@ enum HomeFixtureAPI {
           "myEventWork": []
         } }
         """.utf8)
+    }
+}
+
+/// A worked season for the Scoreboard capture. The route narrows its own
+/// breakdowns and game list by the sport and result filters while events worked
+/// stays a season-wide count, so this fixture answers the query rather than
+/// returning one canned payload -- a fixture that ignored the query would hide
+/// the exact filtering behaviour a capture exists to show.
+enum ScoreboardFixtureAPI {
+    static let userId = "fixture-staff"
+
+    /// Counted over the whole season by the server, filters or not. Deliberately
+    /// larger than the resolved-game count: most worked events never get a result.
+    private static let eventsWorked = 38
+
+    private struct Game {
+        let id: String
+        let startsAt: String
+        let result: String
+        let sportCode: String
+        let sportLabel: String
+        let opponent: String
+        let site: String
+        let venue: String
+        let areas: [String]
+    }
+
+    /// A full season, newest first, in the order the route returns. Sized and
+    /// shaped for what the screen has to survive: four months so the game list
+    /// groups, more opponents and venues than a table shows at once, 26 games so
+    /// the first page does not reach the end, and Men's Basketball winless on
+    /// purpose -- a sport that vanishes from a wins-only read is what proves a
+    /// filter menu is reading its options from the wrong place.
+    private static let games: [Game] = [
+        Game(id: "score-1", startsAt: "2026-12-05T18:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Iowa", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["VIDEO", "PHOTO"]),
+        Game(id: "score-2", startsAt: "2026-11-28T19:00:00.000Z", result: "WIN", sportCode: "WBB",
+             sportLabel: "Women's Basketball", opponent: "Michigan", site: "HOME",
+             venue: "Kohl Center", areas: ["PHOTO"]),
+        Game(id: "score-3", startsAt: "2026-11-25T01:00:00.000Z", result: "LOSS", sportCode: "MBB",
+             sportLabel: "Men's Basketball", opponent: "Marquette", site: "NEUTRAL",
+             venue: "Fiserv Forum", areas: ["VIDEO", "SOCIAL"]),
+        Game(id: "score-4", startsAt: "2026-11-21T19:30:00.000Z", result: "LOSS", sportCode: "FB",
+             sportLabel: "Football", opponent: "Nebraska", site: "AWAY",
+             venue: "Memorial Stadium", areas: ["VIDEO"]),
+        Game(id: "score-5", startsAt: "2026-11-18T00:00:00.000Z", result: "WIN", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Purdue", site: "HOME",
+             venue: "UW Field House", areas: ["VIDEO"]),
+        Game(id: "score-6", startsAt: "2026-11-14T17:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Ohio State", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["LIVE_PRODUCTION"]),
+        Game(id: "score-7", startsAt: "2026-11-11T23:00:00.000Z", result: "LOSS", sportCode: "WBB",
+             sportLabel: "Women's Basketball", opponent: "Indiana", site: "AWAY",
+             venue: "Assembly Hall", areas: ["SOCIAL"]),
+        Game(id: "score-8", startsAt: "2026-11-07T20:00:00.000Z", result: "LOSS", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Nebraska", site: "AWAY",
+             venue: "Devaney Center", areas: ["VIDEO"]),
+        Game(id: "score-9", startsAt: "2026-11-04T22:00:00.000Z", result: "WIN", sportCode: "SOC",
+             sportLabel: "Soccer", opponent: "Minnesota", site: "HOME",
+             venue: "McClimon Complex", areas: ["PHOTO", "GRAPHICS"]),
+        Game(id: "score-10", startsAt: "2026-10-31T18:00:00.000Z", result: "LOSS", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Ohio State", site: "AWAY",
+             venue: "Covelli Center", areas: ["VIDEO", "GRAPHICS"]),
+        Game(id: "score-11", startsAt: "2026-10-28T00:30:00.000Z", result: "LOSS", sportCode: "MBB",
+             sportLabel: "Men's Basketball", opponent: "Iowa", site: "HOME",
+             venue: "Kohl Center", areas: ["VIDEO"]),
+        Game(id: "score-12", startsAt: "2026-10-24T16:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Minnesota", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["VIDEO"]),
+        Game(id: "score-13", startsAt: "2026-10-21T23:00:00.000Z", result: "WIN", sportCode: "WBB",
+             sportLabel: "Women's Basketball", opponent: "Purdue", site: "HOME",
+             venue: "Kohl Center", areas: ["PHOTO"]),
+        Game(id: "score-14", startsAt: "2026-10-17T18:00:00.000Z", result: "LOSS", sportCode: "SOC",
+             sportLabel: "Soccer", opponent: "Michigan", site: "AWAY",
+             venue: "U-M Soccer Stadium", areas: ["PHOTO"]),
+        Game(id: "score-15", startsAt: "2026-10-14T00:00:00.000Z", result: "WIN", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Michigan", site: "HOME",
+             venue: "UW Field House", areas: ["VIDEO", "SOCIAL"]),
+        Game(id: "score-16", startsAt: "2026-10-10T19:00:00.000Z", result: "LOSS", sportCode: "SOC",
+             sportLabel: "Soccer", opponent: "Illinois", site: "AWAY",
+             venue: "Demirjian Park", areas: ["PHOTO"]),
+        Game(id: "score-17", startsAt: "2026-10-07T23:30:00.000Z", result: "LOSS", sportCode: "WBB",
+             sportLabel: "Women's Basketball", opponent: "Michigan State", site: "AWAY",
+             venue: "Breslin Center", areas: ["SOCIAL"]),
+        Game(id: "score-18", startsAt: "2026-10-03T16:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Purdue", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["VIDEO", "PHOTO"]),
+        Game(id: "score-19", startsAt: "2026-09-30T00:00:00.000Z", result: "LOSS", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Michigan State", site: "AWAY",
+             venue: "Jenison Field House", areas: ["VIDEO"]),
+        Game(id: "score-20", startsAt: "2026-09-26T22:00:00.000Z", result: "WIN", sportCode: "SOC",
+             sportLabel: "Soccer", opponent: "Northwestern", site: "HOME",
+             venue: "McClimon Complex", areas: ["GRAPHICS"]),
+        Game(id: "score-21", startsAt: "2026-09-23T00:00:00.000Z", result: "LOSS", sportCode: "MBB",
+             sportLabel: "Men's Basketball", opponent: "Northwestern", site: "HOME",
+             venue: "Kohl Center", areas: ["VIDEO"]),
+        Game(id: "score-22", startsAt: "2026-09-19T19:00:00.000Z", result: "LOSS", sportCode: "FB",
+             sportLabel: "Football", opponent: "Michigan", site: "AWAY",
+             venue: "Michigan Stadium", areas: ["VIDEO", "LIVE_PRODUCTION"]),
+        Game(id: "score-23", startsAt: "2026-09-16T00:00:00.000Z", result: "WIN", sportCode: "VB",
+             sportLabel: "Volleyball", opponent: "Indiana", site: "HOME",
+             venue: "UW Field House", areas: ["VIDEO"]),
+        Game(id: "score-24", startsAt: "2026-09-12T16:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Indiana", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["VIDEO", "PHOTO"]),
+        Game(id: "score-25", startsAt: "2026-09-09T23:00:00.000Z", result: "WIN", sportCode: "SOC",
+             sportLabel: "Soccer", opponent: "Purdue", site: "AWAY",
+             venue: "Folk Field", areas: ["PHOTO"]),
+        Game(id: "score-26", startsAt: "2026-09-05T16:00:00.000Z", result: "WIN", sportCode: "FB",
+             sportLabel: "Football", opponent: "Marquette", site: "HOME",
+             venue: "Camp Randall Stadium", areas: ["VIDEO"]),
+    ]
+
+    static func scoreboard(for request: URLRequest) -> Data {
+        let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func value(_ name: String) -> String? {
+            guard let found = query.first(where: { $0.name == name })?.value, !found.isEmpty else { return nil }
+            return found
+        }
+        let sportCode = value("sportCode")
+        let result = value("result")
+        let limit = value("limit").flatMap(Int.init) ?? 25
+        let offset = value("offset").flatMap(Int.init) ?? 0
+
+        let matched = games.filter { game in
+            (sportCode == nil || game.sportCode == sportCode) && (result == nil || game.result == result)
+        }
+        let wins = matched.filter { $0.result == "WIN" }.count
+        let losses = matched.count - wins
+        let page = Array(matched.dropFirst(offset).prefix(limit))
+        let hasMore = matched.count > offset + limit
+
+        return Data("""
+        { "data": {
+          "scope": {
+            "key": "2026-27",
+            "label": "2026–27 season",
+            "startsAt": "2026-07-01T00:00:00.000Z",
+            "endsAt": "2027-07-01T00:00:00.000Z",
+            "timeZone": "America/Chicago"
+          },
+          "summary": {
+            "eventsWorked": \(eventsWorked),
+            "wins": \(wins),
+            "losses": \(losses),
+            "games": \(matched.count),
+            "winRate": \(rate(wins: wins, losses: losses))
+          },
+          "bySport": [\(buckets(matched) { ($0.sportCode, $0.sportLabel) })],
+          "byOpponent": [\(buckets(matched) { ($0.opponent, $0.opponent) })],
+          "bySite": [\(buckets(matched, order: ["HOME", "AWAY", "NEUTRAL"]) { ($0.site, siteLabel($0.site)) })],
+          "byVenue": [\(buckets(matched) { ($0.venue, $0.venue) })],
+          "events": [\(page.map(eventJSON).joined(separator: ","))],
+          "nextCursor": \(hasMore ? "\"\(offset + limit)\"" : "null")
+        } }
+        """.utf8)
+    }
+
+    private static func siteLabel(_ site: String) -> String {
+        switch site {
+        case "HOME": "Home"
+        case "AWAY": "Away"
+        default: "Neutral"
+        }
+    }
+
+    private static func rate(wins: Int, losses: Int) -> String {
+        let games = wins + losses
+        guard games > 0 else { return "null" }
+        return "\((Double(wins) / Double(games) * 1000).rounded() / 10)"
+    }
+
+    /// Same shape the route builds: most games first, then label, except sites,
+    /// which keep their fixed Home/Away/Neutral order.
+    private static func buckets(
+        _ games: [Game],
+        order: [String] = [],
+        dimension: (Game) -> (key: String, label: String)
+    ) -> String {
+        var labels: [String: String] = [:]
+        var wins: [String: Int] = [:]
+        var losses: [String: Int] = [:]
+        var keys: [String] = []
+        for game in games {
+            let bucket = dimension(game)
+            if labels[bucket.key] == nil {
+                labels[bucket.key] = bucket.label
+                keys.append(bucket.key)
+            }
+            if game.result == "WIN" {
+                wins[bucket.key, default: 0] += 1
+            } else {
+                losses[bucket.key, default: 0] += 1
+            }
+        }
+        let sorted = keys.sorted { first, second in
+            if !order.isEmpty {
+                return (order.firstIndex(of: first) ?? order.count) < (order.firstIndex(of: second) ?? order.count)
+            }
+            let firstGames = (wins[first] ?? 0) + (losses[first] ?? 0)
+            let secondGames = (wins[second] ?? 0) + (losses[second] ?? 0)
+            if firstGames != secondGames { return firstGames > secondGames }
+            return (labels[first] ?? first) < (labels[second] ?? second)
+        }
+        return sorted.map { key in
+            let won = wins[key] ?? 0
+            let lost = losses[key] ?? 0
+            return """
+            {"key":"\(key)","label":"\(labels[key] ?? key)","wins":\(won),"losses":\(lost),\
+            "games":\(won + lost),"winRate":\(rate(wins: won, losses: lost))}
+            """
+        }.joined(separator: ",")
+    }
+
+    private static func eventJSON(_ game: Game) -> String {
+        let areas = game.areas.map { "\"\($0)\"" }.joined(separator: ",")
+        return """
+        {"id":"\(game.id)","startsAt":"\(game.startsAt)","allDay":false,"result":"\(game.result)",\
+        "sportCode":"\(game.sportCode)","sportLabel":"\(game.sportLabel)","opponent":"\(game.opponent)",\
+        "site":"\(game.site)","venue":"\(game.venue)","shiftAreas":[\(areas)]}
+        """
+    }
+}
+
+/// The current user's Profile against canned payloads. The Scoreboard entry is
+/// a row in a stack of cards, so it can only be reviewed next to the Next Up
+/// card above it and the badge shelf below it.
+struct ProfileHarnessView: View {
+    @Environment(SessionStore.self) private var session
+    @State private var seeded = false
+
+    var body: some View {
+        // Profile loads its own detail and badges from `session.currentUser` in
+        // a `.task`, which starts alongside `onAppear` -- seeding the session
+        // there raced the load and left the screen with no identity to fetch.
+        // The placeholder has to be a real view: an empty `Group` never appears,
+        // so the seeding never ran and the screen stayed blank.
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+            if seeded { ProfileView() }
+        }
+        .onAppear {
+            session.currentUser = ScheduleFixtures.staffUser
+            seeded = true
+        }
+    }
+}
+
+enum ProfileFixtureAPI {
+    static let userDetail = Data("""
+    { "data": {
+      "id": "\(ScoreboardFixtureAPI.userId)",
+      "name": "Jordan Lee",
+      "email": "jordan.lee@wisc.edu",
+      "role": "STAFF",
+      "locationId": "loc-1",
+      "location": "Camp Randall Stadium",
+      "phone": "608-555-0134",
+      "primaryArea": "LIVE_PRODUCTION",
+      "avatarUrl": null,
+      "active": true,
+      "createdAt": "2024-08-19T14:00:00.000Z",
+      "title": "Production Coordinator",
+      "gradYear": null,
+      "studentYearOverride": null
+    } }
+    """.utf8)
+
+    /// Two earned badges and one in progress: enough for the shelf to render as
+    /// it does in production without turning this fixture into a catalogue.
+    static let badgeProfile = Data("""
+    { "data": {
+      "userId": "\(ScoreboardFixtureAPI.userId)",
+      "peerVisible": true,
+      "earnedCount": 2,
+      "totalCount": 48,
+      "disabled": false,
+      "streaks": [],
+      "badges": [
+        \(badge(key: "first_shift", name: "First Shift", icon: "flag.checkered", earned: true,
+                awardedAt: "2026-09-06T02:00:00.000Z")),
+        \(badge(key: "camp_randall_regular", name: "Camp Randall Regular", icon: "building.columns", earned: true,
+                awardedAt: "2026-11-15T02:00:00.000Z")),
+        \(badge(key: "road_warrior", name: "Road Warrior", icon: "car.fill", earned: false, awardedAt: nil))
+      ]
+    } }
+    """.utf8)
+
+    private static func badge(
+        key: String,
+        name: String,
+        icon: String,
+        earned: Bool,
+        awardedAt: String?
+    ) -> String {
+        let awarded = awardedAt.map { "\"\($0)\"" } ?? "null"
+        return """
+        {"id":"badge-\(key)","key":"\(key)","name":"\(name)","description":"Fixture badge for capture.",
+         "icon":"\(icon)","category":"MILESTONE","kind":"AUTOMATIC","trigger":"shift:completed","threshold":1,
+         "ruleKey":"\(key)","active":true,"sortOrder":1,"earned":\(earned),"awardedAt":\(awarded),
+         "source":null,"note":null,"awardedByName":null,"progressCurrent":\(earned ? 1 : 0),"progressTarget":1,
+         "servedRarity":null}
+        """
     }
 }
 

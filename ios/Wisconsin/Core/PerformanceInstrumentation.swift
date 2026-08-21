@@ -32,6 +32,14 @@ enum AppRuntimeMode {
         /// the shape where "You're all set" used to render directly above a
         /// populated Drafts card.
         case homeAllClear
+        /// The native profile Scoreboard against a canned season payload, so
+        /// its summary, filters, breakdowns, and event history can be reviewed
+        /// without a signed-in session or live network.
+        case scoreboard
+        /// The current user's Profile against canned identity, badge, and shift
+        /// payloads. The Scoreboard entry lives between Next Up and the badge
+        /// shelf, and a row's treatment can only be judged beside its neighbours.
+        case profile
         /// The signed-out entry screens. Neither needs a session or a fixture
         /// payload -- they are here so the two screens every user meets first
         /// can be captured without typing a credential into the app.
@@ -124,7 +132,7 @@ enum AppRuntimeMode {
 #if DEBUG
         switch performanceScenario {
         case .resourcesGuides, .resourcesUsers, .resourcesLicenses, .resourcesLicensesOpen,
-             .schedule, .home, .homeAllClear,
+             .schedule, .home, .homeAllClear, .scoreboard, .profile,
              .bookingDetail, .bookingExtend, .bookingEdit, .bookingCancel,
              .itemEdit, .createBookingScanner, .search, .searchPartial,
              .itemsList, .reports:
