@@ -38,7 +38,7 @@
 - [x] Full `tests/ios-*.test.ts` native source-contract suite.
 - [x] `npm run drift:ios`
 - [x] `npm run audit:ios:gaps`
-- [ ] `npm run ios:project:check` (blocked by pre-existing checked-in XcodeGen project drift).
+- [x] `npm run ios:project:check` (unblocked 2026-08-20: `xcodegen generate` resorted the hand-added `KioskOperatorHubView.swift` entries; the hand-maintained schemes were restored afterward).
 - [x] Wisconsin Simulator and generic iOS device builds.
 - [ ] Runtime inspection of Add Shift and Assign Person without mutating live production scheduling data (app launched; simulator UI automation reported successful taps but did not navigate from Home).
 - [x] `npm run codemap`, `npm run verify:docs`, and `git diff --check`.
@@ -48,6 +48,6 @@
 - Shipped: Event-aware Add Shift with explicit slot decisions and a candidate-scored Assign Person flow with blocking and advisory conflict treatment.
 - Verified: 43 focused contracts, 248 full native contracts, iOS drift and gap audits, Simulator build/run, unsigned generic-device build, codemap/docs verification, and whitespace checks.
 - Deferred: Direct visual inspection of the two sheets. No production shift or assignment mutation was performed.
-- Blocked: `npm run ios:project:check` reports pre-existing drift in `ios/Wisconsin.xcodeproj/project.pbxproj`; XcodeBuildMCP UI automation did not navigate despite successful element-ref actions.
+- Blocked: XcodeBuildMCP UI automation did not navigate despite successful element-ref actions. The `ios/Wisconsin.xcodeproj/project.pbxproj` drift that previously blocked `npm run ios:project:check` was cleared on 2026-08-20; the check now passes.
 - Proof artifacts: Successful XcodeBuildMCP build/run with no diagnostics and successful unsigned generic-device Xcode build.
 - Next slice or stop: Continue to Edit Shift Times and Post Trade only if the user wants the remaining Schedule sheets redesigned; otherwise stop for visual review of these two authoring sheets.

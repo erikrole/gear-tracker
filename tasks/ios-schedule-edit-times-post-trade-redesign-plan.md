@@ -38,7 +38,7 @@
 - [x] Full `tests/ios-*.test.ts` native source-contract suite.
 - [x] `npm run drift:ios`
 - [x] `npm run audit:ios:gaps`
-- [ ] `npm run ios:project:check` (blocked by pre-existing checked-in XcodeGen project drift).
+- [x] `npm run ios:project:check` (unblocked 2026-08-20: `xcodegen generate` resorted the hand-added `KioskOperatorHubView.swift` entries; the hand-maintained schemes were restored afterward).
 - [x] Wisconsin Simulator and generic iOS device builds.
 - [ ] Runtime inspection of both sheets without mutating production schedule data (blocked at Login after the simulator session reset).
 - [x] `npm run codemap`, `npm run verify:docs`, and `git diff --check`.
@@ -48,6 +48,6 @@
 - Shipped: Event-aware Edit Call Window and one role-aware Post to Trade Board sheet shared by Event detail and the Trade Board.
 - Verified: 25 focused and 252 full native source contracts, iOS drift and gap audits, Simulator compilation, and unsigned generic-device compilation.
 - Deferred: Authenticated visual inspection of the two sheets.
-- Blocked: The simulator launches to Login because its authenticated session was reset. `npm run ios:project:check` still reports pre-existing checked-in XcodeGen drift.
+- Blocked: The simulator launches to Login because its authenticated session was reset. The XcodeGen drift that previously blocked `npm run ios:project:check` was cleared on 2026-08-20; the check now passes.
 - Proof artifacts: Successful Simulator and generic-device Xcode builds; simulator launch screenshot at Login.
 - Next slice or stop: Continue to the remaining secondary Schedule management sheets only if requested.

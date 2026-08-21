@@ -29,8 +29,8 @@ Redesign the native iOS Schedule list, month calendar, and Event detail as one o
 - [x] Generic iOS device build with code signing disabled.
 - [x] Event detail runtime proof in light, dark, and Accessibility Large text.
 - [x] Documentation/codemap verification and whitespace checks.
-- [ ] Complete List and Calendar light/dark/accessibility-size screenshots after the Mac is unlocked. The simulator remained running, but OS lock prevented further tab navigation. Source contracts cover the shared row, calendar markers, Dynamic Type, all-day, multi-day, filter, and Back-state behavior.
+- [x] Complete List and Calendar light/dark/accessibility-size screenshots. Captured 2026-08-20 on iPhone 16 Pro (iOS 26.5) through the `GT_PERFORMANCE_SCENARIO=schedule` fixture harness, which renders both modes without a signed-in session or live network, so the earlier Mac-lock and Login blockers did not apply. Three `WisconsinUITests/ScheduleScreenshotUITests` runs passed in light, dark, and `accessibility-extra-large`. The accessibility run surfaced two real layout defects now recorded in `tasks/audit-schedule-ios.md`; source contracts cover the shared row, calendar markers, Dynamic Type font styles, all-day, multi-day, filter, and Back-state behavior, but not gutter width.
 
 ## Follow-up Boundary
 
-The next product slices remain My Availability and Trade Board, followed by Add Shift, Assign Student, Edit Shift Times, and Post Trade. The checked-in Xcode project also differs from fresh XcodeGen output before this slice; do not regenerate it inside this UI-only change without a separate reviewed project-file pass.
+The next product slices remain My Availability and Trade Board, followed by Add Shift, Assign Student, Edit Shift Times, and Post Trade. The separate reviewed project-file pass this section called for was completed on 2026-08-20: `xcodegen generate` resorted the hand-added `KioskOperatorHubView.swift` entries, the hand-maintained schemes were restored afterward, and `npm run ios:project:check` now passes.

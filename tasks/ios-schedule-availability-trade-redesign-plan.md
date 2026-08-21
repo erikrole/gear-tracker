@@ -38,7 +38,7 @@
 - [x] Full `tests/ios-*.test.ts` native source-contract suite.
 - [x] `npm run drift:ios`
 - [x] `npm run audit:ios:gaps`
-- [ ] `npm run ios:project:check` (blocked by pre-existing checked-in XcodeGen project drift).
+- [x] `npm run ios:project:check` (unblocked 2026-08-20: `xcodegen generate` resorted the hand-added `KioskOperatorHubView.swift` entries; the hand-maintained schemes were restored afterward).
 - [x] Wisconsin Simulator and generic iOS device builds.
 - [ ] Simulator proof in light and dark appearance plus an accessibility text size when runtime access is available (dark Schedule and Trade Board runtime inspected; full matrix deferred).
 - [x] `npm run codemap`, `npm run verify:docs`, and `git diff --check`.
@@ -48,6 +48,6 @@
 - Shipped: Interactive weekly availability editing, selected-day and exception browsing, a Schedule entry point, and a hierarchy/action redesign of Trade Board.
 - Verified: 244 native source-contract tests, focused contracts, iOS drift and gap audits, Simulator build/run, unsigned generic-device build, codemap/docs verification, and diff whitespace.
 - Deferred: Full light, dark, and accessibility-size visual matrix. No live availability or trade mutation was performed during proof.
-- Blocked: `npm run ios:project:check` reports pre-existing drift in `ios/Wisconsin.xcodeproj/project.pbxproj` compared with XcodeGen output.
+- Resolved 2026-08-20: the `ios/Wisconsin.xcodeproj/project.pbxproj` drift against XcodeGen output was regenerated away and `npm run ios:project:check` passes. Only the light/dark/accessibility-size simulator matrix remains.
 - Proof artifacts: XcodeBuildMCP runtime snapshots of the dark Schedule and Trade Board plus successful Simulator and generic-device build output.
 - Next slice or stop: Continue with Add Shift and Assign Student when requested; availability and trade core are ready for user review.
