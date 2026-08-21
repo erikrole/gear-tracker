@@ -114,7 +114,7 @@
 | `src/lib/collaborator-access.ts` | 164 |
 | `src/lib/collaborator-gear.ts` | 151 |
 | `src/lib/companion-projection-contract.ts` | 68 |
-| `src/lib/companion-store.ts` | 292 |
+| `src/lib/companion-store.ts` | 305 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |
@@ -374,6 +374,7 @@
 
 - `/api/companion/devices`
 - `/api/companion/projection`
+- `/api/companion/session`
 
 ### `/api/cron`
 

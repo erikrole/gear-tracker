@@ -207,6 +207,7 @@
 - `/api/collaborator-affiliations` -> `src/app/api/collaborator-affiliations/route.ts`
 - `/api/companion/devices` -> `src/app/api/companion/devices/route.ts`
 - `/api/companion/projection` -> `src/app/api/companion/projection/route.ts`
+- `/api/companion/session` -> `src/app/api/companion/session/route.ts`
 - `/api/cron/audit-archive` -> `src/app/api/cron/audit-archive/route.ts`
 - `/api/cron/live-activities` -> `src/app/api/cron/live-activities/route.ts`
 - `/api/cron/morning-refresh` -> `src/app/api/cron/morning-refresh/route.ts`

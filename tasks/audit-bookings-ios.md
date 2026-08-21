@@ -78,8 +78,8 @@ AREA_RESERVATIONS.md (iOS surface only):
 - [x] AC-3 — OPEN cannot be canceled (UI gates correctly: `BookingDetailView.swift:386-411`).
 - [x] AC-6 — Terminal states immutable: ActionsSection only renders for `.booked / .pendingPickup / .open` (`BookingDetailView.swift:41`).
 - [x] AC-9 — actions menu matches state (`BookingDetailView.swift:380-411`).
-- [ ] AC-10 — list scope/sort: iOS supports active-only + search; sort + extended status scope not implemented (P2 parity).
-- [ ] AC-8 — conflict badges on equipment: iOS shows allocation only (P2 parity).
+- [ ] AC-10 — **Deferred (P2 parity, tracked as GAP-34).** List scope/sort: iOS supports active-only + search; sort + extended status scope not implemented.
+- [ ] AC-8 — **Deferred (P2 parity).** Conflict badges on equipment: iOS shows allocation only.
 
 AREA_CHECKOUTS.md (iOS surface only):
 - [x] AC-3 — state-based actions enforced (matches detail view).
