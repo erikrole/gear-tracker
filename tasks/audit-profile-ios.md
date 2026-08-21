@@ -65,6 +65,16 @@ There is no `AREA_PROFILE.md`. AC inferred from `AREA_MOBILE.md` + `AREA_NOTIFIC
 - [x] AC: user can toggle email + push channels from iOS — **closed by P0 fix.**
 - [x] AC: user is informed when iOS push permission is denied — **closed by P1 fix.**
 
+## 2026-08-20 Real-Device Pass
+
+Account & Security was opened on a physical iPhone 16 Pro running build 27, signed in as an ADMIN account.
+
+- [x] The passkey section renders on device: explanatory copy, current-password field, optional name field, a correctly disabled **Add Passkey** button while the password field is empty, and the enrolled list with per-row delete.
+- [x] Three enrolled passkeys decode and display with added/last-used dates. One shows a same-day `Used Aug 20, 2026`, so passkey sign-in is exercising on real hardware, not only in source.
+
+- [ ] [UX] **An unnamed passkey is stored as the literal string "This device", which stops being true immediately.** `src/lib/passkey.ts:47` falls back to `"This device"` when no name is supplied. The name is captured at enrollment and never revisited, so it describes wherever the user happened to be at the time. On the device pass this was visibly wrong: the entry called *This device* was last used Jul 31 while the entry called *iOS* was used the same day, so the one word claiming to be the current device was the one that was not.
+      Suggested fix: default to something that stays true without being deictic -- the platform plus enrollment date, e.g. `iPhone · Jul 31` -- and leave "This device" to the web badge, which computes it live against the current credential rather than storing it. Names for existing rows should not be rewritten; only the default for new ones.
+
 ## Lenses checked
 - [x] Gaps
 - [x] Flows
